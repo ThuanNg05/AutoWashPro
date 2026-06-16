@@ -30,6 +30,7 @@ export const AdminDashboard = () => {
 
   const [reviewList, setReviewList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMockData, setIsMockData] = useState(false);
   const [activeTab, setActiveTab] = useState('stats'); // 'stats' | 'loyalty' | 'tierReview'
   
   // Realtime counters from localStorage
@@ -91,12 +92,14 @@ export const AdminDashboard = () => {
 
   const fetchDashboardData = async () => {
     setLoading(true);
+    setIsMockData(false);
     try {
       // Fetch data using service endpoints or mock fallback
       let statsRes = null;
       try {
         statsRes = await adminService.getDashboardStats();
       } catch {
+        setIsMockData(true);
         statsRes = {
           revenue7Days: [432000, 216000, 108000, 756000, 540000, 130000, 85000],
           totalRevenue: 2267000,
@@ -114,6 +117,7 @@ export const AdminDashboard = () => {
       try {
         configRes = await adminService.getLoyaltyConfig();
       } catch {
+        setIsMockData(true);
         configRes = {
           pointsPerThousandVND: 1,
           pointExpiryMonths: 12,
@@ -218,6 +222,16 @@ export const AdminDashboard = () => {
 
   return (
     <div className="container-fluid py-4 text-start">
+      {isMockData && (
+        <div className="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-3 mb-4 rounded-4 py-3 text-start">
+          <i className="fas fa-exclamation-triangle fs-4 text-warning"></i>
+          <div>
+            <strong className="text-dark">Chế độ mô phỏng (Demo Mode)</strong>
+            <span className="text-secondary small d-block">Không thể kết nối đến máy chủ API. Hệ thống đang hiển thị dữ liệu mô phỏng ngoại tuyến.</span>
+          </div>
+        </div>
+      )}
+
       {/* Header and navigation tabs */}
       <div className="d-flex justify-content-between align-items-center flex-wrap mb-4 gap-3 border-bottom pb-3">
         <div>
@@ -324,11 +338,13 @@ export const AdminDashboard = () => {
                         <small className="text-cyan fw-bold mb-2" style={{ fontSize: '0.68rem' }}>{val > 0 ? `${Math.round(val / 1000)}k` : '0'}</small>
                         <div
                           className="w-50 rounded-top animate-pulse"
+                          title={`${val.toLocaleString()} đ`}
                           style={{
                             height: `${pct * 1.5}px`,
                             background: 'linear-gradient(180deg, #0ea5e9 0%, rgba(14,165,233,0.2) 100%)',
                             boxShadow: '0 4px 12px rgba(14,165,233,0.1)',
-                            transition: 'height 0.8s ease'
+                            transition: 'height 0.8s ease',
+                            cursor: 'pointer'
                           }}
                         ></div>
                         <small className="text-muted fw-semibold mt-2" style={{ fontSize: '0.72rem' }}>{stats.dayLabels[idx]}</small>
@@ -405,9 +421,16 @@ export const AdminDashboard = () => {
                 <label className="form-label small fw-bold text-muted">NGÀY XẾP HẠNG THÀNH VIÊN</label>
                 <input
                   type="number"
+                  min={1}
+                  max={28}
                   className="form-control bg-light border-0 py-2.5 rounded-3 text-dark fw-bold"
                   value={loyaltyConfig.tierReviewDayOfMonth}
-                  onChange={(e) => setLoyaltyConfig({ ...loyaltyConfig, tierReviewDayOfMonth: Number(e.target.value) })}
+                  onChange={(e) => {
+                    let val = Number(e.target.value);
+                    if (val > 28) val = 28;
+                    if (val < 1) val = 1;
+                    setLoyaltyConfig({ ...loyaltyConfig, tierReviewDayOfMonth: val });
+                  }}
                 />
               </div>
               <div className="col-md-3">

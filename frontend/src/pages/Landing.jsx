@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { customerService } from '../services/customerService';
 import '../styles/shared.css';
 import '../styles/landing.css';
 
 export const Landing = () => {
+  const { user } = useAuth();
+  const [dbServices, setDbServices] = useState([]);
   const [demoState, setDemoState] = useState('idle'); // 'idle' | 'scanning' | 'recognized' | 'washing_snow' | 'washing_dry' | 'completed'
   const [progressWidth, setProgressWidth] = useState('0%');
   const [progressLabel, setProgressLabel] = useState('Chưa bắt đầu');
@@ -15,6 +19,21 @@ export const Landing = () => {
 
   // Newsletter Email input
   const [newsletterEmail, setNewsletterEmail] = useState('');
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await customerService.getServices();
+        if (response && response.success && response.services) {
+          const mains = response.services.filter(s => s.isActive && s.category !== 'Dịch vụ đi kèm');
+          setDbServices(mains);
+        }
+      } catch (err) {
+        console.error('Lỗi khi lấy danh sách dịch vụ cho Landing Page:', err);
+      }
+    };
+    fetchServices();
+  }, []);
 
   const demoTimeouts = useRef([]);
   const demoRunningRef = useRef(false);
@@ -223,17 +242,35 @@ export const Landing = () => {
               </li>
             </ul>
             <div className="d-flex justify-content-center">
-              <Link
-                to="/login"
-                className="hero-cta-btn-primary w-auto px-4 py-2 fw-bold"
-                style={{
-                  fontSize: '0.85rem',
-                  padding: '11px 22px',
-                  borderRadius: '12px',
-                }}
-              >
-                Đăng nhập / Đăng ký <i className="fas fa-sign-in-alt"></i>
-              </Link>
+              {user ? (
+                <Link
+                  to={
+                    user.role === 'admin' ? '/admin/dashboard' :
+                    user.role === 'staff' ? '/admin/queue' : '/customer/dashboard'
+                  }
+                  className="hero-cta-btn-primary w-auto px-4 py-2 fw-bold"
+                  style={{
+                    fontSize: '0.85rem',
+                    padding: '11px 22px',
+                    borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+                  }}
+                >
+                  Bảng điều khiển <i className="fas fa-tachometer-alt ms-1"></i>
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="hero-cta-btn-primary w-auto px-4 py-2 fw-bold"
+                  style={{
+                    fontSize: '0.85rem',
+                    padding: '11px 22px',
+                    borderRadius: '12px',
+                  }}
+                >
+                  Đăng nhập / Đăng ký <i className="fas fa-sign-in-alt"></i>
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -261,9 +298,21 @@ export const Landing = () => {
             </p>
 
             <div className="d-flex flex-wrap gap-3">
-              <Link to="/login" className="hero-cta-btn-primary">
-                Bắt đầu ngay <i className="fas fa-arrow-right"></i>
-              </Link>
+              {user ? (
+                <Link
+                  to={
+                    user.role === 'customer' ? '/customer/booking' :
+                    user.role === 'admin' ? '/admin/dashboard' : '/admin/queue'
+                  }
+                  className="hero-cta-btn-primary"
+                >
+                  Đặt lịch ngay <i className="fas fa-calendar-alt ms-1"></i>
+                </Link>
+              ) : (
+                <Link to="/login" className="hero-cta-btn-primary">
+                  Bắt đầu ngay <i className="fas fa-arrow-right"></i>
+                </Link>
+              )}
               <button
                 onClick={startDemoSimulation}
                 disabled={isDemoRunning && demoState !== 'completed'}
@@ -535,142 +584,190 @@ export const Landing = () => {
           </div>
 
           <div className="row g-4 justify-content-center">
-            {/* Gói 1: Rửa tiêu chuẩn */}
-            <div className="col-md-6 col-lg-3 animate-up">
-              <div className="pricing-card">
-                <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Rửa Tiêu Chuẩn</h4>
-                <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Làm sạch cơ bản vỏ xe bằng bọt tuyết chuyên dụng và hút bụi khoang lái.</p>
-                <div className="pricing-card-price-box">
-                  <span className="pricing-amount">150,000 đ</span>
-                  <span className="pricing-period">/ lượt</span>
+            {dbServices.length > 0 ? (
+              dbServices.slice(0, 4).map((s, idx) => {
+                const isPopular = idx === 1; // Mark the second service as popular for premium UI flow
+                const features = s.desc ? s.desc.split(/[,.;\n]/).map(f => f.trim()).filter(Boolean) : [];
+                return (
+                  <div key={s.id} className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: `${idx * 0.1}s` }}>
+                    <div className={`pricing-card ${isPopular ? 'popular-card' : ''}`}>
+                      {isPopular && <div className="popular-badge">PHỔ BIẾN NHẤT</div>}
+                      <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>{s.name}</h4>
+                      <p className="pricing-card-desc" style={{ minHeight: '54px' }}>{s.desc || 'Dịch vụ chăm sóc xe chất lượng cao từ AutoWash Pro.'}</p>
+                      <div className="pricing-card-price-box">
+                        <span className="pricing-amount">{Number(s.price).toLocaleString()} đ</span>
+                        <span className="pricing-period">/ lượt</span>
+                      </div>
+                      <div className="pricing-features-list">
+                        {features.slice(0, 5).map((feat, fIdx) => (
+                          <div key={fIdx} className="pricing-feature-item">
+                            <i className="fas fa-circle-check"></i>
+                            <span>{feat}</span>
+                          </div>
+                        ))}
+                        {features.length === 0 && (
+                          <>
+                            <div className="pricing-feature-item">
+                              <i className="fas fa-circle-check"></i>
+                              <span>Thời gian ước tính: {s.estimatedMinutes} phút</span>
+                            </div>
+                            <div className="pricing-feature-item">
+                              <i className="fas fa-circle-check"></i>
+                              <span>Nhận diện cổng vào LPR nhanh</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <Link
+                        to={user && user.role === 'customer' ? '/customer/booking' : '/login'}
+                        className={`pricing-cta-btn ${isPopular ? 'pricing-cta-btn-solid' : 'pricing-cta-btn-outline'}`}
+                      >
+                        Đặt lịch ngay
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <>
+                {/* Gói 1: Rửa tiêu chuẩn */}
+                <div className="col-md-6 col-lg-3 animate-up">
+                  <div className="pricing-card">
+                    <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Rửa Tiêu Chuẩn</h4>
+                    <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Làm sạch cơ bản vỏ xe bằng bọt tuyết chuyên dụng và hút bụi khoang lái.</p>
+                    <div className="pricing-card-price-box">
+                      <span className="pricing-amount">150,000 đ</span>
+                      <span className="pricing-period">/ lượt</span>
+                    </div>
+                    <div className="pricing-features-list">
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Rửa bọt tuyết vỏ ngoài</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Hút bụi thảm chân cabin</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Lau sạch bề mặt kính lái</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Quét bóng dưỡng đen lốp xe</span>
+                      </div>
+                    </div>
+                    <Link to="/login" className="pricing-cta-btn pricing-cta-btn-outline">
+                      Đặt lịch ngay
+                    </Link>
+                  </div>
                 </div>
-                <div className="pricing-features-list">
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Rửa bọt tuyết vỏ ngoài</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Hút bụi thảm chân cabin</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Lau sạch bề mặt kính lái</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Quét bóng dưỡng đen lốp xe</span>
-                  </div>
-                </div>
-                <Link to="/login" className="pricing-cta-btn pricing-cta-btn-outline">
-                  Đặt lịch ngay
-                </Link>
-              </div>
-            </div>
 
-            {/* Gói 2: Chăm sóc nâng cao (BEST SELLER) */}
-            <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.1s' }}>
-              <div className="pricing-card popular-card">
-                <div className="popular-badge">PHỔ BIẾN NHẤT</div>
-                <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Chăm Sóc Nâng Cao</h4>
-                <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Làm sạch sâu các chi tiết khe kẽ bản lề và vệ sinh gầm xe chống gỉ sét.</p>
-                <div className="pricing-card-price-box">
-                  <span className="pricing-amount">350,000 đ</span>
-                  <span className="pricing-period">/ lượt</span>
+                {/* Gói 2: Chăm sóc nâng cao (BEST SELLER) */}
+                <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.1s' }}>
+                  <div className="pricing-card popular-card">
+                    <div className="popular-badge">PHỔ BIẾN NHẤT</div>
+                    <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Chăm Sóc Nâng Cao</h4>
+                    <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Làm sạch sâu các chi tiết khe kẽ bản lề và vệ sinh gầm xe chống gỉ sét.</p>
+                    <div className="pricing-card-price-box">
+                      <span className="pricing-amount">350,000 đ</span>
+                      <span className="pricing-period">/ lượt</span>
+                    </div>
+                    <div className="pricing-features-list">
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Rửa bọt tuyết + tẩy nhựa đường</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Xịt rửa gầm xe áp lực cao</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Vệ sinh các khe bản lề cửa xe</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Khử mùi nội thất chuyên dụng</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Tích điểm thăng hạng nhân x1.2</span>
+                      </div>
+                    </div>
+                    <Link to="/login" className="pricing-cta-btn pricing-cta-btn-solid">
+                      Đặt lịch ngay
+                    </Link>
+                  </div>
                 </div>
-                <div className="pricing-features-list">
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Rửa bọt tuyết + tẩy nhựa đường</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Xịt rửa gầm xe áp lực cao</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Vệ sinh các khe bản lề cửa xe</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Khử mùi nội thất chuyên dụng</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Tích điểm thăng hạng nhân x1.2</span>
-                  </div>
-                </div>
-                <Link to="/login" className="pricing-cta-btn pricing-cta-btn-solid">
-                  Đặt lịch ngay
-                </Link>
-              </div>
-            </div>
 
-            {/* Gói 3: Vệ sinh nội thất */}
-            <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.2s' }}>
-              <div className="pricing-card">
-                <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Vệ Sinh Nội Thất</h4>
-                <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Giặt sâu ghế ngồi và làm sạch khoang nội thất bằng công nghệ hơi nước nóng.</p>
-                <div className="pricing-card-price-box">
-                  <span className="pricing-amount">600,000 đ</span>
-                  <span className="pricing-period">/ lượt</span>
+                {/* Gói 3: Vệ sinh nội thất */}
+                <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.2s' }}>
+                  <div className="pricing-card">
+                    <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Vệ Sinh Nội Thất</h4>
+                    <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Giặt sâu ghế ngồi và làm sạch khoang nội thất bằng công nghệ hơi nước nóng.</p>
+                    <div className="pricing-card-price-box">
+                      <span className="pricing-amount">600,000 đ</span>
+                      <span className="pricing-period">/ lượt</span>
+                    </div>
+                    <div className="pricing-features-list">
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Giặt ghế da hoặc ghế nỉ chuyên sâu</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Dưỡng bóng nhựa taplo & tapi cửa</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Hút bụi sâu toàn bộ trần sàn nỉ</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Khử trùng hơi nước nóng diệt khuẩn</span>
+                      </div>
+                    </div>
+                    <Link to="/login" className="pricing-cta-btn pricing-cta-btn-outline">
+                      Đặt lịch ngay
+                    </Link>
+                  </div>
                 </div>
-                <div className="pricing-features-list">
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Giặt ghế da hoặc ghế nỉ chuyên sâu</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Dưỡng bóng nhựa taplo & tapi cửa</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Hút bụi sâu toàn bộ trần sàn nỉ</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Khử trùng hơi nước nóng diệt khuẩn</span>
-                  </div>
-                </div>
-                <Link to="/login" className="pricing-cta-btn pricing-cta-btn-outline">
-                  Đặt lịch ngay
-                </Link>
-              </div>
-            </div>
 
-            {/* Gói 4: Phủ Ceramic */}
-            <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.3s' }}>
-              <div className="pricing-card">
-                <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Phủ Ceramic</h4>
-                <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Hiệu chỉnh bề mặt sơn xước dăm và phủ tinh thể ceramic bảo vệ tối đa lớp bóng sơn.</p>
-                <div className="pricing-card-price-box">
-                  <span className="pricing-amount">1,500,000 đ</span>
-                  <span className="pricing-period">/ lượt</span>
+                {/* Gói 4: Phủ Ceramic */}
+                <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.3s' }}>
+                  <div className="pricing-card">
+                    <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Phủ Ceramic</h4>
+                    <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Hiệu chỉnh bề mặt sơn xước dăm và phủ tinh thể ceramic bảo vệ tối đa lớp bóng sơn.</p>
+                    <div className="pricing-card-price-box">
+                      <span className="pricing-amount">1,500,000 đ</span>
+                      <span className="pricing-period">/ lượt</span>
+                    </div>
+                    <div className="pricing-features-list">
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Đánh bóng phục hồi sơn xe 3 bước</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Phủ Nano Ceramic kháng nước hiệu quả</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Tăng cường độ sâu bóng lớp sơn xe</span>
+                      </div>
+                      <div className="pricing-feature-item">
+                        <i className="fas fa-circle-check"></i>
+                        <span>Bảo hành lớp sơn phủ trong 12 tháng</span>
+                      </div>
+                    </div>
+                    <Link to="/login" className="pricing-cta-btn pricing-cta-btn-outline">
+                      Đặt lịch ngay
+                    </Link>
+                  </div>
                 </div>
-                <div className="pricing-features-list">
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Đánh bóng phục hồi sơn xe 3 bước</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Phủ Nano Ceramic kháng nước hiệu quả</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Tăng cường độ sâu bóng lớp sơn xe</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Bảo hành lớp sơn phủ trong 12 tháng</span>
-                  </div>
-                </div>
-                <Link to="/login" className="pricing-cta-btn pricing-cta-btn-outline">
-                  Đặt lịch ngay
-                </Link>
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -847,7 +944,7 @@ export const Landing = () => {
                 <div className="benefit-check">
                   <i className="fas fa-check"></i>
                 </div>
-                <span className="benefit-text">Tích điểm nâng hạng thăng chức thành viên</span>
+                <span className="benefit-text">Tích điểm thăng hạng thành viên VIP</span>
               </div>
             </div>
             <div className="col-md-6 col-lg-4 animate-up" style={{ animationDelay: '0.2s' }}>

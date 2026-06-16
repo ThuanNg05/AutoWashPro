@@ -7,11 +7,35 @@ const AdminPromotions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Edit states
+  const [modalMode, setModalMode] = useState('add'); // 'add' | 'edit'
+  const [editingId, setEditingId] = useState(null);
+
   // Form states
   const [promoName, setPromoName] = useState('');
   const [promoTarget, setPromoTarget] = useState('All Customers');
   const [promoMax, setPromoMax] = useState(500);
   const [promoDesc, setPromoDesc] = useState('');
+
+  const openAddPromoModal = () => {
+    setModalMode('add');
+    setEditingId(null);
+    setPromoName('');
+    setPromoTarget('All Customers');
+    setPromoMax(500);
+    setPromoDesc('');
+    setShowModal(true);
+  };
+
+  const openEditPromoModal = (c) => {
+    setModalMode('edit');
+    setEditingId(c.id);
+    setPromoName(c.name || '');
+    setPromoTarget(c.target || 'All Customers');
+    setPromoMax(c.maxRedemptions || 500);
+    setPromoDesc(c.description || '');
+    setShowModal(true);
+  };
 
   useEffect(() => {
     loadCampaigns();
@@ -40,16 +64,29 @@ const AdminPromotions = () => {
     }
 
     try {
-      const newPromo = {
+      const promoData = {
         name: promoName.trim(),
         description: promoDesc.trim() || 'Ưu đãi đặc biệt từ hệ thống AutoWash Pro.',
         target: promoTarget,
         maxRedemptions: Number(promoMax) || 500
       };
 
-      const response = await adminService.createPromotion(newPromo);
+      let response;
+      if (modalMode === 'edit') {
+        response = await adminService.updatePromotion(editingId, promoData);
+      } else {
+        response = await adminService.createPromotion(promoData);
+      }
+
       if (response.success) {
-        if (window.showToast) window.showToast('Phát hành chiến dịch khuyến mãi mới thành công!', 'success');
+        if (window.showToast) {
+          window.showToast(
+            modalMode === 'edit'
+              ? 'Cập nhật chiến dịch khuyến mãi thành công!'
+              : 'Phát hành chiến dịch khuyến mãi mới thành công!',
+            'success'
+          );
+        }
         
         // Reset Form & Close Modal
         setPromoName('');
@@ -61,11 +98,11 @@ const AdminPromotions = () => {
         // Reload promotions
         loadCampaigns();
       } else {
-        if (window.showToast) window.showToast(response.message || 'Lỗi khi tạo chiến dịch!', 'error');
+        if (window.showToast) window.showToast(response.message || 'Lỗi khi lưu chiến dịch!', 'error');
       }
     } catch (err) {
       console.error('Failed to launch campaign:', err);
-      if (window.showToast) window.showToast('Lỗi kết nối khi phát hành chiến dịch!', 'error');
+      if (window.showToast) window.showToast('Lỗi kết nối khi lưu chiến dịch!', 'error');
     }
   };
 
@@ -120,7 +157,7 @@ const AdminPromotions = () => {
         <button
           className="app-btn-primary w-auto px-4 shadow-none"
           style={{ fontSize: '0.8rem', borderRadius: '12px' }}
-          onClick={() => setShowModal(true)}
+          onClick={openAddPromoModal}
         >
           <i className="fas fa-plus me-2"></i> NEW CAMPAIGN
         </button>
@@ -189,6 +226,11 @@ const AdminPromotions = () => {
                           </li>
                         )}
                         <li>
+                          <button className="dropdown-item fw-medium small border-0 bg-transparent text-start" onClick={() => openEditPromoModal(c)}>
+                            <i className="fas fa-edit me-2 text-info"></i> Sửa thông tin
+                          </button>
+                        </li>
+                        <li>
                           <button className="dropdown-item fw-medium text-danger small border-0 bg-transparent text-start" onClick={() => deleteCampaign(c.id)}>
                             <i className="fas fa-trash-alt me-2"></i> Xoá bỏ
                           </button>
@@ -235,7 +277,9 @@ const AdminPromotions = () => {
             <div className="modal-dialog modal-lg modal-dialog-centered">
               <div className="modal-content border-0 overflow-hidden" style={{ borderRadius: '24px' }}>
                 <div className="modal-header text-white border-0 px-4 pt-4" style={{ background: 'var(--navy-dark)' }}>
-                  <h6 className="fw-bold mb-0" style={{ color: 'var(--cyan-electric)' }}>CREATE NEW CAMPAIGN</h6>
+                  <h6 className="fw-bold mb-0" style={{ color: 'var(--cyan-electric)' }}>
+                    {modalMode === 'edit' ? 'CẬP NHẬT CHIẾN DỊCH KHUYẾN MÃI' : 'CREATE NEW CAMPAIGN'}
+                  </h6>
                   <button type="button" className="btn-close btn-close-white" onClick={() => setShowModal(false)}></button>
                 </div>
                 <form onSubmit={launchCampaign}>
@@ -290,7 +334,7 @@ const AdminPromotions = () => {
                   </div>
                   <div className="p-4 pt-0">
                     <button type="submit" className="app-btn-primary shadow-none py-3 border-0">
-                      LAUNCH CAMPAIGN
+                      {modalMode === 'edit' ? 'CẬP NHẬT CHIẾN DỊCH' : 'LAUNCH CAMPAIGN'}
                     </button>
                     <button
                       type="button"
