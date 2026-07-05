@@ -486,7 +486,7 @@ export const AdminQueue = () => {
 
   // Filtered sections
   const filteredWaiting = useMemo(() => {
-    if (statusFilter === "ALL" || statusFilter === "WAITING_CHECKIN")
+    if (statusFilter === "WAITING_CHECKIN")
       return waitingItems;
     return [];
   }, [waitingItems, statusFilter]);
