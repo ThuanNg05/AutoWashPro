@@ -342,11 +342,20 @@ export const CustomerBooking = () => {
   const baseTotal = mainPrice;
 
   // Voucher discount
+<<<<<<< Updated upstream
   const promoDiscountAmount = appliedVoucher && baseTotal > 0
     ? (appliedVoucher.rewardType === 'DiscountPercent' 
         ? baseTotal * (Number(appliedVoucher.rewardValue) / 100) 
         : Number(appliedVoucher.rewardValue))
     : 0;
+=======
+  const promoDiscountAmount =
+    appliedVoucher && baseTotal > 0
+      ? (appliedVoucher.rewardType === "DiscountPercent" || appliedVoucher.rewardType === "UpgradeReward")
+        ? baseTotal * (Number(appliedVoucher.rewardValue) / 100)
+        : Number(appliedVoucher.rewardValue)
+      : 0;
+>>>>>>> Stashed changes
 
   const finalTotal = Math.max(0, baseTotal - promoDiscountAmount);
 
@@ -757,7 +766,14 @@ export const CustomerBooking = () => {
             </div>
           ) : (
             myVouchers.map((v, i) => {
+<<<<<<< Updated upstream
               let badgeText = v.rewardType === 'DiscountPercent' ? `Giảm ${v.rewardValue}%` : `Giảm ₫${Number(v.rewardValue).toLocaleString()}`;
+=======
+              let badgeText =
+                (v.rewardType === "DiscountPercent" || v.rewardType === "UpgradeReward")
+                  ? `Giảm ${v.rewardValue}%`
+                  : `Giảm ₫${Number(v.rewardValue).toLocaleString()}`;
+>>>>>>> Stashed changes
               return (
                 <div
                   key={i}

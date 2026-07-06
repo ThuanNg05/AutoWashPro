@@ -13,12 +13,14 @@ namespace Auto_Wash.Services
     public class AdminQueueService
     {
         private readonly AutoWashDbContext _context;
+        private readonly LoyaltyTierService _loyaltyTierService;
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, DateTime> _lastAdvanceTimes = new();
         private static readonly System.Threading.SemaphoreSlim _positionSemaphore = new(1, 1);
 
-        public AdminQueueService(AutoWashDbContext context)
+        public AdminQueueService(AutoWashDbContext context, LoyaltyTierService loyaltyTierService)
         {
             _context = context;
+            _loyaltyTierService = loyaltyTierService;
         }
 
         public async Task<GroupedQueueList> GetTodayQueueAsync()
@@ -592,7 +594,7 @@ namespace Auto_Wash.Services
                 // Use the same DB-backed check here so points are credited exactly once regardless
                 // of which path completes the booking first.
                 var alreadyAwarded = await _context.LoyaltyTransactions
-                    .AnyAsync(lt => lt.BookingId == q.BookingId && lt.TransactionType == "EARN");
+                    .AnyAsync(lt => lt.BookingId == q.BookingId && lt.TransactionType == LoyaltyTransactionType.Earn);
 
                 if (!alreadyAwarded)
                 {
@@ -613,12 +615,15 @@ namespace Auto_Wash.Services
                     // multiplier in effect right now, and that multiplier + tier are
                     // snapshotted onto the booking for historical accuracy (doc §3, §7, §10).
                     decimal multiplier = 1.0m;
+                    int pointsPerThousand = 1;
                     if (customer != null)
                     {
                         var tier = await _context.Tiers.FindAsync(customer.TierId);
                         multiplier = tier?.PointMultiplier ?? 1.0m;
+                        var loyaltyConfig = await _context.LoyaltyConfigs.FirstOrDefaultAsync();
+                        pointsPerThousand = loyaltyConfig?.PointsPerThousandVND ?? 1;
                     }
-                    pointsEarned = LoyaltyPointsHelper.ComputeEarnedPoints(q.Booking.FinalPrice, multiplier);
+                    pointsEarned = LoyaltyPointsHelper.ComputeEarnedPoints(q.Booking.FinalPrice, pointsPerThousand, multiplier);
                     q.Booking.PointsEarned = pointsEarned;
                     q.Booking.TierIdSnapshot = customer?.TierId;
                     q.Booking.PointMultiplierSnapshot = multiplier;
@@ -637,7 +642,7 @@ namespace Auto_Wash.Services
                     {
                         CustomerId = q.Booking.CustomerId,
                         Points = pointsEarned,
-                        TransactionType = "EARN",
+                        TransactionType = LoyaltyTransactionType.Earn,
                         BookingId = q.BookingId,
                         Amount = q.Booking.FinalPrice,
                         Note = $"Tích điểm dịch vụ rửa xe {q.LicensePlate}",
@@ -670,11 +675,11 @@ namespace Auto_Wash.Services
             await _context.SaveChangesAsync();
 
             // Real-time UPGRADE check now that this completed booking counts toward
-            // the 6-month ranking window (doc §4). Downgrades are handled only by the
-            // monthly maintenance job, never here.
+            // the current review period (doc §4). Downgrades are handled only by the
+            // scheduled semi-annual retention review, never here.
             if (q.Booking?.Customer != null)
             {
-                await TierHelper.EvaluateUpgradeAsync(_context, q.Booking.Customer, now);
+                await _loyaltyTierService.EvaluateUpgradeAsync(q.Booking.Customer, now);
                 await _context.SaveChangesAsync();
             }
 

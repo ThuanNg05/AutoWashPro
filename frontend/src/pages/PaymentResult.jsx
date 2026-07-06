@@ -114,8 +114,8 @@ const STATUS_PENDING = 1;
 const STATUS_PAID = 2;
 const STATUS_FAILED = 3;
 
-const MAX_RETRIES = 8;
-const RETRY_INTERVAL = 2000;
+const MAX_RETRIES = 12;
+const RETRY_INTERVAL = 3000;
 const REDIRECT_DELAY = 2500;
 
 export const PaymentResult = () => {

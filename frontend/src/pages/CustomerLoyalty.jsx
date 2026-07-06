@@ -532,13 +532,13 @@ export const CustomerLoyalty = () => {
                 {claimedVouchers.map((v, i) => {
                   const isUsed = v.status === 2;
                   let leftVal =
-                    v.rewardType === "DiscountPercent"
+                    (v.rewardType === "DiscountPercent" || v.rewardType === "UpgradeReward")
                       ? `${v.rewardValue}%`
                       : v.rewardType === "FreeWash"
                         ? "FREE"
                         : "PLUS";
                   let leftLabel =
-                    v.rewardType === "DiscountPercent"
+                    (v.rewardType === "DiscountPercent" || v.rewardType === "UpgradeReward")
                       ? "GIẢM GIÁ"
                       : v.rewardType === "FreeWash"
                         ? "RỬA XE"

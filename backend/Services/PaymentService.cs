@@ -18,17 +18,20 @@ namespace Auto_Wash.Services
         private readonly AutoWashDbContext _context;
         private readonly PayOSClient _payOSClient;
         private readonly PayOSSettings _payOSSettings;
+        private readonly LoyaltyTierService _loyaltyTierService;
         private readonly ILogger<PaymentService> _logger;
 
         public PaymentService(
             AutoWashDbContext context,
             PayOSClient payOSClient,
             IOptions<PayOSSettings> payOSSettings,
+            LoyaltyTierService loyaltyTierService,
             ILogger<PaymentService> logger)
         {
             _context = context;
             _payOSClient = payOSClient;
             _payOSSettings = payOSSettings.Value;
+            _loyaltyTierService = loyaltyTierService;
             _logger = logger;
         }
 
@@ -206,7 +209,7 @@ namespace Auto_Wash.Services
                                 if (customer != null)
                                 {
                                     var loyaltyAlreadyAwarded = await _context.LoyaltyTransactions
-                                        .AnyAsync(lt => lt.BookingId == booking.BookingId && lt.TransactionType == "EARN");
+                                        .AnyAsync(lt => lt.BookingId == booking.BookingId && lt.TransactionType == LoyaltyTransactionType.Earn);
 
                                     if (!loyaltyAlreadyAwarded)
                                     {
@@ -216,13 +219,14 @@ namespace Auto_Wash.Services
                                         var tier = await _context.Tiers.FirstOrDefaultAsync(t => t.TierId == customer.TierId);
                                         decimal tierMultiplier = tier?.PointMultiplier ?? 1.0m;
 
-                                        int basePoints = (payment.Amount / 1000) * pointsPerThousand;
-                                        int pointsEarned = (int)Math.Floor(basePoints * tierMultiplier);
+                                        int pointsEarned = LoyaltyPointsHelper.ComputeEarnedPoints(booking.FinalPrice, pointsPerThousand, tierMultiplier);
 
                                         booking.PointsEarned = pointsEarned;
+                                        booking.TierIdSnapshot = customer.TierId;
+                                        booking.PointMultiplierSnapshot = tierMultiplier;
                                         customer.TotalVisits += 1;
-                                        customer.TotalSpend += payment.Amount;
-                                        customer.RankingBalance += payment.Amount;
+                                        customer.TotalSpend += booking.FinalPrice;
+                                        customer.RankingBalance += booking.FinalPrice;
                                         customer.PointBalance += pointsEarned;
                                         customer.LifetimePoints += pointsEarned;
                                         customer.LastVisitAt = DateTime.Now;
@@ -231,7 +235,7 @@ namespace Auto_Wash.Services
                                         {
                                             CustomerId = customer.CustomerId,
                                             Points = pointsEarned,
-                                            TransactionType = "EARN",
+                                            TransactionType = LoyaltyTransactionType.Earn,
                                             BookingId = booking.BookingId,
                                             Note = $"Tích điểm thanh toán trực tuyến PayOS: #{booking.BookingId}",
                                             CreatedAt = DateTime.Now
@@ -256,6 +260,21 @@ namespace Auto_Wash.Services
                         }
 
                         await _context.SaveChangesAsync();
+<<<<<<< Updated upstream
+=======
+
+                        // Real-time tier UPGRADE now that this paid booking counts as
+                        // Completed in the current review period (doc §4). Mirrors the
+                        // manual checkout path in AdminQueueService; downgrades are left
+                        // to the scheduled semi-annual retention review. Runs after
+                        // SaveChanges so the booking is visible to the spend query.
+                        if (status == (int)PaymentStatus.Paid && payment.Booking?.Customer != null)
+                        {
+                            await _loyaltyTierService.EvaluateUpgradeAsync(payment.Booking.Customer, DateTime.Now);
+                            await _context.SaveChangesAsync();
+                        }
+
+>>>>>>> Stashed changes
                         await transaction.CommitAsync();
 
                         _logger.LogInformation("UpdatePaymentStatusAsync: Transaction committed successfully for TxnRef {TxnRef}.", txnRef);
@@ -287,6 +306,255 @@ namespace Auto_Wash.Services
             return payment == null ? null : MapToDto(payment);
         }
 
+<<<<<<< Updated upstream
+=======
+        public async Task<PaymentReconcileResult> ReconcilePaymentAsync(int bookingId)
+        {
+            var payment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.BookingId == bookingId);
+
+            if (payment == null)
+            {
+                return new PaymentReconcileResult { Payment = null, JustConfirmed = false };
+            }
+
+            // Already resolved (Paid/Failed): nothing to reconcile.
+            if (payment.Status != (int)PaymentStatus.Pending)
+            {
+                return new PaymentReconcileResult { Payment = MapToDto(payment), JustConfirmed = false };
+            }
+
+            if (!long.TryParse(payment.TxnRef, out var orderCode))
+            {
+                _logger.LogWarning("ReconcilePaymentAsync: Payment {PaymentId} has invalid TxnRef '{TxnRef}'. Cannot query PayOS.", payment.PaymentId, payment.TxnRef);
+                return new PaymentReconcileResult { Payment = MapToDto(payment), JustConfirmed = false };
+            }
+
+            // Ask PayOS for the authoritative status. The browser-return / polling
+            // path always reaches this local backend, so this works without the
+            // async webhook being publicly reachable.
+            PaymentLink link;
+            try
+            {
+                link = await _payOSClient.PaymentRequests.GetAsync(orderCode);
+            }
+            catch (Exception ex)
+            {
+                // Network/gateway error must not break the client's polling loop.
+                _logger.LogWarning(ex, "ReconcilePaymentAsync: Failed to query PayOS for OrderCode {OrderCode}. Leaving payment Pending.", orderCode);
+                return new PaymentReconcileResult { Payment = MapToDto(payment), JustConfirmed = false };
+            }
+
+            switch (link.Status)
+            {
+                case PaymentLinkStatus.Paid:
+                    // Defensive amount check, mirroring the webhook handler.
+                    if (link.AmountPaid < payment.Amount)
+                    {
+                        _logger.LogWarning("ReconcilePaymentAsync: OrderCode {OrderCode} reported Paid but AmountPaid {Paid} < expected {Expected}. Skipping.", orderCode, link.AmountPaid, payment.Amount);
+                        return new PaymentReconcileResult { Payment = MapToDto(payment), JustConfirmed = false };
+                    }
+
+                    // Fresh DB read (bypasses EF change tracker) to detect whether
+                    // a concurrent webhook already transitioned the payment to Paid.
+                    // Without this, EF identity resolution returns the stale tracked
+                    // entity loaded at the top of this method, and the idempotency
+                    // guard inside UpdatePaymentStatusAsync is bypassed — leading to
+                    // a duplicate LoyaltyTransaction INSERT that violates the
+                    // uq_loyaltytransactions_bookingid_earn unique index.
+                    var freshPayment = await _context.Payments
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(p => p.PaymentId == payment.PaymentId);
+                    if (freshPayment != null && freshPayment.Status == (int)PaymentStatus.Paid)
+                    {
+                        _logger.LogInformation("ReconcilePaymentAsync: Payment {PaymentId} already confirmed by concurrent webhook. Skipping update.", payment.PaymentId);
+                        return new PaymentReconcileResult { Payment = MapToDto(freshPayment), JustConfirmed = false };
+                    }
+
+                    // Attempt the transition. If a concurrent webhook committed
+                    // between our fresh read and this call, the DB unique index
+                    // on LoyaltyTransaction(Earn, BookingId) will reject the
+                    // duplicate INSERT. Catch that gracefully instead of letting
+                    // it propagate as HTTP 500 to the frontend polling loop.
+                    try
+                    {
+                        var reference = link.Transactions?.FirstOrDefault()?.Reference;
+                        var paidDto = await UpdatePaymentStatusAsync(payment.TxnRef!, (int)PaymentStatus.Paid, reference, "00");
+                        _logger.LogInformation("ReconcilePaymentAsync: OrderCode {OrderCode} confirmed Paid via reconciliation.", orderCode);
+                        return new PaymentReconcileResult { Payment = paidDto, JustConfirmed = true };
+                    }
+                    catch (Exception ex)
+                    {
+                        // Race lost: the webhook committed between our fresh read
+                        // and the UpdatePaymentStatusAsync call. Re-read the
+                        // authoritative state and return it without JustConfirmed
+                        // so the controller does not send a duplicate email.
+                        _logger.LogWarning(ex, "ReconcilePaymentAsync: UpdatePaymentStatusAsync failed for OrderCode {OrderCode} (likely concurrent webhook). Returning current DB state.", orderCode);
+                        var fallback = await _context.Payments
+                            .AsNoTracking()
+                            .FirstOrDefaultAsync(p => p.PaymentId == payment.PaymentId);
+                        return new PaymentReconcileResult
+                        {
+                            Payment = fallback != null ? MapToDto(fallback) : null,
+                            JustConfirmed = false
+                        };
+                    }
+
+                case PaymentLinkStatus.Cancelled:
+                case PaymentLinkStatus.Expired:
+                case PaymentLinkStatus.Failed:
+                    var failedDto = await UpdatePaymentStatusAsync(payment.TxnRef!, (int)PaymentStatus.Failed, null, link.Status.ToString());
+                    _logger.LogInformation("ReconcilePaymentAsync: OrderCode {OrderCode} marked Failed (PayOS status {Status}).", orderCode, link.Status);
+                    return new PaymentReconcileResult { Payment = failedDto, JustConfirmed = false };
+
+                default:
+                    // Pending / Processing / Underpaid — still in flight, leave as-is.
+                    return new PaymentReconcileResult { Payment = MapToDto(payment), JustConfirmed = false };
+            }
+        }
+
+        public async Task<List<TransactionHistoryDto>> GetCustomerTransactionsAsync(int customerId)
+        {
+            var payments = await _context.Payments
+                .Include(p => p.Booking)
+                    .ThenInclude(b => b.Vehicle)
+                .Where(p => p.Booking.CustomerId == customerId)
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            return payments.Select(p => MapToHistoryDto(p, includeCustomer: false)).ToList();
+        }
+
+        public async Task<List<TransactionHistoryDto>> GetAllTransactionsAsync(int? status, int? method, DateTime? fromDate, DateTime? toDate)
+        {
+            var query = _context.Payments
+                .Include(p => p.Booking)
+                    .ThenInclude(b => b.Vehicle)
+                .Include(p => p.Booking)
+                    .ThenInclude(b => b.Customer)
+                        .ThenInclude(c => c.Account)
+                .AsQueryable();
+
+            if (status.HasValue) query = query.Where(p => p.Status == status.Value);
+            if (method.HasValue) query = query.Where(p => p.PaymentMethod == method.Value);
+            if (fromDate.HasValue) query = query.Where(p => p.CreatedAt >= fromDate.Value);
+            if (toDate.HasValue)
+            {
+                // inclusive of the whole end day
+                var end = toDate.Value.Date.AddDays(1);
+                query = query.Where(p => p.CreatedAt < end);
+            }
+
+            var payments = await query
+                .OrderByDescending(p => p.CreatedAt)
+                .ToListAsync();
+
+            return payments.Select(p => MapToHistoryDto(p, includeCustomer: true)).ToList();
+        }
+
+        public async Task<RevenueStatsDto> GetRevenueStatsAsync(DateTime? fromDate, DateTime? toDate)
+        {
+            // Net revenue is defined over money actually collected: Paid payments
+            // only, bucketed by PaidAt (issue #51). Free bookings count as 0 net
+            // but still surface through FreeCount / TotalDiscount.
+            var query = _context.Payments
+                .Where(p => p.Status == (int)PaymentStatus.Paid && p.PaidAt != null);
+
+            if (fromDate.HasValue) query = query.Where(p => p.PaidAt >= fromDate.Value);
+            if (toDate.HasValue)
+            {
+                // inclusive of the whole end day
+                var end = toDate.Value.Date.AddDays(1);
+                query = query.Where(p => p.PaidAt < end);
+            }
+
+            var rows = await query
+                .Select(p => new
+                {
+                    p.Amount,
+                    p.PaymentMethod,
+                    p.Booking.BasePrice,
+                    p.Booking.TierDiscount,
+                    p.Booking.PromoDiscount,
+                    p.Booking.PointsDiscount
+                })
+                .ToListAsync();
+
+            var stats = new RevenueStatsDto
+            {
+                GrossRevenue = rows.Sum(r => (long)r.BasePrice),
+                NetRevenue = rows.Sum(r => (long)r.Amount),
+                VoucherDiscount = rows.Sum(r => (long)r.PromoDiscount),
+                TierDiscount = rows.Sum(r => (long)r.TierDiscount),
+                PointsDiscount = rows.Sum(r => (long)r.PointsDiscount),
+                PaidCount = rows.Count,
+                FreeCount = rows.Count(r => r.Amount <= 0),
+                DiscountedCount = rows.Count(r => r.Amount > 0 && r.Amount < r.BasePrice),
+                CashRevenue = rows.Where(r => r.PaymentMethod == (int)PaymentMethod.Cash).Sum(r => (long)r.Amount),
+                OnlineRevenue = rows.Where(r => r.PaymentMethod == (int)PaymentMethod.VNPay || r.PaymentMethod == (int)PaymentMethod.PayOS).Sum(r => (long)r.Amount)
+            };
+
+            // Gross − Net also captures rounding/legacy rows the per-type columns miss.
+            stats.TotalDiscount = Math.Max(0, stats.GrossRevenue - stats.NetRevenue);
+
+            return stats;
+        }
+
+        private static TransactionHistoryDto MapToHistoryDto(Payment p, bool includeCustomer)
+        {
+            var booking = p.Booking;
+            // Deduction context (issue #51): BasePrice is the pre-discount price;
+            // for legacy rows without booking context, fall back to the amount so
+            // Discount stays 0 instead of going negative.
+            int basePrice = booking?.BasePrice ?? p.Amount;
+
+            var dto = new TransactionHistoryDto
+            {
+                PaymentId = p.PaymentId,
+                BookingId = p.BookingId,
+                Amount = p.Amount,
+                BasePrice = basePrice,
+                Discount = Math.Max(0, basePrice - p.Amount),
+                PaymentMethod = p.PaymentMethod,
+                PaymentMethodName = GetMethodName(p.PaymentMethod),
+                Status = p.Status,
+                StatusName = GetStatusName(p.Status),
+                TxnRef = p.TxnRef,
+                TransactionNo = p.TransactionNo,
+                CreatedAt = p.CreatedAt,
+                PaidAt = p.PaidAt,
+                InvoiceNumber = $"INV-{p.BookingId}-{p.PaymentId}",
+                LicensePlate = booking?.Vehicle?.LicensePlate
+            };
+
+            if (includeCustomer)
+            {
+                dto.CustomerName = booking?.Customer?.Account?.FullName;
+                dto.CustomerPhone = booking?.Customer?.Account?.Phone;
+            }
+
+            return dto;
+        }
+
+        private static string GetMethodName(int method) => method switch
+        {
+            (int)PaymentMethod.Cash => "Tiền mặt",
+            (int)PaymentMethod.VNPay => "VNPay",
+            (int)PaymentMethod.PayOS => "PayOS",
+            (int)PaymentMethod.Free => "Miễn phí",
+            _ => "Khác"
+        };
+
+        private static string GetStatusName(int status) => status switch
+        {
+            (int)PaymentStatus.Pending => "Chờ thanh toán",
+            (int)PaymentStatus.Paid => "Đã thanh toán",
+            (int)PaymentStatus.Failed => "Thất bại",
+            (int)PaymentStatus.Expired => "Hết hạn",
+            _ => "Không xác định"
+        };
+
+>>>>>>> Stashed changes
         private static PaymentDto MapToDto(Payment payment)
         {
             return new PaymentDto

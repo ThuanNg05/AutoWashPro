@@ -1,0 +1,4 @@
+ID: 3, Name: Gold, MinRanking: 6000
+ID: 4, Name: Platinum, MinRanking: 10000
+ID: 1, Name: Member, MinRanking: 0
+ID: 2, Name: Silver, MinRanking: 2000

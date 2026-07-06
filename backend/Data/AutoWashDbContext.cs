@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Auto_Wash.Data.Entities;
 
 namespace Auto_Wash.Data
@@ -28,6 +29,7 @@ namespace Auto_Wash.Data
         public DbSet<BookingAuditLog> BookingAuditLogs { get; set; } = null!;
         public DbSet<BookingRescheduleHistory> BookingRescheduleHistories { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<TierChangeLog> TierChangeLogs { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -56,6 +58,16 @@ namespace Auto_Wash.Data
             builder.Entity<RewardRedemption>()
                 .Property(r => r.Status)
                 .HasConversion<string>()
+                .HasMaxLength(20);
+
+            // LoyaltyTransactionType: string-backed enum with legacy value resolution
+            var loyaltyTxTypeConverter = new ValueConverter<LoyaltyTransactionType, string>(
+                v => v.ToString(),
+                v => ParseLegacyTransactionType(v));
+
+            builder.Entity<LoyaltyTransaction>()
+                .Property(lt => lt.TransactionType)
+                .HasConversion(loyaltyTxTypeConverter)
                 .HasMaxLength(20);
 
             // 1. OtpVerifications
@@ -264,6 +276,13 @@ namespace Auto_Wash.Data
                 .HasIndex(lt => new { lt.ExpiryDate, lt.IsExpired })
                 .HasDatabaseName("idx_lt_expiry");
 
+            // Filtered unique index: only one 'Earn' transaction per booking
+            builder.Entity<LoyaltyTransaction>()
+                .HasIndex(lt => lt.BookingId)
+                .IsUnique()
+                .HasFilter("transactiontype = 'Earn'")
+                .HasDatabaseName("uq_loyaltytransactions_bookingid_earn");
+
             builder.Entity<LoyaltyTransaction>()
                 .HasOne(lt => lt.Customer)
                 .WithMany(c => c.LoyaltyTransactions)
@@ -389,6 +408,8 @@ namespace Auto_Wash.Data
                 .IsUnique()
                 .HasDatabaseName("uq_payments_txnref");
 
+            // 21. TierChangeLogs (configured at the end of OnModelCreating to override lowercase convention)
+
             builder.Entity<Service>().HasData(
                 new Service
                 {
@@ -403,6 +424,8 @@ namespace Auto_Wash.Data
                     IsFeatured = true
                 }
             );
+
+
 
             // Configure all tables and columns to be lowercase for Supabase PostgreSQL compatibility
             foreach (var entity in builder.Model.GetEntityTypes())
@@ -445,6 +468,53 @@ namespace Auto_Wash.Data
                     }
                 }
             }
+
+            // Consolidated TierChangeLog mapping to override lowercase convention and match existing DB schema (id, oldtierid, newtierid, no changetype)
+            builder.Entity<TierChangeLog>(entity =>
+            {
+                entity.HasKey(t => t.LogId);
+                entity.Property(t => t.LogId).HasColumnName("id");
+                entity.Property(t => t.FromTierId).HasColumnName("oldtierid");
+                entity.Property(t => t.ToTierId).HasColumnName("newtierid");
+                entity.Ignore(t => t.ChangeType);
+
+                entity.HasOne(tcl => tcl.Customer)
+                    .WithMany()
+                    .HasForeignKey(tcl => tcl.CustomerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(tcl => tcl.FromTier)
+                    .WithMany()
+                    .HasForeignKey(tcl => tcl.FromTierId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(tcl => tcl.ToTier)
+                    .WithMany()
+                    .HasForeignKey(tcl => tcl.ToTierId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        /// <summary>
+        /// Resolves legacy string values ("EARN", "TIER_UPGRADE", "ADJUST", etc.)
+        /// to the strongly-typed LoyaltyTransactionType enum.
+        /// </summary>
+        private static LoyaltyTransactionType ParseLegacyTransactionType(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return LoyaltyTransactionType.Earn;
+
+            return value.ToUpperInvariant() switch
+            {
+                "EARN" or "EARNED" or "ADJUST" => LoyaltyTransactionType.Earn,
+                "REDEEM" => LoyaltyTransactionType.Redeem,
+                "EXPIRE" or "EXPIRED" => LoyaltyTransactionType.Expire,
+                "UPGRADE" or "TIER_UPGRADE" => LoyaltyTransactionType.Upgrade,
+                "DOWNGRADE" or "TIER_DOWNGRADE" => LoyaltyTransactionType.Downgrade,
+                _ => Enum.TryParse<LoyaltyTransactionType>(value, true, out var result)
+                     ? result
+                     : LoyaltyTransactionType.Earn
+            };
         }
     }
 }
