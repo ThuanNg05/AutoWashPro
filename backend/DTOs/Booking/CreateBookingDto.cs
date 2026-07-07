@@ -15,5 +15,6 @@ namespace Auto_Wash.DTOs.Booking
         public int? VehicleId { get; set; }
         public string? ScheduledAt { get; set; }
         public string? VoucherCode { get; set; }
+        public List<string>? AddOnServiceNames { get; set; } = new();
     }
 }

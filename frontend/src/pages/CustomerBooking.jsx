@@ -35,6 +35,8 @@ export const CustomerBooking = () => {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
 
   const [selectedMain, setSelectedMain] = useState(null);
+  const [addonServices, setAddonServices] = useState([]);
+  const [selectedAddons, setSelectedAddons] = useState([]);
   const [bookingDate, setBookingDate] = useState("");
   const [bookingTime, setBookingTime] = useState("");
 
@@ -150,52 +152,35 @@ export const CustomerBooking = () => {
           response.services &&
           response.services.length > 0
         ) {
-          const standard = response.services.find(
-            (s) => s.id === "999" || s.name === "Standard Car Wash",
-          );
-          const standardMapped = standard
-            ? {
-                id: standard.id,
-                name: standard.name,
-                desc: standard.desc,
-                price: standard.price,
-                time: standard.estimatedMinutes + " phút",
-                icon: "fa-soap",
-              }
-            : {
-                id: "999",
-                name: "Standard Car Wash",
-                desc: "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.",
-                price: 250000,
-                time: "60 phút",
-                icon: "fa-soap",
-              };
-          setMainServices([standardMapped]);
-          setSelectedMain(standardMapped);
-        } else {
-          const fallback = {
-            id: "999",
-            name: "Standard Car Wash",
-            desc: "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.",
-            price: 250000,
-            time: "60 phút",
-            icon: "fa-soap",
-          };
-          setMainServices([fallback]);
-          setSelectedMain(fallback);
+          const allServices = response.services.map(s => ({
+            id: s.id,
+            name: s.name,
+            desc: s.desc,
+            price: s.price,
+            estimatedMinutes: s.estimatedMinutes,
+            time: s.estimatedMinutes + " phút",
+            isAddOn: s.isAddOn,
+            icon: s.name.toLowerCase().includes("sấy") || s.name.toLowerCase().includes("khô") ? "fa-wind" :
+                  s.name.toLowerCase().includes("hút bụi") || s.name.toLowerCase().includes("vệ sinh") ? "fa-broom" :
+                  s.name.toLowerCase().includes("phủ") || s.name.toLowerCase().includes("ceramic") ? "fa-gem" :
+                  s.name.toLowerCase().includes("premium") || s.name.toLowerCase().includes("cao cấp") ? "fa-sparkles" :
+                  s.name.toLowerCase().includes("đặc biệt") || s.name.toLowerCase().includes("deluxe") ? "fa-crown" :
+                  "fa-soap"
+          }));
+
+          const mains = allServices.filter(s => !s.isAddOn);
+          const addons = allServices.filter(s => s.isAddOn);
+
+          setMainServices(mains);
+          setAddonServices(addons);
+
+          if (mains.length > 0) {
+            const standard = mains.find(s => s.name === "Standard Car Wash" || s.id === "999");
+            setSelectedMain(standard || mains[0]);
+          }
         }
       } catch (err) {
         console.error(err);
-        const fallback = {
-          id: "999",
-          name: "Standard Car Wash",
-          desc: "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.",
-          price: 250000,
-          time: "60 phút",
-          icon: "fa-soap",
-        };
-        setMainServices([fallback]);
-        setSelectedMain(fallback);
       }
     };
 
@@ -394,7 +379,18 @@ export const CustomerBooking = () => {
 
   // Pricing calculations
   const mainPrice = selectedMain ? Number(selectedMain.price) : 0;
-  const baseTotal = mainPrice;
+  const addonsPrice = selectedAddons.reduce((sum, addonName) => {
+    const addon = addonServices.find(a => a.name === addonName);
+    return sum + (addon ? Number(addon.price) : 0);
+  }, 0);
+  const baseTotal = mainPrice + addonsPrice;
+
+  // Estimated total duration in minutes
+  const totalDurationMinutes = (selectedMain ? selectedMain.estimatedMinutes : 60) +
+    selectedAddons.reduce((sum, addonName) => {
+      const addon = addonServices.find(a => a.name === addonName);
+      return sum + (addon ? addon.estimatedMinutes : 0);
+    }, 0);
 
   // Voucher discount
   const promoDiscountAmount =
@@ -450,6 +446,7 @@ export const CustomerBooking = () => {
       const result = await customerService.createBooking({
         LicensePlate: selectedVehicle,
         MainServiceName: selectedMain.name,
+        AddOnServiceNames: selectedAddons,
         BookingDate: bookingDate,
         BookingTime: bookingTime,
         AppliedRedemptionId: appliedVoucher
@@ -618,37 +615,104 @@ export const CustomerBooking = () => {
               </span>{" "}
               Thông tin gói dịch vụ
             </h6>
-            <div className="p-3 rounded-3 border bg-light d-flex align-items-center justify-content-between">
-              <div className="text-start">
-                <strong className="text-dark" style={{ fontSize: "0.88rem" }}>
-                  {selectedMain ? selectedMain.name : "Standard Car Wash"}
-                </strong>
-                <p
-                  className="mb-0 text-muted"
-                  style={{
-                    fontSize: "0.75rem",
-                    lineHeight: "1.4",
-                    marginTop: "2px",
-                  }}
-                >
-                  {selectedMain
-                    ? selectedMain.desc
-                    : "Dịch vụ rửa xe tiêu chuẩn"}
-                </p>
-              </div>
-              <div className="text-end flex-shrink-0 ms-3">
-                <span
-                  className="badge bg-white text-dark border fw-bold px-2.5 py-1.5 rounded-pill"
-                  style={{ fontSize: "0.78rem" }}
-                >
-                  {selectedMain ? selectedMain.time : "60 phút"} •{" "}
-                  {selectedMain
-                    ? Number(selectedMain.price).toLocaleString()
-                    : "250.000"}
-                  đ
-                </span>
-              </div>
+            {/* Main Services Selection Grid */}
+            <div className="row g-2 mb-3">
+              {mainServices.map((svc) => {
+                const isSelected = selectedMain && selectedMain.id === svc.id;
+                return (
+                  <div key={svc.id} className="col-12 col-sm-6">
+                    <div
+                      className={`p-3 rounded-3 border transition-all cursor-pointer h-100 ${
+                        isSelected
+                          ? "border-info bg-info bg-opacity-10 text-cyan shadow-sm"
+                          : "border-light bg-white text-secondary hover-shadow"
+                      }`}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => handleSelectMain(svc)}
+                    >
+                      <div className="d-flex justify-content-between align-items-start mb-1.5">
+                        <strong className={`fw-bold d-block ${isSelected ? "text-info" : "text-dark"}`} style={{ fontSize: "0.88rem" }}>
+                          <i className={`fas ${svc.icon || "fa-soap"} me-1.5`}></i>
+                          {svc.name}
+                        </strong>
+                        <span className="badge bg-light text-dark border small fw-bold" style={{ fontSize: "0.72rem" }}>
+                          {Number(svc.price).toLocaleString()}đ
+                        </span>
+                      </div>
+                      <p className="mb-0 text-muted" style={{ fontSize: "0.72rem", lineHeight: "1.4", minHeight: "34px" }}>
+                        {svc.desc}
+                      </p>
+                      <div className="mt-1.5 text-start">
+                        <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+                          <i className="far fa-clock me-1"></i>Thời gian: {svc.time}
+                        </small>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+
+            {/* Optional Add-on Services Checklist */}
+            {addonServices.length > 0 && (
+              <div className="mt-3 border-top pt-3 text-start">
+                <h6 className="fw-bold mb-2.5" style={{ color: "var(--navy-dark)", fontSize: "0.85rem" }}>
+                  <i className="fas fa-plus-circle text-info me-1.5"></i>Dịch vụ đi kèm tùy chọn (Add-ons)
+                </h6>
+                <div className="row g-2">
+                  {addonServices.map((addon) => {
+                    const isChecked = selectedAddons.includes(addon.name);
+                    return (
+                      <div key={addon.id} className="col-12 col-sm-6">
+                        <div
+                          className={`p-2.5 rounded-3 border d-flex align-items-start gap-2.5 cursor-pointer h-100 transition-all ${
+                            isChecked
+                              ? "border-info bg-info bg-opacity-5"
+                              : "border-light bg-white hover-shadow"
+                          }`}
+                          style={{ cursor: "pointer" }}
+                          onClick={() => {
+                            if (isChecked) {
+                              setSelectedAddons(selectedAddons.filter((name) => name !== addon.name));
+                            } else {
+                              setSelectedAddons([...selectedAddons, addon.name]);
+                            }
+                          }}
+                        >
+                          <div className="form-check m-0 mt-0.5 pointer-events-none">
+                            <input
+                              type="checkbox"
+                              className="form-check-input"
+                              checked={isChecked}
+                              readOnly
+                              style={{ cursor: "pointer" }}
+                            />
+                          </div>
+                          <div className="flex-grow-1" style={{ marginTop: "-2px" }}>
+                            <div className="d-flex justify-content-between align-items-center">
+                              <strong className="text-dark" style={{ fontSize: "0.78rem" }}>
+                                {addon.name}
+                              </strong>
+                              <span className="text-cyan fw-bold" style={{ fontSize: "0.75rem" }}>
+                                +{Number(addon.price).toLocaleString()}đ
+                              </span>
+                            </div>
+                            <p className="mb-0 text-muted mt-0.5" style={{ fontSize: "0.68rem", lineHeight: "1.3" }}>
+                              {addon.desc}
+                            </p>
+                            <div className="mt-1">
+                              <small className="text-secondary" style={{ fontSize: "0.65rem" }}>
+                                <i className="far fa-clock me-1"></i>+{addon.time}
+                              </small>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Step 3: Chọn ngày & giờ */}
@@ -818,6 +882,27 @@ export const CustomerBooking = () => {
                     : "0đ"}
                 </span>
               </div>
+
+              {selectedAddons.length > 0 && (
+                <div className="d-flex flex-column gap-1.5 mt-2 border-top pt-2">
+                  <span className="text-muted small text-start d-block">
+                    Dịch vụ đi kèm:
+                  </span>
+                  {selectedAddons.map((addonName) => {
+                    const addon = addonServices.find(a => a.name === addonName);
+                    return (
+                      <div key={addonName} className="d-flex justify-content-between align-items-center">
+                        <span className="small text-secondary ps-2">
+                          + {addonName}
+                        </span>
+                        <span className="small text-dark fw-semibold" style={{ fontSize: "0.78rem" }}>
+                          {addon ? `${Number(addon.price).toLocaleString()}đ` : "0đ"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               <hr className="my-0 opacity-5" />
 
