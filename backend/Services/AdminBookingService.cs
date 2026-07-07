@@ -7,6 +7,7 @@ using Microsoft.Extensions.Configuration;
 using Auto_Wash.Data;
 using Auto_Wash.Data.Entities;
 using Auto_Wash.DTOs.Booking;
+using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Services
 {
@@ -109,7 +110,8 @@ namespace Auto_Wash.Services
                 })
                 .ToListAsync();
 
-            // Calculate reschedule quota statistics for this customer
+            // Calculate reschedule quota statistics for this customer (temporarily disabled)
+            /*
             var cutoff = DateTime.Now.AddDays(-30);
             var quotaUsed = await _context.BookingRescheduleHistories
                 .CountAsync(rh => rh.Booking.CustomerId == b.CustomerId 
@@ -135,14 +137,10 @@ namespace Auto_Wash.Services
                     nextQuotaResetAt = oldestAttempt.Value.AddDays(30);
                 }
             }
+            */
 
             return new {
                 bookingId = b.BookingId,
-                remainingReschedules = remainingReschedules,
-                quotaLimit = 3,
-                quotaUsed = quotaUsed,
-                nextQuotaResetAt = nextQuotaResetAt,
-                isQuotaExhausted = isQuotaExhausted,
                 customer = new {
                     customerId = b.Customer.CustomerId,
                     fullName = b.Customer.Account?.FullName ?? "Khách vãng lai",
@@ -495,8 +493,8 @@ namespace Auto_Wash.Services
 
                     int maxVehicles = _configuration.GetValue<int>("BookingCapacityConfig:MaxVehiclesPerSlot", 3);
                     var slotCount = await _context.Bookings
-                        .CountAsync(b => b.Status != BookingStatus.Completed && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow
-                                      && b.ScheduledAt.Date == newScheduledAt.Date
+                        .WhereSlotOccupied()
+                        .CountAsync(b => b.ScheduledAt.Date == newScheduledAt.Date
                                       && b.ScheduledAt.Hour == newScheduledAt.Hour
                                       && b.BookingId != bookingId);
                     if (slotCount >= maxVehicles)
@@ -505,8 +503,8 @@ namespace Auto_Wash.Services
                     }
 
                     var hasDuplicate = await _context.Bookings
+                        .WhereActive()
                         .AnyAsync(b => b.VehicleId == booking.VehicleId
-                                    && b.Status != BookingStatus.Completed && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow
                                     && b.ScheduledAt.Date == newScheduledAt.Date
                                     && b.ScheduledAt.Hour == newScheduledAt.Hour
                                     && b.BookingId != bookingId);

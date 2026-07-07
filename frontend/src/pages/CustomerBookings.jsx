@@ -1155,8 +1155,8 @@ export const CustomerBookings = () => {
                       </div>
                     )}
 
-                    {/* Reschedule Quota Statistics */}
-                    {detailModalBooking.quotaLimit !== undefined && (
+                    {/* Reschedule Quota Statistics (Temporarily disabled) */}
+                    {false && detailModalBooking.quotaLimit !== undefined && (
                       <div className="border-top pt-3 mt-3">
                         <small className="text-muted d-block fw-bold mb-2" style={{ fontSize: '0.65rem', letterSpacing: '0.5px' }}>HẠN MỨC ĐỔI LỊCH (30 NGÀY QUA)</small>
                         <div className="bg-light p-3 rounded-4 border text-start" style={{ fontSize: '0.8rem' }}>
@@ -1209,21 +1209,24 @@ export const CustomerBookings = () => {
                   <button className="btn btn-outline-danger px-4 py-2 small fw-bold" style={{ borderRadius: '8px' }} onClick={(e) => handleOpenCancel(detailModalBooking.bookingId, e)}>
                     Hủy lịch hẹn
                   </button>
-                  <button 
-                    className="btn btn-warning px-4 py-2 small fw-bold text-dark" 
-                    disabled={detailModalBooking.rescheduleCount >= 3}
-                    style={{ borderRadius: '8px', opacity: detailModalBooking.rescheduleCount >= 3 ? 0.5 : 1, cursor: detailModalBooking.rescheduleCount >= 3 ? 'not-allowed' : 'pointer' }}
-                    onClick={() => {
-                      if (detailModalBooking.rescheduleCount >= 3) return;
-                      const sDate = new Date(detailModalBooking.scheduledAt);
-                      setRescheduleDate(sDate.toLocaleDateString('sv-SE'));
-                      setRescheduleTime(sDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }));
-                      setRescheduleReason('');
-                      setShowRescheduleForm(true);
-                    }}
-                  >
-                    Đổi lịch hẹn
-                  </button>
+                  {/* Customer self-rescheduling temporarily suspended */}
+                  {false && (
+                    <button 
+                      className="btn btn-warning px-4 py-2 small fw-bold text-dark" 
+                      disabled={detailModalBooking.rescheduleCount >= 3}
+                      style={{ borderRadius: '8px', opacity: detailModalBooking.rescheduleCount >= 3 ? 0.5 : 1, cursor: detailModalBooking.rescheduleCount >= 3 ? 'not-allowed' : 'pointer' }}
+                      onClick={() => {
+                        if (detailModalBooking.rescheduleCount >= 3) return;
+                        const sDate = new Date(detailModalBooking.scheduledAt);
+                        setRescheduleDate(sDate.toLocaleDateString('sv-SE'));
+                        setRescheduleTime(sDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }));
+                        setRescheduleReason('');
+                        setShowRescheduleForm(true);
+                      }}
+                    >
+                      Đổi lịch hẹn
+                    </button>
+                  )}
                 </>
               )}
               {detailModalBooking && detailModalBooking.status === 'Completed' && !detailModalBooking.hasReview && (
