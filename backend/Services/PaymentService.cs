@@ -117,6 +117,26 @@ namespace Auto_Wash.Services
                 throw new InvalidOperationException($"Lịch đặt này đang có trạng thái {booking.Status} và không ở trạng thái Chờ thanh toán.");
             }
 
+            // Free bookings (100% discount) never reach PayOS — the gateway rejects
+            // zero-amount links. Confirm the payment locally with method Free and
+            // send the client straight to the result page (issue #51).
+            if (booking.FinalPrice <= 0)
+            {
+                var freeDto = await CreatePendingPaymentAsync(bookingId, 0, "127.0.0.1");
+
+                var freePayment = await _context.Payments
+                    .FirstAsync(p => p.PaymentId == freeDto.PaymentId);
+                freePayment.PaymentMethod = (int)PaymentMethod.Free;
+                await _context.SaveChangesAsync();
+
+                await UpdatePaymentStatusAsync(
+                    freeDto.TxnRef ?? throw new InvalidOperationException("Transaction reference not generated."),
+                    (int)PaymentStatus.Paid, null, "FREE");
+
+                _logger.LogInformation("Free booking {BookingId} confirmed without PayOS (amount = 0).", bookingId);
+                return $"/payment/result?payment=success&bookingId={bookingId}";
+            }
+
             var paymentDto = await CreatePendingPaymentAsync(bookingId, booking.FinalPrice, "127.0.0.1");
 
             long orderCode = long.Parse(paymentDto.TxnRef ?? throw new InvalidOperationException("Transaction reference not generated."));
@@ -260,9 +280,6 @@ namespace Auto_Wash.Services
                         }
 
                         await _context.SaveChangesAsync();
-<<<<<<< Updated upstream
-=======
-
                         // Real-time tier UPGRADE now that this paid booking counts as
                         // Completed in the current review period (doc §4). Mirrors the
                         // manual checkout path in AdminQueueService; downgrades are left
@@ -273,8 +290,6 @@ namespace Auto_Wash.Services
                             await _loyaltyTierService.EvaluateUpgradeAsync(payment.Booking.Customer, DateTime.Now);
                             await _context.SaveChangesAsync();
                         }
-
->>>>>>> Stashed changes
                         await transaction.CommitAsync();
 
                         _logger.LogInformation("UpdatePaymentStatusAsync: Transaction committed successfully for TxnRef {TxnRef}.", txnRef);
@@ -306,8 +321,7 @@ namespace Auto_Wash.Services
             return payment == null ? null : MapToDto(payment);
         }
 
-<<<<<<< Updated upstream
-=======
+
         public async Task<PaymentReconcileResult> ReconcilePaymentAsync(int bookingId)
         {
             var payment = await _context.Payments
@@ -554,7 +568,7 @@ namespace Auto_Wash.Services
             _ => "Không xác định"
         };
 
->>>>>>> Stashed changes
+
         private static PaymentDto MapToDto(Payment payment)
         {
             return new PaymentDto

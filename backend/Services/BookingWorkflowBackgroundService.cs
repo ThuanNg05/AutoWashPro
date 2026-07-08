@@ -1,15 +1,7 @@
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Auto_Wash.Data;
 using Auto_Wash.Data.Entities;
 using Auto_Wash.Helpers;
-using Microsoft.Extensions.Configuration;
 using Auto_Wash.DTOs.Booking;
 
 namespace Auto_Wash.Services
@@ -59,9 +51,6 @@ namespace Auto_Wash.Services
             var loyaltyTierService = scope.ServiceProvider.GetRequiredService<LoyaltyTierService>();
             var now = DateTime.Now;
             var today = DateTime.Today;
-
-            // Customers whose booking is auto-completed this tick — re-checked for
-            // a real-time tier upgrade after the batch is persisted (doc §4).
             var awardedCustomerIds = new HashSet<int>();
 
             // 1. Fetch active queue items for today that are not completed, cancelled, or archived
@@ -167,33 +156,22 @@ namespace Auto_Wash.Services
                                 CreatedAt = now
                             });
 
-                            // Send WaitingCheckout email notification
+                            // Không tự gửi email — báo staff ra chụp ảnh rồi mới gửi kèm ảnh
                             if (!q.Booking.WaitingCheckoutEmailSent)
                             {
-                                q.Booking.WaitingCheckoutEmailSent = true;
-
-                                var mainService = await context.BookingServices
-                                    .Include(bs => bs.Service)
-                                    .Where(bs => bs.BookingId == q.BookingId.Value && !bs.Service.IsAddOn)
-                                    .Select(bs => bs.Service.ServiceName)
-                                    .FirstOrDefaultAsync() ?? "Dịch vụ rửa xe";
-
-                                var emailModel = new BookingEmailModel
+                                try
                                 {
-                                    BookingId = q.BookingId.Value,
-                                    CustomerName = q.Booking.Customer?.Account?.FullName ?? "Khách hàng",
-                                    Email = q.Booking.Customer?.Account?.Email ?? "",
-                                    LicensePlate = q.LicensePlate ?? "",
-                                    ScheduledAt = q.Booking.ScheduledAt,
-                                    FinalPrice = q.Booking.FinalPrice,
-                                    ServiceName = mainService
-                                };
-
-                                if (!string.IsNullOrWhiteSpace(emailModel.Email))
+                                    var realtimeNotifier = scope.ServiceProvider.GetRequiredService<IBookingRealtimeNotifier>();
+                                    await realtimeNotifier.NotifyWashCompletedAsync(new WashCompletedEvent(
+                                        q.QueueId,
+                                        q.BookingId,
+                                        q.LicensePlate ?? "",
+                                        q.Booking.Customer?.Account?.FullName ?? "Khách hàng"));
+                                    _logger.LogInformation("[REALTIME] WashCompleted notified to staff: QueueId={QueueId}, BookingId={BookingId}", q.QueueId, q.BookingId);
+                                }
+                                catch (Exception notifyEx)
                                 {
-                                    var notificationService = scope.ServiceProvider.GetRequiredService<BookingNotificationService>();
-                                    notificationService.SendWaitingCheckoutEmailInBackground(emailModel);
-                                    _logger.LogInformation("[EMAIL] WaitingCheckout email sent: BookingId={BookingId}, Email={Email}", q.BookingId, emailModel.Email);
+                                    _logger.LogError(notifyEx, "Failed to push WashCompleted event for QueueId={QueueId}", q.QueueId);
                                 }
                             }
                         }
@@ -370,7 +348,6 @@ namespace Auto_Wash.Services
                 await context.SaveChangesAsync();
             }
 
-<<<<<<< Updated upstream
             // Real-time UPGRADE re-check for just-completed customers. Runs after the
             // save above so the new Completed booking counts in the 6-month window (doc §4).
             if (awardedCustomerIds.Count > 0)
@@ -381,19 +358,15 @@ namespace Auto_Wash.Services
                     var cust = await context.Customers.FirstOrDefaultAsync(c => c.CustomerId == custId);
                     if (cust != null)
                     {
-                        await TierHelper.EvaluateUpgradeAsync(context, cust, now);
+                        await loyaltyTierService.EvaluateUpgradeAsync(cust, now);
                         tierChanged = true;
                     }
                 }
                 if (tierChanged) await context.SaveChangesAsync();
             }
 
-            // 4. Monthly tier maintenance / downgrade review (doc §5, §9).
-            await ProcessMonthlyTierReviewAsync(context, now);
-=======
             // 4. Semi-annual tier retention / downgrade review (doc §5, §9).
             await ProcessSemiAnnualTierReviewAsync(context, loyaltyTierService, now);
->>>>>>> Stashed changes
         }
 
         /// <summary>

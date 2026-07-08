@@ -25,6 +25,7 @@ namespace Auto_Wash.Controllers
         private readonly PayOSClient _payOSClient;
         private readonly PayOSSettings _payOSSettings;
         private readonly BookingNotificationService _notificationService;
+        private readonly AuthContextService _authContextService;
         private readonly ILogger<PaymentController> _logger;
 
         public PaymentController(
@@ -33,6 +34,7 @@ namespace Auto_Wash.Controllers
             PayOSClient payOSClient,
             IOptions<PayOSSettings> payOSSettings,
             BookingNotificationService notificationService,
+            AuthContextService authContextService,
             ILogger<PaymentController> logger)
         {
             _paymentService = paymentService;
@@ -40,7 +42,98 @@ namespace Auto_Wash.Controllers
             _payOSClient = payOSClient;
             _payOSSettings = payOSSettings.Value;
             _notificationService = notificationService;
+            _authContextService = authContextService;
             _logger = logger;
+        }
+
+        private bool IsAdminOrStaff()
+        {
+            var role = HttpContext.Session.GetString("UserRole");
+            return string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Transaction history for the currently signed-in customer (issue #50).
+        /// Returns the customer's own payments only, newest first.
+        /// </summary>
+        [HttpGet]
+        [Route("history/me")]
+        public async Task<IActionResult> GetMyTransactions()
+        {
+            var customer = await _authContextService.GetCurrentCustomerAsync();
+            if (customer == null)
+            {
+                return Unauthorized(new { success = false, message = "Bạn chưa đăng nhập!" });
+            }
+
+            try
+            {
+                var transactions = await _paymentService.GetCustomerTransactionsAsync(customer.CustomerId);
+                return Ok(new { success = true, transactions });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetMyTransactions: Error loading transactions for CustomerId {CustomerId}", customer.CustomerId);
+                return StatusCode(500, new { success = false, message = "Lỗi truy vấn lịch sử giao dịch." });
+            }
+        }
+
+        /// <summary>
+        /// Transaction history across all customers for the admin page (issue #50),
+        /// with optional status / method / date-range filters.
+        /// </summary>
+        [HttpGet]
+        [Route("history")]
+        public async Task<IActionResult> GetAllTransactions(
+            [FromQuery] int? status,
+            [FromQuery] int? method,
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate)
+        {
+            if (!IsAdminOrStaff())
+            {
+                return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+            }
+
+            try
+            {
+                var transactions = await _paymentService.GetAllTransactionsAsync(status, method, fromDate, toDate);
+                return Ok(new { success = true, transactions });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetAllTransactions: Error loading admin transaction history.");
+                return StatusCode(500, new { success = false, message = "Lỗi truy vấn lịch sử giao dịch." });
+            }
+        }
+
+        /// <summary>
+        /// Revenue statistics for the admin transactions page (issue #51):
+        /// gross revenue, deductions (voucher / tier / points / free) and net
+        /// revenue over Paid transactions, optionally date-filtered by PaidAt.
+        /// </summary>
+        [HttpGet]
+        [Route("revenue-stats")]
+        public async Task<IActionResult> GetRevenueStats(
+            [FromQuery] DateTime? fromDate,
+            [FromQuery] DateTime? toDate)
+        {
+            if (!IsAdminOrStaff())
+            {
+                return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+            }
+
+            try
+            {
+                var stats = await _paymentService.GetRevenueStatsAsync(fromDate, toDate);
+                return Ok(new { success = true, stats });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GetRevenueStats: Error computing revenue statistics.");
+                return StatusCode(500, new { success = false, message = "Lỗi truy vấn thống kê doanh thu." });
+            }
         }
 
         public class CreatePaymentRequest
@@ -182,41 +275,7 @@ namespace Auto_Wash.Controllers
 
                 if (targetStatus == (int)PaymentStatus.Paid)
                 {
-                    // Reload booking with full customer, tier & vehicle info to send email
-                    var booking = await _context.Bookings
-                        .Include(b => b.Customer)
-                            .ThenInclude(c => c.Account)
-                        .Include(b => b.Customer)
-                            .ThenInclude(c => c.Tier)
-                        .Include(b => b.Vehicle)
-                        .FirstOrDefaultAsync(b => b.BookingId == updatedPaymentDto.BookingId);
-
-                    if (booking != null && booking.Customer?.Account != null)
-                    {
-                        var email = booking.Customer.Account.Email;
-                        if (!string.IsNullOrWhiteSpace(email))
-                        {
-                            var invoiceNumber = $"INV-{booking.BookingId}-{updatedPaymentDto.PaymentId}";
-                            var tierName = booking.Customer.Tier?.TierName ?? "Standard";
-                            _notificationService.SendPaymentSuccessEmailInBackground(
-                                email,
-                                booking.Customer.Account.FullName,
-                                booking.Vehicle.LicensePlate,
-                                booking.BookingId,
-                                updatedPaymentDto.Amount,
-                                invoiceNumber,
-                                transactionNo ?? "PayOS-Online",
-                                updatedPaymentDto.PaidAt ?? DateTime.Now,
-                                booking.PointsEarned,
-                                tierName
-                            );
-                            _logger.LogInformation("Email sent: BookingId={BookingId}, Email={Email}", booking.BookingId, email);
-                        }
-
-                        _logger.LogInformation("Booking updated: BookingId={BookingId}, Status=Completed", booking.BookingId);
-                        _logger.LogInformation("Queue updated: BookingId={BookingId}, Status=Archived", booking.BookingId);
-                        _logger.LogInformation("Loyalty awarded: CustomerId={CustomerId}, Points={Points}", booking.CustomerId, booking.PointsEarned);
-                    }
+                    await SendPaymentSuccessEmailAsync(updatedPaymentDto, transactionNo);
                 }
 
                 _logger.LogInformation("PaymentWebhook: Webhook processed successfully for OrderCode: {OrderCode}. Status updated to {Status}", txnRef, targetStatus);
@@ -235,14 +294,67 @@ namespace Auto_Wash.Controllers
         {
             try
             {
-                var payment = await _paymentService.GetPaymentByBookingIdAsync(bookingId);
-                return Ok(new { success = true, payment });
+                // Reconcile against PayOS on read so the client poll can confirm a
+                // payment even when the async webhook hasn't been delivered (e.g.
+                // local development without a public webhook tunnel).
+                var result = await _paymentService.ReconcilePaymentAsync(bookingId);
+
+                if (result.JustConfirmed && result.Payment != null)
+                {
+                    await SendPaymentSuccessEmailAsync(result.Payment, result.Payment.TransactionNo);
+                }
+
+                return Ok(new { success = true, payment = result.Payment });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetPaymentStatus: Error querying payment status for BookingId: {BookingId}", bookingId);
                 return StatusCode(500, new { success = false, message = "Lỗi truy vấn thông tin thanh toán." });
             }
+        }
+
+        /// <summary>
+        /// Reloads the booking with customer/tier/vehicle context and queues the
+        /// payment-success invoice email in the background. Shared by the webhook
+        /// and the reconcile-on-read path so the email is sent exactly once, on
+        /// the transition to Paid.
+        /// </summary>
+        private async Task SendPaymentSuccessEmailAsync(PaymentDto payment, string? transactionNo)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.Customer)
+                    .ThenInclude(c => c.Account)
+                .Include(b => b.Customer)
+                    .ThenInclude(c => c.Tier)
+                .Include(b => b.Vehicle)
+                .FirstOrDefaultAsync(b => b.BookingId == payment.BookingId);
+
+            if (booking?.Customer?.Account == null)
+            {
+                return;
+            }
+
+            var email = booking.Customer.Account.Email;
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return;
+            }
+
+            var invoiceNumber = $"INV-{booking.BookingId}-{payment.PaymentId}";
+            var tierName = booking.Customer.Tier?.TierName ?? "Standard";
+            _notificationService.SendPaymentSuccessEmailInBackground(
+                email,
+                booking.Customer.Account.FullName,
+                booking.Vehicle.LicensePlate,
+                booking.BookingId,
+                payment.Amount,
+                invoiceNumber,
+                transactionNo ?? "PayOS-Online",
+                payment.PaidAt ?? DateTime.Now,
+                booking.PointsEarned,
+                tierName
+            );
+            _logger.LogInformation("Payment success email queued: BookingId={BookingId}, Email={Email}", booking.BookingId, email);
         }
     }
 }

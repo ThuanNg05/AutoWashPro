@@ -30,6 +30,11 @@ namespace Auto_Wash.Services
             return true;
         }
 
+        public async Task<bool> EmailExistsAsync(string email)
+        {
+            return await _context.Accounts.AnyAsync(a => a.Email == email.Trim());
+        }
+
         public async Task<(bool success, string message)> VerifyEmailAndChangePasswordAsync(string email, string otpCode, string currentPassword, string newPassword, OtpService otpService)
         {
             bool otpValid = await otpService.VerifyOtpAsync(email, otpCode, "ForgotPassword");
@@ -88,6 +93,7 @@ namespace Auto_Wash.Services
                 title = n.Title,
                 body = n.Message,
                 time = GetRelativeTime(n.CreatedAt),
+                sentAt = n.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
                 type = n.Type,
                 read = n.IsRead
             }).Cast<object>().ToList();
@@ -124,7 +130,7 @@ namespace Auto_Wash.Services
 
             if (customer.PointBalance < reward.PointCost)
             {
-                return (false, $"Bạn không đủ điểm để đổi phần thưởng này (Cần {reward.PointCost} PTS, hiện có {customer.PointBalance} PTS).");
+                return (false, $"Bạn không đủ điểm để đổi phần thưởng này (Cần {reward.PointCost}đ, hiện có {customer.PointBalance}đ).");
             }
 
             var now = DateTime.Now;

@@ -111,6 +111,29 @@ namespace Auto_Wash.Controllers
         }
 
         [HttpPost]
+        [Route("Admin/SendCompletionPhotos")]
+        [RequestSizeLimit(30_000_000)] // 5 ảnh x 5MB + overhead multipart
+        public async Task<IActionResult> SendCompletionPhotos(int id, [FromForm] IFormFileCollection photos)
+        {
+            if (!IsAdminOrStaff()) return Unauthorized();
+
+            try
+            {
+                var performer = HttpContext.Session.GetString("UserName") ?? "Staff";
+                var result = await _adminQueueService.SendCompletionPhotosAsync(id, photos, performer);
+                if (!result.success)
+                {
+                    return BadRequest(new { success = false, message = result.message });
+                }
+                return Ok(new { success = true, message = result.message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
         [Route("Admin/CancelQueue")]
         public async Task<IActionResult> CancelQueue(int id)
         {
@@ -162,6 +185,28 @@ namespace Auto_Wash.Controllers
                     hasBooking = result.hasBooking,
                     bookingServices = result.bookingServices
                 });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [Route("Admin/ClearQueueToday")]
+        public async Task<IActionResult> ClearQueueToday()
+        {
+            if (!IsAdminOrStaff()) return Unauthorized();
+
+            try
+            {
+                var today = DateTime.Today;
+                var context = (Auto_Wash.Data.AutoWashDbContext)HttpContext.RequestServices.GetService(typeof(Auto_Wash.Data.AutoWashDbContext))!;
+                var todayQueues = context.Queues.Where(q => q.CheckInAt.Date == today);
+                context.Queues.RemoveRange(todayQueues);
+                await context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Đã dọn dẹp sạch sẽ hàng đợi hôm nay thành công!" });
             }
             catch (Exception ex)
             {

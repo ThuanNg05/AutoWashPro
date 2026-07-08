@@ -16,11 +16,10 @@ export const customerService = {
     return response.data;
   },
 
-  verifyEmailAndChangePassword: async (email, otpCode, currentPassword, newPassword) => {
+  verifyEmailAndChangePassword: async (email, otpCode, newPassword) => {
     const response = await api.post('/Customer/VerifyEmailAndChangePassword', {
       Email: email,
       OtpCode: otpCode,
-      CurrentPassword: currentPassword,
       NewPassword: newPassword
     });
     return response.data;
@@ -76,8 +75,8 @@ export const customerService = {
     return response.data;
   },
 
-  getBookingDetail: async (id) => {
-    const response = await api.get(`/Customer/GetBookingDetail/${id}`);
+  getBookingDetail: async (id, config = {}) => {
+    const response = await api.get(`/Customer/GetBookingDetail/${id}`, config);
     return response.data;
   },
 
@@ -110,8 +109,8 @@ export const customerService = {
     return response.data;
   },
 
-  getPendingReviews: async () => {
-    const response = await api.get('/api/reviews/pending');
+  getPendingReviews: async (config = {}) => {
+    const response = await api.get('/api/reviews/pending', config);
     return response.data;
   },
 
@@ -120,8 +119,8 @@ export const customerService = {
     return response.data;
   },
 
-  getOccupiedSlots: async (date) => {
-    const response = await api.get(`/Customer/GetOccupiedSlots?date=${date}`);
+  getOccupiedSlots: async (date, config = {}) => {
+    const response = await api.get(`/Customer/GetOccupiedSlots?date=${date}`, config);
     return response.data;
   },
 
@@ -130,13 +129,18 @@ export const customerService = {
     return response.data;
   },
 
-  getWashHistory: async () => {
-    const response = await api.get('/Customer/GetWashHistory');
+  getWashHistory: async (config = {}) => {
+    const response = await api.get('/Customer/GetWashHistory', config);
     return response.data;
   },
 
-  getActiveBooking: async () => {
-    const response = await api.get('/Customer/GetActiveBooking');
+  getMyTransactions: async (config = {}) => {
+    const response = await api.get('/api/payment/history/me', config);
+    return response.data;
+  },
+
+  getActiveBooking: async (config = {}) => {
+    const response = await api.get('/Customer/GetActiveBooking', config);
     return response.data;
   },
 
@@ -145,8 +149,8 @@ export const customerService = {
     return response.data;
   },
 
-  getNotifications: async () => {
-    const response = await api.get('/Customer/GetNotifications');
+  getNotifications: async (config = {}) => {
+    const response = await api.get('/Customer/GetNotifications', config);
     return response.data;
   },
 

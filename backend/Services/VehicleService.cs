@@ -34,10 +34,9 @@ namespace Auto_Wash.Services
                     Model = v.Model,
                     VehicleClass = v.VehicleClass,
                     RegisteredAt = v.RegisteredAt,
-                    HasActiveBooking = _context.Bookings.Any(b => b.VehicleId == v.VehicleId 
-                        && b.Status != BookingStatus.Completed 
-                        && b.Status != BookingStatus.Cancelled 
-                        && b.Status != BookingStatus.NoShow)
+                    HasActiveBooking = _context.Bookings
+                        .WhereActive()
+                        .Any(b => b.VehicleId == v.VehicleId)
                 })
                 .ToListAsync();
         }
@@ -145,9 +144,9 @@ namespace Auto_Wash.Services
             }
 
             // Check if vehicle has active bookings
-            var hasActiveBookings = await _context.Bookings.AnyAsync(b => b.VehicleId == vehicleId 
-                && b.Status != BookingStatus.Completed 
-                && b.Status != BookingStatus.Cancelled);
+            var hasActiveBookings = await _context.Bookings
+                .WhereActive()
+                .AnyAsync(b => b.VehicleId == vehicleId);
             if (hasActiveBookings)
             {
                 return (false, "Không thể xóa phương tiện đã có lịch đặt lịch đang chờ xử lý.");

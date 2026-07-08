@@ -18,13 +18,15 @@ namespace Auto_Wash.Services
         private readonly IConfiguration _configuration;
         private readonly ILogger<BookingService> _logger;
         private readonly BookingNotificationService _bookingNotificationService;
+        private readonly IBookingRealtimeNotifier _realtimeNotifier;
 
-        public BookingService(AutoWashDbContext context, IConfiguration configuration, ILogger<BookingService> logger, BookingNotificationService bookingNotificationService)
+        public BookingService(AutoWashDbContext context, IConfiguration configuration, ILogger<BookingService> logger, BookingNotificationService bookingNotificationService, IBookingRealtimeNotifier realtimeNotifier)
         {
             _context = context;
             _configuration = configuration;
             _logger = logger;
             _bookingNotificationService = bookingNotificationService;
+            _realtimeNotifier = realtimeNotifier;
         }
 
 
@@ -119,10 +121,9 @@ namespace Auto_Wash.Services
             }
 
             // 1b. Validate active booking check
-            var hasActiveBooking = await _context.Bookings.AnyAsync(b => b.VehicleId == vehicle.VehicleId
-                && b.Status != BookingStatus.Completed
-                && b.Status != BookingStatus.Cancelled
-                && b.Status != BookingStatus.NoShow);
+            var hasActiveBooking = await _context.Bookings
+                .WhereActive()
+                .AnyAsync(b => b.VehicleId == vehicle.VehicleId);
             if (hasActiveBooking)
             {
                 return (false, "This vehicle has an unfinished booking. Please complete or cancel the current booking before creating a new one.", 0);
@@ -197,8 +198,8 @@ namespace Auto_Wash.Services
 
                     // 5. Prevent duplicate bookings for the same vehicle in the same hour
                     var hasDuplicate = await _context.Bookings
+                        .WhereActive()
                         .AnyAsync(b => b.VehicleId == vehicle.VehicleId
-                                    && b.Status != BookingStatus.Completed && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow
                                     && b.ScheduledAt.Date == scheduledAt.Date
                                     && b.ScheduledAt.Hour == scheduledAt.Hour);
                     if (hasDuplicate)
@@ -209,23 +210,42 @@ namespace Auto_Wash.Services
                     // 6. Configurable Slot Capacity check
                     int maxVehicles = _configuration.GetValue<int>("BookingCapacityConfig:MaxVehiclesPerSlot", 3);
                     var slotCount = await _context.Bookings
-                        .CountAsync(b => b.Status != BookingStatus.Completed && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow
-                                      && b.ScheduledAt.Date == scheduledAt.Date
+                        .WhereSlotOccupied()
+                        .CountAsync(b => b.ScheduledAt.Date == scheduledAt.Date
                                       && b.ScheduledAt.Hour == scheduledAt.Hour);
                     if (slotCount >= maxVehicles)
                     {
                         return (false, "Khung giờ này đã đầy. Vui lòng chọn khung giờ khác.", 0);
                     }
 
-                    // 7. Enforce exactly one default Standard Car Wash service (ID 999)
+                    // 7. Dynamic Main Service lookup
                     var mainService = await _context.Services
-                        .FirstOrDefaultAsync(s => s.ServiceId == 999 && s.IsActive);
+                        .FirstOrDefaultAsync(s => s.ServiceName == request.MainServiceName && s.IsActive && !s.IsAddOn);
                     if (mainService == null)
                     {
-                        return (false, "Dịch vụ rửa xe tiêu chuẩn không hoạt động hoặc chưa được thiết lập.", 0);
+                        return (false, "Gói dịch vụ chính không hoạt động hoặc không tồn tại.", 0);
                     }
 
+                    var selectedServices = new List<Service> { mainService };
                     int calculatedBasePrice = mainService.BasePrice;
+                    int totalDurationMinutes = mainService.EstimatedMinutes;
+
+                    // 7b. Dynamic Add-on Services lookup
+                    if (request.AddOnServiceNames != null && request.AddOnServiceNames.Count > 0)
+                    {
+                        foreach (var addonName in request.AddOnServiceNames)
+                        {
+                            var addonService = await _context.Services
+                                .FirstOrDefaultAsync(s => s.ServiceName == addonName && s.IsActive && s.IsAddOn);
+                            if (addonService != null)
+                            {
+                                selectedServices.Add(addonService);
+                                calculatedBasePrice += addonService.BasePrice;
+                                totalDurationMinutes += addonService.EstimatedMinutes;
+                            }
+                        }
+                    }
+
                     int finalPrice = calculatedBasePrice;
                     int promoDiscount = 0;
                     RewardRedemption? redemption = null;
@@ -304,7 +324,7 @@ namespace Auto_Wash.Services
                         RedemptionId = redemption?.RedemptionId,
                         Notes = request.Notes,
                         CreatedAt = DateTime.Now,
-                        FixedDurationMinutes = 60
+                        FixedDurationMinutes = totalDurationMinutes
                     };
 
                     _context.Bookings.Add(booking);
@@ -339,15 +359,16 @@ namespace Auto_Wash.Services
                         redemption.BookingId = booking.BookingId;
                     }
 
-                    // Save BookingServices with PriceSnapshot for Standard Car Wash
-                    _context.BookingServices.Add(new Auto_Wash.Data.Entities.BookingService
+                    // Save BookingServices with PriceSnapshot for all selected services
+                    foreach (var svc in selectedServices)
                     {
-                        BookingId = booking.BookingId,
-                        ServiceId = mainService.ServiceId,
-                        PriceSnapshot = mainService.BasePrice
-                    });
-
-                    // No selected addons
+                        _context.BookingServices.Add(new Auto_Wash.Data.Entities.BookingService
+                        {
+                            BookingId = booking.BookingId,
+                            ServiceId = svc.ServiceId,
+                            PriceSnapshot = svc.BasePrice
+                        });
+                    }
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
@@ -372,6 +393,24 @@ namespace Auto_Wash.Services
                     // Audit Event Logging
                     _logger.LogInformation("[AUDIT EVENT] Booking Created: BookingId={BookingId}, CustomerId={CustomerId}, VehicleId={VehicleId}, ScheduledAt={ScheduledAt}, FinalPrice={FinalPrice}",
                         booking.BookingId, booking.CustomerId, booking.VehicleId, booking.ScheduledAt, booking.FinalPrice);
+
+                    // Push a real-time event to staff/admin so the booking surfaces instantly
+                    // (timer polling remains as a fallback). Never let this break booking creation.
+                    try
+                    {
+                        await _realtimeNotifier.NotifyBookingCreatedAsync(new BookingCreatedEvent(
+                            booking.BookingId,
+                            vehicle.LicensePlate,
+                            customerWithTier?.Account?.FullName ?? "Khách hàng",
+                            booking.ScheduledAt,
+                            booking.FinalPrice,
+                            mainService.ServiceName,
+                            booking.Status.ToString()));
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to push BookingCreated real-time event for BookingId={BookingId}", booking.BookingId);
+                    }
 
                     return (true, "Đặt lịch thành công!", booking.BookingId);
                 }
@@ -471,6 +510,35 @@ namespace Auto_Wash.Services
 
             var queue = b.Queues.FirstOrDefault();
             var progressTracking = BookingWorkflowConfig.GetProgressForBooking(b, queue);
+
+            // Calculate reschedule quota statistics for this customer (temporarily disabled)
+            /*
+            var cutoff = DateTime.Now.AddDays(-30);
+            var quotaUsed = await _context.BookingRescheduleHistories
+                .CountAsync(rh => rh.Booking.CustomerId == b.CustomerId 
+                               && rh.ChangedBy == "Customer" 
+                               && rh.CreatedAt >= cutoff);
+
+            var remainingReschedules = Math.Max(0, 3 - quotaUsed);
+            var isQuotaExhausted = quotaUsed >= 3;
+
+            DateTime? nextQuotaResetAt = null;
+            if (quotaUsed > 0)
+            {
+                var oldestAttempt = await _context.BookingRescheduleHistories
+                    .Where(rh => rh.Booking.CustomerId == b.CustomerId 
+                              && rh.ChangedBy == "Customer" 
+                              && rh.CreatedAt >= cutoff)
+                    .OrderBy(rh => rh.CreatedAt)
+                    .Select(rh => (DateTime?)rh.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (oldestAttempt.HasValue)
+                {
+                    nextQuotaResetAt = oldestAttempt.Value.AddDays(30);
+                }
+            }
+            */
 
             return new {
                 bookingId = b.BookingId,
@@ -609,6 +677,8 @@ namespace Auto_Wash.Services
 
         public async Task<(bool success, string message)> RescheduleBookingAsync(int customerId, int bookingId, DateTime newScheduledAt, string reason)
         {
+            return (false, "Tự đổi lịch hẹn hiện tại đã tạm ngưng. Vui lòng liên hệ tiệm để được hỗ trợ.");
+#pragma warning disable CS0162 // Unreachable code detected
             var booking = await _context.Bookings
                 .Include(b => b.Customer)
                     .ThenInclude(c => c.Account)
@@ -616,6 +686,8 @@ namespace Auto_Wash.Services
                 .Include(b => b.BookingServices)
                     .ThenInclude(bs => bs.Service)
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.CustomerId == customerId);
+
+
 
             if (booking == null)
             {
@@ -680,14 +752,29 @@ namespace Auto_Wash.Services
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
+                    // 1. Lock customer row to prevent concurrent exploits on rolling quota
+                    await _context.Database.ExecuteSqlRawAsync("SELECT 1 FROM customers WHERE customerid = {0} FOR UPDATE;", customerId);
+
+                    // 2. Count customer's successful reschedules in rolling 30 days
+                    var cutoff = DateTime.Now.AddDays(-30);
+                    var quotaUsed = await _context.BookingRescheduleHistories
+                        .CountAsync(rh => rh.Booking.CustomerId == customerId 
+                                       && rh.ChangedBy == "Customer" 
+                                       && rh.CreatedAt >= cutoff);
+
+                    if (quotaUsed >= 3)
+                    {
+                        return (false, "You have reached the maximum of 3 reschedules within the last 30 days.");
+                    }
+
                     int lockKey1 = newScheduledAt.Year * 10000 + newScheduledAt.Month * 100 + newScheduledAt.Day;
                     int lockKey2 = newScheduledAt.Hour;
                     await _context.Database.ExecuteSqlRawAsync($"SELECT pg_advisory_xact_lock({lockKey1}, {lockKey2});");
 
                     int maxVehicles = _configuration.GetValue<int>("BookingCapacityConfig:MaxVehiclesPerSlot", 3);
                     var slotCount = await _context.Bookings
-                        .CountAsync(b => b.Status != BookingStatus.Completed && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow
-                                      && b.ScheduledAt.Date == newScheduledAt.Date
+                        .WhereSlotOccupied()
+                        .CountAsync(b => b.ScheduledAt.Date == newScheduledAt.Date
                                       && b.ScheduledAt.Hour == newScheduledAt.Hour
                                       && b.BookingId != bookingId);
                     if (slotCount >= maxVehicles)
@@ -696,8 +783,8 @@ namespace Auto_Wash.Services
                     }
 
                     var hasDuplicate = await _context.Bookings
+                        .WhereActive()
                         .AnyAsync(b => b.VehicleId == booking.VehicleId
-                                    && b.Status != BookingStatus.Completed && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow
                                     && b.ScheduledAt.Date == newScheduledAt.Date
                                     && b.ScheduledAt.Hour == newScheduledAt.Hour
                                     && b.BookingId != bookingId);
@@ -710,6 +797,7 @@ namespace Auto_Wash.Services
                     booking.Status = BookingStatus.Confirmed; 
                     booking.Reminder1Sent = false;
                     booking.Reminder2Sent = false;
+                    booking.RescheduleCount++;
 
                     _context.BookingRescheduleHistories.Add(new BookingRescheduleHistory
                     {
@@ -734,7 +822,7 @@ namespace Auto_Wash.Services
                     {
                         CustomerId = customerId,
                         Title = "Đổi lịch hẹn thành công",
-                        Message = $"Lịch hẹn #{booking.BookingId} cho xe {booking.Vehicle?.LicensePlate} đã được đổi sang {newScheduledAt:dd/MM/yyyy HH:mm}.",
+                           Message = $"Lịch hẹn #{booking.BookingId} cho xe {booking.Vehicle?.LicensePlate} đã được đổi sang {newScheduledAt:dd/MM/yyyy HH:mm}.",
                         Type = "Booking",
                         IsRead = false,
                         CreatedAt = DateTime.Now
@@ -766,7 +854,8 @@ namespace Auto_Wash.Services
                         _bookingNotificationService.SendBookingRescheduledEmailInBackground(emailModel);
                     }
 
-                    return (true, "Đổi lịch hẹn thành công!");
+                    var remainingAttempts = Math.Max(0, 3 - (quotaUsed + 1));
+                    return (true, $"Booking rescheduled successfully. You have {remainingAttempts} reschedule attempt(s) remaining.");
                 }
                 catch (Exception ex)
                 {
