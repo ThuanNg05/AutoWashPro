@@ -242,6 +242,35 @@ export const AdminDemoTools = () => {
     }
   };
 
+  const handleDelete = (row) => {
+    const pk = buildPk(row);
+    const pkText = Object.entries(pk).map(([k, v]) => `${k}=${v}`).join(', ');
+
+    const doDelete = async () => {
+      try {
+        const res = await demoToolsService.deleteRow(selectedTable, pk);
+        if (res && res.success) {
+          if (window.showToast) window.showToast(res.message, 'success');
+          loadRows();
+        } else if (window.showToast) {
+          window.showToast(res?.message || 'Xóa thất bại', 'error');
+        }
+      } catch (e) {
+        if (window.showToast) window.showToast(e.response?.data?.message || 'Lỗi xóa row', 'error');
+      }
+    };
+
+    if (window.showConfirm) {
+      window.showConfirm(
+        'Xác nhận XÓA row',
+        `Xóa row (${pkText}) khỏi bảng "${selectedTable}"? Hành động này KHÔNG thể hoàn tác — dữ liệu mất thật trên database.`,
+        doDelete
+      );
+    } else {
+      doDelete();
+    }
+  };
+
   const formatCell = (value) => {
     if (value === null || value === undefined) return <span className="text-muted fst-italic">null</span>;
     if (typeof value === 'boolean') return value ? 'true' : 'false';
@@ -329,13 +358,14 @@ export const AdminDemoTools = () => {
                     )}
                   </th>
                 ))}
+                <th className="small" style={{ width: '40px' }}></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={columns.length || 1} className="text-center py-4 text-muted">Đang tải...</td></tr>
+                <tr><td colSpan={(columns.length || 1) + 1} className="text-center py-4 text-muted">Đang tải...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={columns.length || 1} className="text-center py-4 text-muted">Không có dữ liệu</td></tr>
+                <tr><td colSpan={(columns.length || 1) + 1} className="text-center py-4 text-muted">Không có dữ liệu</td></tr>
               ) : (
                 rows.map((row, idx) => (
                   <tr key={idx} style={{ cursor: 'pointer' }} onClick={() => openEditModal(row)} title="Bấm để sửa row">
@@ -350,6 +380,15 @@ export const AdminDemoTools = () => {
                         </td>
                       );
                     })}
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <button
+                        className="btn btn-sm btn-outline-danger border-0 py-0 px-1"
+                        title="Xóa row"
+                        onClick={() => handleDelete(row)}
+                      >
+                        <i className="fas fa-trash-alt" style={{ fontSize: '0.75rem' }}></i>
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
