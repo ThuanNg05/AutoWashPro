@@ -1,1 +1,36 @@
 /* Demo Tools (database editor) page styles */
+
+.demo-tools-grid {
+  font-size: 0.8rem;
+}
+
+.demo-tools-grid thead th {
+  position: sticky;
+  top: 0;
+  background: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+  color: #495057;
+  text-transform: none;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+.demo-tools-grid thead th:hover {
+  background: #e9f7fb;
+  color: #0dcaf0;
+}
+
+.demo-tools-grid tbody tr:hover {
+  background: rgba(13, 202, 240, 0.06);
+}
+
+.demo-tools-grid td {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.demo-shift-panel {
+  border-left: 4px solid #0dcaf0 !important;
+  background: linear-gradient(90deg, rgba(13, 202, 240, 0.05), transparent 60%);
+}
