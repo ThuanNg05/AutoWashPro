@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
@@ -145,6 +146,101 @@ namespace Auto_Wash.Controllers
             {
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
+        }
+
+        public class RowRequest
+        {
+            public Dictionary<string, JsonElement>? Pk { get; set; }
+            public Dictionary<string, JsonElement>? Values { get; set; }
+        }
+
+        [HttpPut]
+        [Route("api/admin/demo-tools/tables/{table}/rows")]
+        public async Task<IActionResult> UpdateRow(string table, [FromBody] RowRequest request)
+        {
+            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+
+            var entityType = FindEntityType(table);
+            if (entityType == null) return NotFound(new { success = false, message = $"Không tìm thấy bảng '{table}'." });
+            if (request?.Pk == null || request.Pk.Count == 0) return BadRequest(new { success = false, message = "Thiếu khóa chính (pk)." });
+            if (request.Values == null || request.Values.Count == 0) return BadRequest(new { success = false, message = "Không có cột nào để cập nhật." });
+
+            var columns = GetColumnInfo(entityType);
+
+            try
+            {
+                var affected = await WithConnectionAsync(async conn =>
+                {
+                    using var cmd = conn.CreateCommand();
+                    var setParts = new List<string>();
+                    int i = 0;
+                    foreach (var (colName, jsonValue) in request.Values)
+                    {
+                        var col = FindColumnOrThrow(columns, colName, table);
+                        setParts.Add($"{Quote(col.Name)} = {AddTypedParameter(cmd, $"v{i++}", jsonValue, col)}");
+                    }
+
+                    var whereClause = BuildPkWhere(cmd, columns, request.Pk, table);
+                    cmd.CommandText = $"UPDATE {Quote(entityType.GetTableName()!)} SET {string.Join(", ", setParts)} WHERE {whereClause}";
+                    return await cmd.ExecuteNonQueryAsync();
+                });
+
+                if (affected == 0) return NotFound(new { success = false, message = "Không tìm thấy row với khóa chính này." });
+                return Ok(new { success = true, message = $"Đã cập nhật {affected} row.", affected });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        private static ColumnInfo FindColumnOrThrow(List<ColumnInfo> columns, string name, string table)
+        {
+            return columns.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
+                ?? throw new ArgumentException($"Cột '{name}' không tồn tại trong bảng '{table}'.");
+        }
+
+        /// <summary>
+        /// Adds a parameter carrying the JSON value as text and returns the SQL placeholder
+        /// with a cast to the column's store type — values never get concatenated into SQL.
+        /// </summary>
+        private static string AddTypedParameter(DbCommand cmd, string name, JsonElement jsonValue, ColumnInfo col)
+        {
+            var p = cmd.CreateParameter();
+            p.ParameterName = name;
+            if (jsonValue.ValueKind == JsonValueKind.Null ||
+                (jsonValue.ValueKind == JsonValueKind.String && jsonValue.GetString() == "" && col.IsNullable && col.ClrType != typeof(string)))
+            {
+                p.Value = DBNull.Value;
+                cmd.Parameters.Add(p);
+                return $"@{name}";
+            }
+            p.Value = jsonValue.ValueKind == JsonValueKind.String ? jsonValue.GetString()! : jsonValue.GetRawText();
+            cmd.Parameters.Add(p);
+            return $"@{name}::{col.StoreType}";
+        }
+
+        private static string BuildPkWhere(DbCommand cmd, List<ColumnInfo> columns, Dictionary<string, JsonElement> pk, string table)
+        {
+            var pkColumns = columns.Where(c => c.IsPrimaryKey).ToList();
+            if (pkColumns.Count == 0) throw new ArgumentException($"Bảng '{table}' không có khóa chính — không hỗ trợ sửa/xóa.");
+
+            var parts = new List<string>();
+            int i = 0;
+            foreach (var pkCol in pkColumns)
+            {
+                if (!pk.TryGetValue(pkCol.Name, out var value) &&
+                    !pk.TryGetValue(pkCol.Name.ToLowerInvariant(), out value))
+                {
+                    throw new ArgumentException($"Thiếu giá trị khóa chính '{pkCol.Name}'.");
+                }
+                parts.Add($"{Quote(pkCol.Name)} = {AddTypedParameter(cmd, $"k{i++}", value, pkCol)}");
+            }
+            return string.Join(" AND ", parts);
         }
 
         private sealed class ColumnInfo
