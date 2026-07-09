@@ -69,7 +69,7 @@ namespace Auto_Wash.Controllers
 
         [HttpGet]
         [Route("api/admin/demo-tools/tables/{table}/rows")]
-        public async Task<IActionResult> GetRows(string table, int page = 1, int pageSize = 20)
+        public async Task<IActionResult> GetRows(string table, int page = 1, int pageSize = 20, string? search = null)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
 
@@ -88,12 +88,21 @@ namespace Auto_Wash.Controllers
                     ? string.Join(", ", pkColumns.Select(Quote))
                     : Quote(columns[0].Name);
 
+                // Search: match the term against every column, cast to text so it works for numbers/dates too
+                var whereClause = "";
+                if (!string.IsNullOrWhiteSpace(search))
+                {
+                    var likeConditions = columns.Select(c => $"{Quote(c.Name)}::text ILIKE @search");
+                    whereClause = $" WHERE ({string.Join(" OR ", likeConditions)})";
+                }
+
                 var result = await WithConnectionAsync(async conn =>
                 {
                     long totalCount;
                     using (var countCmd = conn.CreateCommand())
                     {
-                        countCmd.CommandText = $"SELECT COUNT(*) FROM {Quote(tableName)}";
+                        countCmd.CommandText = $"SELECT COUNT(*) FROM {Quote(tableName)}{whereClause}";
+                        AddSearchParameter(countCmd, whereClause, search);
                         totalCount = Convert.ToInt64(await countCmd.ExecuteScalarAsync());
                     }
 
@@ -101,8 +110,9 @@ namespace Auto_Wash.Controllers
                     using (var cmd = conn.CreateCommand())
                     {
                         cmd.CommandText =
-                            $"SELECT * FROM {Quote(tableName)} ORDER BY {orderBy} " +
+                            $"SELECT * FROM {Quote(tableName)}{whereClause} ORDER BY {orderBy} " +
                             $"LIMIT {pageSize} OFFSET {(page - 1) * pageSize}";
+                        AddSearchParameter(cmd, whereClause, search);
                         using var reader = await cmd.ExecuteReaderAsync();
                         while (await reader.ReadAsync())
                         {
@@ -159,6 +169,15 @@ namespace Auto_Wash.Controllers
             {
                 if (!wasOpen) await conn.CloseAsync();
             }
+        }
+
+        private static void AddSearchParameter(DbCommand cmd, string whereClause, string? search)
+        {
+            if (string.IsNullOrEmpty(whereClause)) return;
+            var p = cmd.CreateParameter();
+            p.ParameterName = "search";
+            p.Value = $"%{search}%";
+            cmd.Parameters.Add(p);
         }
 
         /// <summary>Converts a raw DB value to a JSON-friendly shape; matches datetime-local format on the frontend.</summary>
