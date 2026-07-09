@@ -43,7 +43,19 @@ export const AdminDemoTools = () => {
   }, [searchTerm]);
 
   const currentTable = tables.find((t) => t.name === selectedTable);
-  const columns = useMemo(() => (currentTable ? currentTable.columns : []), [currentTable]);
+  // Display order: primary key first, then demo-important columns (scheduled time,
+  // status) floated to the front so they're easy to observe; the rest keep their
+  // natural order. Stable sort preserves original order within each rank.
+  const columns = useMemo(() => {
+    const cols = currentTable ? currentTable.columns : [];
+    const PRIORITY = ['scheduledat', 'status'];
+    const rank = (c) => {
+      if (c.isPrimaryKey) return 0;
+      const i = PRIORITY.indexOf(c.name.toLowerCase());
+      return i >= 0 ? 1 + i : 100;
+    };
+    return [...cols].sort((a, b) => rank(a) - rank(b));
+  }, [currentTable]);
   const pkColumns = useMemo(() => columns.filter((c) => c.isPrimaryKey), [columns]);
 
   const filteredTables = useMemo(() => {
