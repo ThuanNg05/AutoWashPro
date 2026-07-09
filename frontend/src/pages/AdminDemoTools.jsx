@@ -271,6 +271,50 @@ export const AdminDemoTools = () => {
     }
   };
 
+  // ===== Booking time-shift panel =====
+  const [shiftBookingId, setShiftBookingId] = useState('');
+
+  const shiftPresets = [
+    { label: '-1 ngày', minutes: -1440 },
+    { label: '-1 giờ', minutes: -60 },
+    { label: '-15p', minutes: -15 },
+    { label: '+15p', minutes: 15 },
+    { label: '+1 giờ', minutes: 60 },
+    { label: '+1 ngày', minutes: 1440 }
+  ];
+
+  const handleShift = (minutes) => {
+    const id = parseInt(shiftBookingId, 10);
+    if (!id) {
+      if (window.showToast) window.showToast('Nhập Booking ID trước', 'error');
+      return;
+    }
+
+    const doShift = async () => {
+      try {
+        const res = await demoToolsService.shiftBookingTime(id, minutes);
+        if (res && res.success) {
+          if (window.showToast) window.showToast(res.message, 'success');
+          if (selectedTable === 'bookings' || selectedTable === 'queue') loadRows();
+        } else if (window.showToast) {
+          window.showToast(res?.message || 'Shift thất bại', 'error');
+        }
+      } catch (e) {
+        if (window.showToast) window.showToast(e.response?.data?.message || 'Lỗi shift thời gian', 'error');
+      }
+    };
+
+    if (window.showConfirm) {
+      window.showConfirm(
+        'Xác nhận dịch thời gian',
+        `Dịch mọi mốc thời gian của booking #${id} (kèm queue liên quan) đi ${minutes > 0 ? '+' : ''}${minutes} phút?`,
+        doShift
+      );
+    } else {
+      doShift();
+    }
+  };
+
   const formatCell = (value) => {
     if (value === null || value === undefined) return <span className="text-muted fst-italic">null</span>;
     if (typeof value === 'boolean') return value ? 'true' : 'false';
@@ -325,6 +369,30 @@ export const AdminDemoTools = () => {
               <option key={t.name} value={t.name}>{t.name}</option>
             ))}
           </select>
+        </div>
+      </div>
+
+      {/* Quick booking time-shift panel: moves every timestamp of a booking (+ its queue)
+          so demo flows (reminder / no-show / wash stages) can be triggered instantly */}
+      <div className="card border-0 shadow-sm mb-3 demo-shift-panel">
+        <div className="card-body py-3 d-flex align-items-center flex-wrap gap-2">
+          <span className="fw-bold small text-nowrap">
+            <i className="fas fa-clock text-cyan me-1"></i> Dịch nhanh thời gian booking:
+          </span>
+          <input
+            type="number"
+            className="form-control form-control-sm"
+            style={{ width: '130px' }}
+            placeholder="Booking ID"
+            value={shiftBookingId}
+            onChange={(e) => setShiftBookingId(e.target.value)}
+          />
+          {shiftPresets.map((p) => (
+            <button key={p.label} className="btn btn-sm btn-outline-info fw-bold" onClick={() => handleShift(p.minutes)}>
+              {p.label}
+            </button>
+          ))}
+          <small className="text-muted">Dịch về tương lai sẽ tự reset cờ email nhắc lịch.</small>
         </div>
       </div>
 
