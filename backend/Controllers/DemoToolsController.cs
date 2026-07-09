@@ -67,6 +67,65 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        [HttpGet]
+        [Route("api/admin/demo-tools/tables/{table}/rows")]
+        public async Task<IActionResult> GetRows(string table, int page = 1, int pageSize = 20)
+        {
+            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+
+            var entityType = FindEntityType(table);
+            if (entityType == null) return NotFound(new { success = false, message = $"Không tìm thấy bảng '{table}'." });
+
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 200) pageSize = 20;
+
+            try
+            {
+                var tableName = entityType.GetTableName()!;
+                var columns = GetColumnInfo(entityType);
+                var pkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
+                var orderBy = pkColumns.Count > 0
+                    ? string.Join(", ", pkColumns.Select(Quote))
+                    : Quote(columns[0].Name);
+
+                var result = await WithConnectionAsync(async conn =>
+                {
+                    long totalCount;
+                    using (var countCmd = conn.CreateCommand())
+                    {
+                        countCmd.CommandText = $"SELECT COUNT(*) FROM {Quote(tableName)}";
+                        totalCount = Convert.ToInt64(await countCmd.ExecuteScalarAsync());
+                    }
+
+                    var rows = new List<Dictionary<string, object?>>();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText =
+                            $"SELECT * FROM {Quote(tableName)} ORDER BY {orderBy} " +
+                            $"LIMIT {pageSize} OFFSET {(page - 1) * pageSize}";
+                        using var reader = await cmd.ExecuteReaderAsync();
+                        while (await reader.ReadAsync())
+                        {
+                            var row = new Dictionary<string, object?>();
+                            for (int i = 0; i < reader.FieldCount; i++)
+                            {
+                                row[reader.GetName(i)] = ReadValue(reader.GetValue(i));
+                            }
+                            rows.Add(row);
+                        }
+                    }
+
+                    return new { totalCount, rows };
+                });
+
+                return Ok(new { success = true, page, pageSize, totalCount = result.totalCount, rows = result.rows });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         private sealed class ColumnInfo
         {
             public string Name { get; init; } = string.Empty;
