@@ -69,7 +69,7 @@ namespace Auto_Wash.Controllers
 
         [HttpGet]
         [Route("api/admin/demo-tools/tables/{table}/rows")]
-        public async Task<IActionResult> GetRows(string table, int page = 1, int pageSize = 20, string? search = null)
+        public async Task<IActionResult> GetRows(string table, int page = 1, int pageSize = 20, string? search = null, string? sortBy = null, string? sortDir = null)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
 
@@ -84,9 +84,20 @@ namespace Auto_Wash.Controllers
                 var tableName = entityType.GetTableName()!;
                 var columns = GetColumnInfo(entityType);
                 var pkColumns = columns.Where(c => c.IsPrimaryKey).Select(c => c.Name).ToList();
+                // Sort column must exist in the EF model — rejects arbitrary identifiers
                 var orderBy = pkColumns.Count > 0
                     ? string.Join(", ", pkColumns.Select(Quote))
                     : Quote(columns[0].Name);
+                if (!string.IsNullOrWhiteSpace(sortBy))
+                {
+                    var sortColumn = columns.FirstOrDefault(c => string.Equals(c.Name, sortBy, StringComparison.OrdinalIgnoreCase));
+                    if (sortColumn == null)
+                    {
+                        return BadRequest(new { success = false, message = $"Cột sort '{sortBy}' không tồn tại trong bảng '{table}'." });
+                    }
+                    var direction = string.Equals(sortDir, "desc", StringComparison.OrdinalIgnoreCase) ? "DESC" : "ASC";
+                    orderBy = $"{Quote(sortColumn.Name)} {direction}";
+                }
 
                 // Search: match the term against every column, cast to text so it works for numbers/dates too
                 var whereClause = "";
