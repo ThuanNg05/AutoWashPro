@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import '../styles/shared.css';
 import '../styles/admin/demo-tools.css';
 import { demoToolsService } from '../services/demoToolsService';
+import SearchInput from '../components/SearchInput';
 
 // Demo-only page: browse and edit raw database tables so demo scenarios
 // (booking times, statuses...) can be tweaked without opening Supabase.
@@ -13,6 +14,17 @@ export const AdminDemoTools = () => {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search input so we don't hit the API on every keystroke
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   const currentTable = tables.find((t) => t.name === selectedTable);
   const columns = currentTable ? currentTable.columns : [];
@@ -21,7 +33,7 @@ export const AdminDemoTools = () => {
     if (!selectedTable) return;
     setLoading(true);
     try {
-      const res = await demoToolsService.getRows(selectedTable, { page, pageSize });
+      const res = await demoToolsService.getRows(selectedTable, { page, pageSize, search: debouncedSearch });
       if (res && res.success) {
         setRows(res.rows);
         setTotalCount(res.totalCount);
@@ -34,7 +46,7 @@ export const AdminDemoTools = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedTable, page, pageSize]);
+  }, [selectedTable, page, pageSize, debouncedSearch]);
 
   useEffect(() => {
     loadRows();
@@ -99,6 +111,10 @@ export const AdminDemoTools = () => {
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="mb-3" style={{ maxWidth: '400px' }}>
+        <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Tìm trên mọi cột..." />
       </div>
 
       {currentTable && (
