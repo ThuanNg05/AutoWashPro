@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Auto_Wash.Data;
+using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Controllers
 {
@@ -20,10 +21,22 @@ namespace Auto_Wash.Controllers
     public class DemoToolsController : Controller
     {
         private readonly AutoWashDbContext _context;
+        private readonly FileLogger _auditLogger;
 
-        public DemoToolsController(AutoWashDbContext context)
+        public DemoToolsController(AutoWashDbContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _auditLogger = new FileLogger(System.IO.Path.Combine(env.ContentRootPath, "demo_tools_log.txt"));
+        }
+
+        /// <summary>Writes every demo-tools write operation to demo_tools_log.txt so demo edits stay traceable.</summary>
+        private void Audit(string action, string details)
+        {
+            var user = HttpContext.Session.GetString("UserEmail")
+                       ?? HttpContext.Session.GetString("UserRole")
+                       ?? "unknown";
+            _auditLogger.Log(Microsoft.Extensions.Logging.LogLevel.Information, 0,
+                $"[{action}] by={user} {details}", null, (state, _) => state);
         }
 
         private bool IsAdminOrStaff()
@@ -186,6 +199,7 @@ namespace Auto_Wash.Controllers
                 });
 
                 if (affected == 0) return NotFound(new { success = false, message = "Không tìm thấy row với khóa chính này." });
+                Audit($"UPDATE {table}", $"pk={JsonSerializer.Serialize(request.Pk)} values={JsonSerializer.Serialize(request.Values)}");
                 return Ok(new { success = true, message = $"Đã cập nhật {affected} row.", affected });
             }
             catch (ArgumentException ex)
@@ -241,6 +255,7 @@ namespace Auto_Wash.Controllers
                     return row;
                 });
 
+                Audit($"INSERT {table}", $"values={JsonSerializer.Serialize(request.Values)}");
                 return Ok(new { success = true, message = "Đã thêm row mới.", row = createdRow });
             }
             catch (ArgumentException ex)
@@ -276,6 +291,7 @@ namespace Auto_Wash.Controllers
                 });
 
                 if (affected == 0) return NotFound(new { success = false, message = "Không tìm thấy row với khóa chính này." });
+                Audit($"DELETE {table}", $"pk={JsonSerializer.Serialize(request.Pk)}");
                 return Ok(new { success = true, message = $"Đã xóa {affected} row.", affected });
             }
             catch (ArgumentException ex)
@@ -336,6 +352,7 @@ namespace Auto_Wash.Controllers
 
                 await _context.SaveChangesAsync();
 
+                Audit("SHIFT bookings", $"bookingId={id} minutes={minutes} queues={queues.Count} flagsReset={flagsReset}");
                 return Ok(new
                 {
                     success = true,
