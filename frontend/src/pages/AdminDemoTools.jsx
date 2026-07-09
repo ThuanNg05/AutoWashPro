@@ -8,8 +8,42 @@ import { demoToolsService } from '../services/demoToolsService';
 export const AdminDemoTools = () => {
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState('bookings');
+  const [rows, setRows] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const currentTable = tables.find((t) => t.name === selectedTable);
+  const columns = currentTable ? currentTable.columns : [];
+
+  const loadRows = useCallback(async () => {
+    if (!selectedTable) return;
+    setLoading(true);
+    try {
+      const res = await demoToolsService.getRows(selectedTable, {});
+      if (res && res.success) {
+        setRows(res.rows);
+        setTotalCount(res.totalCount);
+      } else if (window.showToast) {
+        window.showToast(res?.message || 'Không thể tải dữ liệu', 'error');
+      }
+    } catch (e) {
+      console.error('Failed to load rows', e);
+      if (window.showToast) window.showToast(e.response?.data?.message || 'Lỗi tải dữ liệu', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedTable]);
+
+  useEffect(() => {
+    loadRows();
+  }, [loadRows]);
+
+  const formatCell = (value) => {
+    if (value === null || value === undefined) return <span className="text-muted fst-italic">null</span>;
+    if (typeof value === 'boolean') return value ? 'true' : 'false';
+    const s = String(value);
+    return s.length > 60 ? s.slice(0, 60) + '…' : s;
+  };
 
   useEffect(() => {
     const loadTables = async () => {
@@ -60,9 +94,49 @@ export const AdminDemoTools = () => {
 
       {currentTable && (
         <div className="text-muted small mb-3">
-          {currentTable.columns.length} cột — PK: {currentTable.columns.filter((c) => c.isPrimaryKey).map((c) => c.name).join(', ') || '(không có)'}
+          {totalCount} row — PK: {currentTable.columns.filter((c) => c.isPrimaryKey).map((c) => c.name).join(', ') || '(không có)'}
         </div>
       )}
+
+      <div className="card border-0 shadow-sm">
+        <div className="card-body p-0" style={{ overflowX: 'auto' }}>
+          <table className="table table-hover align-middle mb-0 demo-tools-grid">
+            <thead>
+              <tr>
+                {columns.map((col) => (
+                  <th key={col.name} className="text-nowrap small">
+                    {col.name}
+                    {col.isPrimaryKey && <i className="fas fa-key text-warning ms-1" style={{ fontSize: '0.6rem' }}></i>}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr><td colSpan={columns.length || 1} className="text-center py-4 text-muted">Đang tải...</td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={columns.length || 1} className="text-center py-4 text-muted">Không có dữ liệu</td></tr>
+              ) : (
+                rows.map((row, idx) => (
+                  <tr key={idx}>
+                    {columns.map((col) => {
+                      const key = Object.keys(row).find((k) => k.toLowerCase() === col.name.toLowerCase());
+                      return (
+                        <td key={col.name} className="text-nowrap small">
+                          {formatCell(key !== undefined ? row[key] : undefined)}
+                          {col.enumLabels && row[key] !== null && row[key] !== undefined && col.enumLabels[row[key]] !== undefined && (
+                            <span className="text-muted ms-1">({col.enumLabels[row[key]]})</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };
