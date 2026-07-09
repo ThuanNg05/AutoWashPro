@@ -3,6 +3,7 @@ import '../styles/shared.css';
 import '../styles/admin/demo-tools.css';
 import { demoToolsService } from '../services/demoToolsService';
 import SearchInput from '../components/SearchInput';
+import Modal from '../components/Modal';
 
 // Demo-only page: browse and edit raw database tables so demo scenarios
 // (booking times, statuses...) can be tweaked without opening Supabase.
@@ -72,6 +73,124 @@ export const AdminDemoTools = () => {
   }, [selectedTable]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+
+  // ===== Edit row modal =====
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editOriginal, setEditOriginal] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
+
+  const getCellValue = (row, colName) => {
+    if (colName in row) return row[colName];
+    const key = Object.keys(row).find((k) => k.toLowerCase() === colName.toLowerCase());
+    return key !== undefined ? row[key] : null;
+  };
+
+  const isTimestampCol = (col) => col.storeType.startsWith('timestamp') || col.clrType === 'DateTime';
+
+  const toInputValue = (col, value) => {
+    if (value === null || value === undefined) return '';
+    if (isTimestampCol(col)) return String(value).slice(0, 16); // datetime-local wants yyyy-MM-ddTHH:mm
+    return String(value);
+  };
+
+  const openEditModal = (row) => {
+    const values = {};
+    columns.forEach((col) => {
+      values[col.name] = toInputValue(col, getCellValue(row, col.name));
+    });
+    setEditOriginal(row);
+    setEditValues(values);
+    setShowEditModal(true);
+  };
+
+  const buildPk = (row) => {
+    const pk = {};
+    columns.filter((c) => c.isPrimaryKey).forEach((c) => {
+      pk[c.name] = getCellValue(row, c.name);
+    });
+    return pk;
+  };
+
+  const handleSaveEdit = () => {
+    if (!editOriginal) return;
+    // Only send columns the user actually changed — avoids rewriting bytea placeholders etc.
+    const changed = {};
+    columns.forEach((col) => {
+      if (col.isPrimaryKey) return;
+      const original = toInputValue(col, getCellValue(editOriginal, col.name));
+      if (editValues[col.name] !== original) {
+        changed[col.name] = editValues[col.name] === '' && col.isNullable ? null : editValues[col.name];
+      }
+    });
+    if (Object.keys(changed).length === 0) {
+      if (window.showToast) window.showToast('Không có thay đổi nào', 'info');
+      return;
+    }
+
+    const doSave = async () => {
+      setSaving(true);
+      try {
+        const res = await demoToolsService.updateRow(selectedTable, buildPk(editOriginal), changed);
+        if (res && res.success) {
+          if (window.showToast) window.showToast(res.message, 'success');
+          setShowEditModal(false);
+          loadRows();
+        } else if (window.showToast) {
+          window.showToast(res?.message || 'Cập nhật thất bại', 'error');
+        }
+      } catch (e) {
+        if (window.showToast) window.showToast(e.response?.data?.message || 'Lỗi cập nhật row', 'error');
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    if (window.showConfirm) {
+      window.showConfirm(
+        'Xác nhận cập nhật',
+        `Cập nhật ${Object.keys(changed).length} cột của bảng "${selectedTable}"? Thay đổi có hiệu lực thật trên database.`,
+        doSave
+      );
+    } else {
+      doSave();
+    }
+  };
+
+  const renderFieldInput = (col, value, onChange, disabled = false) => {
+    if (col.enumLabels) {
+      return (
+        <select className="form-select form-select-sm" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+          {col.isNullable && <option value="">null</option>}
+          {Object.entries(col.enumLabels).map(([num, label]) => (
+            <option key={num} value={num}>{num} — {label}</option>
+          ))}
+        </select>
+      );
+    }
+    if (col.clrType === 'Boolean') {
+      return (
+        <select className="form-select form-select-sm" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled}>
+          {col.isNullable && <option value="">null</option>}
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      );
+    }
+    if (isTimestampCol(col)) {
+      return (
+        <input type="datetime-local" step="1" className="form-control form-control-sm" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} />
+      );
+    }
+    if (['Int32', 'Int64', 'Int16', 'Byte', 'Decimal', 'Double', 'Single'].includes(col.clrType)) {
+      return (
+        <input type="number" step="any" className="form-control form-control-sm" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} />
+      );
+    }
+    return (
+      <input type="text" className="form-control form-control-sm" value={value} onChange={(e) => onChange(e.target.value)} disabled={disabled} />
+    );
+  };
 
   const formatCell = (value) => {
     if (value === null || value === undefined) return <span className="text-muted fst-italic">null</span>;
@@ -166,7 +285,7 @@ export const AdminDemoTools = () => {
                 <tr><td colSpan={columns.length || 1} className="text-center py-4 text-muted">Không có dữ liệu</td></tr>
               ) : (
                 rows.map((row, idx) => (
-                  <tr key={idx}>
+                  <tr key={idx} style={{ cursor: 'pointer' }} onClick={() => openEditModal(row)} title="Bấm để sửa row">
                     {columns.map((col) => {
                       const key = Object.keys(row).find((k) => k.toLowerCase() === col.name.toLowerCase());
                       return (
@@ -208,6 +327,42 @@ export const AdminDemoTools = () => {
           </div>
         </div>
       </div>
+
+      {/* Edit row modal */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title={`Sửa row — ${selectedTable}`}
+        maxWidth="640px"
+        footer={
+          <>
+            <button className="btn btn-light" onClick={() => setShowEditModal(false)} disabled={saving}>Hủy</button>
+            <button className="btn btn-info text-white fw-bold" onClick={handleSaveEdit} disabled={saving}>
+              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
+          {columns.map((col) => (
+            <div key={col.name} className="row align-items-center mb-2">
+              <div className="col-4 small fw-bold text-truncate" title={`${col.name} (${col.storeType})`}>
+                {col.name}
+                {col.isPrimaryKey && <i className="fas fa-key text-warning ms-1" style={{ fontSize: '0.6rem' }}></i>}
+                {!col.isNullable && !col.isPrimaryKey && <span className="text-danger">*</span>}
+              </div>
+              <div className="col-8">
+                {renderFieldInput(
+                  col,
+                  editValues[col.name] ?? '',
+                  (v) => setEditValues((prev) => ({ ...prev, [col.name]: v })),
+                  col.isPrimaryKey
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 };
