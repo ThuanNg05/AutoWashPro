@@ -16,6 +16,18 @@ export const AdminDemoTools = () => {
   const [pageSize, setPageSize] = useState(20);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [sortBy, setSortBy] = useState('');
+  const [sortDir, setSortDir] = useState('asc');
+
+  const toggleSort = (colName) => {
+    if (sortBy === colName) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(colName);
+      setSortDir('asc');
+    }
+    setPage(1);
+  };
 
   // Debounce search input so we don't hit the API on every keystroke
   useEffect(() => {
@@ -33,7 +45,7 @@ export const AdminDemoTools = () => {
     if (!selectedTable) return;
     setLoading(true);
     try {
-      const res = await demoToolsService.getRows(selectedTable, { page, pageSize, search: debouncedSearch });
+      const res = await demoToolsService.getRows(selectedTable, { page, pageSize, search: debouncedSearch, sortBy, sortDir });
       if (res && res.success) {
         setRows(res.rows);
         setTotalCount(res.totalCount);
@@ -46,15 +58,17 @@ export const AdminDemoTools = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedTable, page, pageSize, debouncedSearch]);
+  }, [selectedTable, page, pageSize, debouncedSearch, sortBy, sortDir]);
 
   useEffect(() => {
     loadRows();
   }, [loadRows]);
 
-  // Back to page 1 whenever the table changes
+  // Back to page 1 and clear sort whenever the table changes
   useEffect(() => {
     setPage(1);
+    setSortBy('');
+    setSortDir('asc');
   }, [selectedTable]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
@@ -129,9 +143,18 @@ export const AdminDemoTools = () => {
             <thead>
               <tr>
                 {columns.map((col) => (
-                  <th key={col.name} className="text-nowrap small">
+                  <th
+                    key={col.name}
+                    className="text-nowrap small"
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                    onClick={() => toggleSort(col.name)}
+                    title="Bấm để sort"
+                  >
                     {col.name}
                     {col.isPrimaryKey && <i className="fas fa-key text-warning ms-1" style={{ fontSize: '0.6rem' }}></i>}
+                    {sortBy === col.name && (
+                      <i className={`fas fa-sort-${sortDir === 'asc' ? 'up' : 'down'} text-cyan ms-1`}></i>
+                    )}
                   </th>
                 ))}
               </tr>
