@@ -206,6 +206,15 @@ export const AdminDemoTools = () => {
     await saveCell(row, col, newVal);
   };
 
+  // Explicitly set a cell to NULL (clears the ambiguity of empty-string vs null).
+  const setCellNull = async (row, col) => {
+    if (!editingRef.current) return;
+    editingRef.current = null;
+    setEditingCell(null);
+    if (getCellValue(row, col.name) === null) return; // already null
+    await saveCell(row, col, null);
+  };
+
   const renderInlineEditor = (col, row) => {
     const commit = () => commitCell(row, col);
     const handlers = {
@@ -220,8 +229,10 @@ export const AdminDemoTools = () => {
         else if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
       }
     };
+
+    let field;
     if (col.enumLabels) {
-      return (
+      field = (
         <select {...handlers}>
           {col.isNullable && <option value="">null</option>}
           {Object.entries(col.enumLabels).map(([num, label]) => (
@@ -229,21 +240,40 @@ export const AdminDemoTools = () => {
           ))}
         </select>
       );
-    }
-    if (col.clrType === 'Boolean') {
-      return (
+    } else if (col.clrType === 'Boolean') {
+      field = (
         <select {...handlers}>
           {col.isNullable && <option value="">null</option>}
           <option value="true">true</option>
           <option value="false">false</option>
         </select>
       );
+    } else if (isTimestampCol(col)) {
+      field = <input type="datetime-local" step="1" {...handlers} />;
+    } else if (['Int32', 'Int64', 'Int16', 'Byte', 'Decimal', 'Double', 'Single'].includes(col.clrType)) {
+      field = <input type="number" step="any" {...handlers} />;
+    } else {
+      field = <input type="text" {...handlers} />;
     }
-    if (isTimestampCol(col)) return <input type="datetime-local" step="1" {...handlers} />;
-    if (['Int32', 'Int64', 'Int16', 'Byte', 'Decimal', 'Double', 'Single'].includes(col.clrType)) {
-      return <input type="number" step="any" {...handlers} />;
-    }
-    return <input type="text" {...handlers} />;
+
+    return (
+      <div className="dt-cell-edit-wrap">
+        {field}
+        {col.isNullable && (
+          <button
+            type="button"
+            className="dt-null-btn"
+            title="Đặt về NULL"
+            disabled={cellSaving}
+            // preventDefault keeps focus on the input so onBlur-commit doesn't swallow the click
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setCellNull(row, col)}
+          >
+            NULL
+          </button>
+        )}
+      </div>
+    );
   };
 
   const renderFieldInput = (col, value, onChange, disabled = false) => {
