@@ -38,7 +38,7 @@ export const AdminLayout = () => {
 
       {/* Admin Sidebar */}
       <nav id="sidebar" className={sidebarCollapsed ? 'collapsed' : ''}>
-        <Link to="/admin/dashboard" className="text-decoration-none d-block p-4 mb-4 hover-opacity" style={{ transition: 'opacity 0.2s', cursor: 'pointer' }}>
+        <Link to="/admin/dashboard" className="text-decoration-none d-block p-3 mb-2 hover-opacity" style={{ transition: 'opacity 0.2s', cursor: 'pointer' }}>
           <div className="brand-full">
             <h4 className="fw-bold mb-0 text-dark">AutoWash <span className="text-cyan">Pro</span></h4>
             <small className="text-muted fw-bold" style={{ fontSize: '0.65rem', letterSpacing: '1px', textTransform: 'uppercase' }}>
@@ -69,17 +69,20 @@ export const AdminLayout = () => {
           <Link to="/admin/transactions" className={`sidebar-link ${activeNav === 'transactions' ? 'active' : ''}`}>
             <i className="fas fa-receipt"></i> <span>Lịch sử giao dịch</span>
           </Link>
-          <hr className="mx-3 opacity-10 my-4" />
           <button type="button" className="sidebar-link text-danger opacity-75 border-0 bg-transparent w-100 text-start" onClick={handleLogout}>
             <i className="fas fa-sign-out-alt"></i> <span>Đăng xuất</span>
           </button>
         </div>
 
-        <div className="p-3">
+        <div className="p-3 d-flex flex-column gap-2">
           <button className="sidebar-collapse-btn" onClick={toggleSidebar}>
-            <i className={`fas ${sidebarCollapsed ? 'fa-chevron-right' : 'fa-chevron-left'}`}></i>
+            <i className="fas fa-chevron-left"></i>
             <span>Thu gọn menu</span>
           </button>
+          <Link to="/admin/demo-tools" className="sidebar-demo-btn" title="Demo tool: chỉnh database trực tiếp">
+            <i className="fas fa-database"></i>
+            <span>Demo Tool</span>
+          </Link>
         </div>
       </nav>
 
