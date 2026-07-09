@@ -253,6 +253,41 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        [HttpDelete]
+        [Route("api/admin/demo-tools/tables/{table}/rows")]
+        public async Task<IActionResult> DeleteRow(string table, [FromBody] RowRequest request)
+        {
+            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+
+            var entityType = FindEntityType(table);
+            if (entityType == null) return NotFound(new { success = false, message = $"Không tìm thấy bảng '{table}'." });
+            if (request?.Pk == null || request.Pk.Count == 0) return BadRequest(new { success = false, message = "Thiếu khóa chính (pk)." });
+
+            var columns = GetColumnInfo(entityType);
+
+            try
+            {
+                var affected = await WithConnectionAsync(async conn =>
+                {
+                    using var cmd = conn.CreateCommand();
+                    var whereClause = BuildPkWhere(cmd, columns, request.Pk, table);
+                    cmd.CommandText = $"DELETE FROM {Quote(entityType.GetTableName()!)} WHERE {whereClause}";
+                    return await cmd.ExecuteNonQueryAsync();
+                });
+
+                if (affected == 0) return NotFound(new { success = false, message = "Không tìm thấy row với khóa chính này." });
+                return Ok(new { success = true, message = $"Đã xóa {affected} row.", affected });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         private static ColumnInfo FindColumnOrThrow(List<ColumnInfo> columns, string name, string table)
         {
             return columns.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
