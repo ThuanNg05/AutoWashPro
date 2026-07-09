@@ -24,6 +24,7 @@ const AdminCustomers = lazy(() => import('./pages/AdminCustomers'));
 const AdminServices = lazy(() => import('./pages/AdminServices'));
 const AdminBookings = lazy(() => import('./pages/AdminBookings'));
 const AdminTransactions = lazy(() => import('./pages/AdminTransactions'));
+const AdminDemoTools = lazy(() => import('./pages/AdminDemoTools'));
 const PaymentResult = lazy(() => import('./pages/PaymentResult'));
 
 const PageLoader = () => (
@@ -83,6 +84,7 @@ function App() {
             <Route path="customers" element={<AdminCustomers />} />
             <Route path="services" element={<AdminServices />} />
             <Route path="transactions" element={<AdminTransactions />} />
+            <Route path="demo-tools" element={<AdminDemoTools />} />
           </Route>
 
           {/* Payment Result (accessible by all authenticated users) */}

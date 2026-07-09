@@ -70,6 +70,9 @@ export const AdminLayout = () => {
             <i className="fas fa-receipt"></i> <span>Lịch sử giao dịch</span>
           </Link>
           <hr className="mx-3 opacity-10 my-4" />
+          <Link to="/admin/demo-tools" className="sidebar-link" style={{ border: '1px dashed rgba(13, 202, 240, 0.5)', borderRadius: '8px', margin: '0 8px 4px' }} title="Demo tool: chỉnh database trực tiếp">
+            <i className="fas fa-database text-cyan"></i> <span>Demo Tool: Database</span>
+          </Link>
           <button type="button" className="sidebar-link text-danger opacity-75 border-0 bg-transparent w-100 text-start" onClick={handleLogout}>
             <i className="fas fa-sign-out-alt"></i> <span>Đăng xuất</span>
           </button>
