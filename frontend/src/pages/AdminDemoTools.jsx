@@ -1,24 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import '../styles/shared.css';
 import '../styles/admin/demo-tools.css';
 import { demoToolsService } from '../services/demoToolsService';
-import SearchInput from '../components/SearchInput';
 import Modal from '../components/Modal';
 
 // Demo-only page: browse and edit raw database tables so demo scenarios
 // (booking times, statuses...) can be tweaked without opening Supabase.
+// Layout mirrors the Supabase Table Editor: table list on the left, data grid
+// with a toolbar + footer on the right.
 export const AdminDemoTools = () => {
   const [tables, setTables] = useState([]);
   const [selectedTable, setSelectedTable] = useState('bookings');
+  const [tableFilter, setTableFilter] = useState('');
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(100);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [sortBy, setSortBy] = useState('');
   const [sortDir, setSortDir] = useState('asc');
+  const [selectedKeys, setSelectedKeys] = useState(new Set());
 
   const toggleSort = (colName) => {
     if (sortBy === colName) {
@@ -40,11 +43,18 @@ export const AdminDemoTools = () => {
   }, [searchTerm]);
 
   const currentTable = tables.find((t) => t.name === selectedTable);
-  const columns = currentTable ? currentTable.columns : [];
+  const columns = useMemo(() => (currentTable ? currentTable.columns : []), [currentTable]);
+  const pkColumns = useMemo(() => columns.filter((c) => c.isPrimaryKey), [columns]);
+
+  const filteredTables = useMemo(() => {
+    const q = tableFilter.trim().toLowerCase();
+    return q ? tables.filter((t) => t.name.toLowerCase().includes(q)) : tables;
+  }, [tables, tableFilter]);
 
   const loadRows = useCallback(async () => {
     if (!selectedTable) return;
     setLoading(true);
+    setSelectedKeys(new Set());
     try {
       const res = await demoToolsService.getRows(selectedTable, { page, pageSize, search: debouncedSearch, sortBy, sortDir });
       if (res && res.success) {
@@ -65,26 +75,67 @@ export const AdminDemoTools = () => {
     loadRows();
   }, [loadRows]);
 
-  // Back to page 1 and clear sort whenever the table changes
+  // Back to page 1, clear sort/search whenever the table changes
   useEffect(() => {
     setPage(1);
     setSortBy('');
     setSortDir('asc');
+    setSearchTerm('');
   }, [selectedTable]);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-
-  // ===== Edit row modal =====
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editOriginal, setEditOriginal] = useState(null);
-  const [editValues, setEditValues] = useState({});
-  const [saving, setSaving] = useState(false);
 
   const getCellValue = (row, colName) => {
     if (colName in row) return row[colName];
     const key = Object.keys(row).find((k) => k.toLowerCase() === colName.toLowerCase());
     return key !== undefined ? row[key] : null;
   };
+
+  const rowKey = useCallback((row) => {
+    if (pkColumns.length === 0) return JSON.stringify(row);
+    return pkColumns.map((c) => `${c.name}=${getCellValue(row, c.name)}`).join('|');
+  }, [pkColumns]);
+
+  // Short Postgres type label for the column header (int4, timestamp, varchar...)
+  const shortType = (storeType) => {
+    if (!storeType) return '';
+    const t = storeType.toLowerCase();
+    if (t.startsWith('timestamp')) return 'timestamp';
+    if (t.startsWith('character varying')) return 'varchar';
+    if (t === 'integer') return 'int4';
+    if (t === 'bigint') return 'int8';
+    if (t === 'smallint') return 'int2';
+    if (t === 'boolean') return 'bool';
+    if (t.startsWith('numeric')) return 'numeric';
+    if (t.startsWith('character(') || t === 'char') return 'char';
+    return t.split('(')[0];
+  };
+
+  // ===== Selection =====
+  const allSelected = rows.length > 0 && rows.every((r) => selectedKeys.has(rowKey(r)));
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedKeys(new Set());
+    } else {
+      setSelectedKeys(new Set(rows.map(rowKey)));
+    }
+  };
+
+  const toggleSelectRow = (row) => {
+    const key = rowKey(row);
+    setSelectedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  // ===== Edit row modal =====
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editOriginal, setEditOriginal] = useState(null);
+  const [editValues, setEditValues] = useState({});
+  const [saving, setSaving] = useState(false);
 
   const isTimestampCol = (col) => col.storeType.startsWith('timestamp') || col.clrType === 'DateTime';
 
@@ -106,7 +157,7 @@ export const AdminDemoTools = () => {
 
   const buildPk = (row) => {
     const pk = {};
-    columns.filter((c) => c.isPrimaryKey).forEach((c) => {
+    pkColumns.forEach((c) => {
       pk[c.name] = getCellValue(row, c.name);
     });
     return pk;
@@ -242,28 +293,36 @@ export const AdminDemoTools = () => {
     }
   };
 
-  const handleDelete = (row) => {
-    const pk = buildPk(row);
-    const pkText = Object.entries(pk).map(([k, v]) => `${k}=${v}`).join(', ');
+  // ===== Delete (bulk, selection-based) =====
+  const handleDeleteSelected = () => {
+    const targets = rows.filter((r) => selectedKeys.has(rowKey(r)));
+    if (targets.length === 0) return;
+    if (pkColumns.length === 0) {
+      if (window.showToast) window.showToast('Bảng không có khóa chính — không xóa được', 'error');
+      return;
+    }
 
     const doDelete = async () => {
-      try {
-        const res = await demoToolsService.deleteRow(selectedTable, pk);
-        if (res && res.success) {
-          if (window.showToast) window.showToast(res.message, 'success');
-          loadRows();
-        } else if (window.showToast) {
-          window.showToast(res?.message || 'Xóa thất bại', 'error');
+      let ok = 0;
+      let fail = 0;
+      for (const row of targets) {
+        try {
+          const res = await demoToolsService.deleteRow(selectedTable, buildPk(row));
+          if (res && res.success) ok++; else fail++;
+        } catch {
+          fail++;
         }
-      } catch (e) {
-        if (window.showToast) window.showToast(e.response?.data?.message || 'Lỗi xóa row', 'error');
       }
+      if (window.showToast) {
+        window.showToast(`Đã xóa ${ok} row${fail ? `, lỗi ${fail}` : ''}`, fail ? 'error' : 'success');
+      }
+      loadRows();
     };
 
     if (window.showConfirm) {
       window.showConfirm(
-        'Xác nhận XÓA row',
-        `Xóa row (${pkText}) khỏi bảng "${selectedTable}"? Hành động này KHÔNG thể hoàn tác — dữ liệu mất thật trên database.`,
+        'Xác nhận XÓA',
+        `Xóa ${targets.length} row khỏi bảng "${selectedTable}"? Hành động này KHÔNG thể hoàn tác — dữ liệu mất thật trên database.`,
         doDelete
       );
     } else {
@@ -272,6 +331,7 @@ export const AdminDemoTools = () => {
   };
 
   // ===== Booking time-shift panel =====
+  const [showShift, setShowShift] = useState(false);
   const [shiftBookingId, setShiftBookingId] = useState('');
 
   const shiftPresets = [
@@ -316,10 +376,10 @@ export const AdminDemoTools = () => {
   };
 
   const formatCell = (value) => {
-    if (value === null || value === undefined) return <span className="text-muted fst-italic">null</span>;
+    if (value === null || value === undefined) return <span className="dt-null">NULL</span>;
     if (typeof value === 'boolean') return value ? 'true' : 'false';
     const s = String(value);
-    return s.length > 60 ? s.slice(0, 60) + '…' : s;
+    return s.length > 80 ? s.slice(0, 80) + '…' : s;
   };
 
   useEffect(() => {
@@ -342,151 +402,198 @@ export const AdminDemoTools = () => {
     loadTables();
   }, []);
 
-  return (
-    <div className="p-4">
-      <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
-        <div>
-          <h3 className="fw-bold mb-1">
-            <i className="fas fa-database text-cyan me-2"></i>
-            Demo Tool: Database
-          </h3>
-          <small className="text-muted">
-            Chỉnh sửa dữ liệu trực tiếp phục vụ demo — thao tác ghi có hiệu lực thật trên database.
-          </small>
-        </div>
-        <div className="d-flex align-items-center gap-2">
-          <button className="btn btn-info text-white fw-bold btn-sm" onClick={openInsertModal} disabled={!currentTable}>
-            <i className="fas fa-plus me-1"></i> Thêm row
-          </button>
-          <label className="fw-bold text-muted small mb-0">Bảng:</label>
-          <select
-            className="form-select"
-            style={{ minWidth: '220px' }}
-            value={selectedTable}
-            onChange={(e) => setSelectedTable(e.target.value)}
-          >
-            {tables.map((t) => (
-              <option key={t.name} value={t.name}>{t.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+  const selectedCount = selectedKeys.size;
 
-      {/* Quick booking time-shift panel: moves every timestamp of a booking (+ its queue)
-          so demo flows (reminder / no-show / wash stages) can be triggered instantly */}
-      <div className="card border-0 shadow-sm mb-3 demo-shift-panel">
-        <div className="card-body py-3 d-flex align-items-center flex-wrap gap-2">
-          <span className="fw-bold small text-nowrap">
-            <i className="fas fa-clock text-cyan me-1"></i> Dịch nhanh thời gian booking:
-          </span>
+  return (
+    <div className="demo-tools-wrapper">
+      {/* ── Left: table list ─────────────────────────── */}
+      <aside className="dt-sidebar">
+        <div className="dt-sidebar-header">
+          <i className="fas fa-table-cells-large me-2"></i> Table Editor
+        </div>
+        <div className="dt-schema">
+          <i className="fas fa-layer-group me-2 text-muted"></i>
+          schema <span className="dt-schema-name">public</span>
+        </div>
+        <div className="dt-table-search">
+          <i className="fas fa-search"></i>
           <input
-            type="number"
-            className="form-control form-control-sm"
-            style={{ width: '130px' }}
-            placeholder="Booking ID"
-            value={shiftBookingId}
-            onChange={(e) => setShiftBookingId(e.target.value)}
+            type="text"
+            placeholder="Tìm bảng..."
+            value={tableFilter}
+            onChange={(e) => setTableFilter(e.target.value)}
           />
-          {shiftPresets.map((p) => (
-            <button key={p.label} className="btn btn-sm btn-outline-info fw-bold" onClick={() => handleShift(p.minutes)}>
-              {p.label}
+        </div>
+        <div className="dt-table-list">
+          {filteredTables.map((t) => (
+            <button
+              key={t.name}
+              className={`dt-table-item ${t.name === selectedTable ? 'active' : ''}`}
+              onClick={() => setSelectedTable(t.name)}
+              title={t.name}
+            >
+              <i className="fas fa-table"></i>
+              <span className="text-truncate">{t.name}</span>
             </button>
           ))}
-          <small className="text-muted">Dịch về tương lai sẽ tự reset cờ email nhắc lịch.</small>
+          {filteredTables.length === 0 && (
+            <div className="dt-table-empty">Không có bảng khớp</div>
+          )}
         </div>
-      </div>
+      </aside>
 
-      <div className="mb-3" style={{ maxWidth: '400px' }}>
-        <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Tìm trên mọi cột..." />
-      </div>
-
-      {currentTable && (
-        <div className="text-muted small mb-3">
-          {totalCount} row — PK: {currentTable.columns.filter((c) => c.isPrimaryKey).map((c) => c.name).join(', ') || '(không có)'}
+      {/* ── Right: data grid ─────────────────────────── */}
+      <main className="dt-main">
+        {/* Tab bar */}
+        <div className="dt-tabbar">
+          <div className="dt-tab active">
+            <i className="fas fa-table me-2"></i>{selectedTable}
+          </div>
         </div>
-      )}
 
-      <div className="card border-0 shadow-sm">
-        <div className="card-body p-0" style={{ overflowX: 'auto' }}>
-          <table className="table table-hover align-middle mb-0 demo-tools-grid">
+        {/* Toolbar */}
+        <div className="dt-toolbar">
+          {selectedCount > 0 ? (
+            <>
+              <span className="dt-selected-label">{selectedCount} đã chọn</span>
+              <button className="dt-btn dt-btn-danger" onClick={handleDeleteSelected}>
+                <i className="fas fa-trash-alt me-1"></i> Xóa
+              </button>
+              <button className="dt-btn" onClick={() => setSelectedKeys(new Set())}>Bỏ chọn</button>
+              <div className="flex-grow-1" />
+            </>
+          ) : (
+            <>
+              <div className="dt-toolbar-search">
+                <i className="fas fa-search"></i>
+                <input
+                  type="text"
+                  placeholder={`Tìm trong ${selectedTable}... (mọi cột)`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              {sortBy && (
+                <button className="dt-btn dt-btn-active" onClick={() => { setSortBy(''); setSortDir('asc'); }} title="Xóa sort">
+                  <i className="fas fa-arrow-down-short-wide me-1"></i>
+                  {sortBy} {sortDir === 'asc' ? '↑' : '↓'} <i className="fas fa-times ms-1"></i>
+                </button>
+              )}
+              <div className="flex-grow-1" />
+              <button className="dt-btn" onClick={loadRows} title="Tải lại">
+                <i className="fas fa-rotate-right"></i>
+              </button>
+              {(selectedTable === 'bookings' || selectedTable === 'queue') && (
+                <button className={`dt-btn ${showShift ? 'dt-btn-active' : ''}`} onClick={() => setShowShift((s) => !s)}>
+                  <i className="fas fa-clock me-1"></i> Dịch thời gian
+                </button>
+              )}
+              <button className="dt-btn dt-btn-primary" onClick={openInsertModal} disabled={!currentTable}>
+                <i className="fas fa-plus me-1"></i> Insert
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Booking time-shift strip */}
+        {showShift && (selectedTable === 'bookings' || selectedTable === 'queue') && (
+          <div className="dt-shift-strip">
+            <span className="dt-shift-label"><i className="fas fa-clock me-1"></i> Dịch nhanh thời gian booking:</span>
+            <input
+              type="number"
+              className="dt-shift-input"
+              placeholder="Booking ID"
+              value={shiftBookingId}
+              onChange={(e) => setShiftBookingId(e.target.value)}
+            />
+            {shiftPresets.map((p) => (
+              <button key={p.label} className="dt-btn dt-btn-sm" onClick={() => handleShift(p.minutes)}>{p.label}</button>
+            ))}
+            <span className="dt-shift-hint">Dịch về tương lai sẽ tự reset cờ email nhắc lịch.</span>
+          </div>
+        )}
+
+        {/* Grid */}
+        <div className="dt-grid-container">
+          <table className="dt-grid">
             <thead>
               <tr>
+                <th className="dt-check-col">
+                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
+                </th>
                 {columns.map((col) => (
-                  <th
-                    key={col.name}
-                    className="text-nowrap small"
-                    style={{ cursor: 'pointer', userSelect: 'none' }}
-                    onClick={() => toggleSort(col.name)}
-                    title="Bấm để sort"
-                  >
-                    {col.name}
-                    {col.isPrimaryKey && <i className="fas fa-key text-warning ms-1" style={{ fontSize: '0.6rem' }}></i>}
-                    {sortBy === col.name && (
-                      <i className={`fas fa-sort-${sortDir === 'asc' ? 'up' : 'down'} text-cyan ms-1`}></i>
-                    )}
+                  <th key={col.name} onClick={() => toggleSort(col.name)} title="Bấm để sort">
+                    <div className="dt-th-inner">
+                      {col.isPrimaryKey && <i className="fas fa-key dt-pk-icon"></i>}
+                      <span className="dt-col-name">{col.name}</span>
+                      <span className="dt-col-type">{shortType(col.storeType)}</span>
+                      {sortBy === col.name && (
+                        <i className={`fas fa-caret-${sortDir === 'asc' ? 'up' : 'down'} dt-sort-icon`}></i>
+                      )}
+                    </div>
                   </th>
                 ))}
-                <th className="small" style={{ width: '40px' }}></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={(columns.length || 1) + 1} className="text-center py-4 text-muted">Đang tải...</td></tr>
+                <tr><td colSpan={columns.length + 1} className="dt-msg">Đang tải...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={(columns.length || 1) + 1} className="text-center py-4 text-muted">Không có dữ liệu</td></tr>
+                <tr><td colSpan={columns.length + 1} className="dt-msg">Không có dữ liệu</td></tr>
               ) : (
-                rows.map((row, idx) => (
-                  <tr key={idx} style={{ cursor: 'pointer' }} onClick={() => openEditModal(row)} title="Bấm để sửa row">
-                    {columns.map((col) => {
-                      const key = Object.keys(row).find((k) => k.toLowerCase() === col.name.toLowerCase());
-                      return (
-                        <td key={col.name} className="text-nowrap small">
-                          {formatCell(key !== undefined ? row[key] : undefined)}
-                          {col.enumLabels && row[key] !== null && row[key] !== undefined && col.enumLabels[row[key]] !== undefined && (
-                            <span className="text-muted ms-1">({col.enumLabels[row[key]]})</span>
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <button
-                        className="btn btn-sm btn-outline-danger border-0 py-0 px-1"
-                        title="Xóa row"
-                        onClick={() => handleDelete(row)}
-                      >
-                        <i className="fas fa-trash-alt" style={{ fontSize: '0.75rem' }}></i>
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                rows.map((row) => {
+                  const key = rowKey(row);
+                  const isSel = selectedKeys.has(key);
+                  return (
+                    <tr key={key} className={isSel ? 'selected' : ''} onClick={() => openEditModal(row)} title="Bấm để sửa row">
+                      <td className="dt-check-col" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" checked={isSel} onChange={() => toggleSelectRow(row)} />
+                      </td>
+                      {columns.map((col) => {
+                        const k = Object.keys(row).find((rk) => rk.toLowerCase() === col.name.toLowerCase());
+                        const raw = k !== undefined ? row[k] : undefined;
+                        return (
+                          <td key={col.name} className={isTimestampCol(col) || ['Int32', 'Int64', 'Int16', 'Byte', 'Decimal', 'Double', 'Single'].includes(col.clrType) ? 'dt-mono' : ''}>
+                            {formatCell(raw)}
+                            {col.enumLabels && raw !== null && raw !== undefined && col.enumLabels[raw] !== undefined && (
+                              <span className="dt-enum">({col.enumLabels[raw]})</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
-        <div className="card-footer bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <div className="d-flex align-items-center gap-2">
-            <span className="text-muted small">Hiển thị</span>
+
+        {/* Footer / pagination */}
+        <div className="dt-footer">
+          <div className="dt-footer-left">
+            <button className="dt-page-btn" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <i className="fas fa-chevron-left"></i>
+            </button>
+            <span className="dt-page-label">Trang</span>
+            <span className="dt-page-num">{page}</span>
+            <span className="dt-page-label">/ {totalPages}</span>
+            <button className="dt-page-btn" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+              <i className="fas fa-chevron-right"></i>
+            </button>
             <select
-              className="form-select form-select-sm"
-              style={{ width: '80px' }}
+              className="dt-page-size"
               value={pageSize}
               onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
             >
-              {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+              {[10, 20, 50, 100, 200].map((n) => <option key={n} value={n}>{n} rows</option>)}
             </select>
-            <span className="text-muted small">/ trang — tổng {totalCount} row</span>
           </div>
-          <div className="d-flex align-items-center gap-2">
-            <button className="btn btn-sm btn-outline-secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
-              <i className="fas fa-chevron-left"></i>
-            </button>
-            <span className="text-muted small">Trang {page} / {totalPages}</span>
-            <button className="btn btn-sm btn-outline-secondary" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
-              <i className="fas fa-chevron-right"></i>
-            </button>
+          <div className="dt-footer-right">
+            {totalCount} records
           </div>
         </div>
-      </div>
+      </main>
 
       {/* Edit row modal */}
       <Modal
@@ -497,7 +604,7 @@ export const AdminDemoTools = () => {
         footer={
           <>
             <button className="btn btn-light" onClick={() => setShowEditModal(false)} disabled={saving}>Hủy</button>
-            <button className="btn btn-info text-white fw-bold" onClick={handleSaveEdit} disabled={saving}>
+            <button className="btn btn-success fw-bold" onClick={handleSaveEdit} disabled={saving}>
               {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
             </button>
           </>
@@ -533,7 +640,7 @@ export const AdminDemoTools = () => {
         footer={
           <>
             <button className="btn btn-light" onClick={() => setShowInsertModal(false)} disabled={saving}>Hủy</button>
-            <button className="btn btn-info text-white fw-bold" onClick={handleInsert} disabled={saving}>
+            <button className="btn btn-success fw-bold" onClick={handleInsert} disabled={saving}>
               {saving ? 'Đang thêm...' : 'Thêm row'}
             </button>
           </>
