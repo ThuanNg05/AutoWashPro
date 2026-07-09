@@ -344,6 +344,39 @@
   background: var(--dt-accent-soft);
 }
 
+/* Inline cell editing */
+.dt-cell-editable:hover {
+  box-shadow: inset 0 0 0 1px var(--dt-accent);
+  background: #fff;
+}
+
+.dt-cell-pk {
+  color: var(--dt-text-muted);
+  cursor: default;
+}
+
+.dt-cell-editing {
+  padding: 0 !important;
+  box-shadow: inset 0 0 0 2px var(--dt-accent);
+  background: #fff;
+}
+
+.dt-cell-input {
+  width: 100%;
+  min-width: 120px;
+  border: none;
+  outline: none;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-family: inherit;
+  background: #fff;
+  color: var(--dt-text);
+}
+
+.dt-cell-input:focus {
+  outline: none;
+}
+
 .dt-mono {
   font-family: 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
   font-size: 12px;

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import '../styles/shared.css';
 import '../styles/admin/demo-tools.css';
 import { demoToolsService } from '../services/demoToolsService';
@@ -131,11 +131,13 @@ export const AdminDemoTools = () => {
     });
   };
 
-  // ===== Edit row modal =====
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editOriginal, setEditOriginal] = useState(null);
-  const [editValues, setEditValues] = useState({});
   const [saving, setSaving] = useState(false);
+
+  // ===== Inline cell editing (Supabase-style: click a cell → edit in place) =====
+  const [editingCell, setEditingCell] = useState(null); // { key, col }
+  const [cellValue, setCellValue] = useState('');
+  const [cellSaving, setCellSaving] = useState(false);
+  const editingRef = useRef(null); // synchronous guard against double commit / escape
 
   const isTimestampCol = (col) => col.storeType.startsWith('timestamp') || col.clrType === 'DateTime';
 
@@ -143,16 +145,6 @@ export const AdminDemoTools = () => {
     if (value === null || value === undefined) return '';
     if (isTimestampCol(col)) return String(value).slice(0, 16); // datetime-local wants yyyy-MM-ddTHH:mm
     return String(value);
-  };
-
-  const openEditModal = (row) => {
-    const values = {};
-    columns.forEach((col) => {
-      values[col.name] = toInputValue(col, getCellValue(row, col.name));
-    });
-    setEditOriginal(row);
-    setEditValues(values);
-    setShowEditModal(true);
   };
 
   const buildPk = (row) => {
@@ -163,49 +155,92 @@ export const AdminDemoTools = () => {
     return pk;
   };
 
-  const handleSaveEdit = () => {
-    if (!editOriginal) return;
-    // Only send columns the user actually changed — avoids rewriting bytea placeholders etc.
-    const changed = {};
-    columns.forEach((col) => {
-      if (col.isPrimaryKey) return;
-      const original = toInputValue(col, getCellValue(editOriginal, col.name));
-      if (editValues[col.name] !== original) {
-        changed[col.name] = editValues[col.name] === '' && col.isNullable ? null : editValues[col.name];
-      }
-    });
-    if (Object.keys(changed).length === 0) {
-      if (window.showToast) window.showToast('Không có thay đổi nào', 'info');
+  const isEditingCell = (row, col) =>
+    editingCell && editingCell.key === rowKey(row) && editingCell.col === col.name;
+
+  const beginEdit = (row, col) => {
+    if (col.isPrimaryKey) {
+      if (window.showToast) window.showToast('Không sửa được khóa chính', 'info');
       return;
     }
+    if (pkColumns.length === 0) {
+      if (window.showToast) window.showToast('Bảng không có khóa chính — không sửa được', 'error');
+      return;
+    }
+    editingRef.current = { key: rowKey(row), col: col.name };
+    setEditingCell(editingRef.current);
+    setCellValue(toInputValue(col, getCellValue(row, col.name)));
+  };
 
-    const doSave = async () => {
-      setSaving(true);
-      try {
-        const res = await demoToolsService.updateRow(selectedTable, buildPk(editOriginal), changed);
-        if (res && res.success) {
-          if (window.showToast) window.showToast(res.message, 'success');
-          setShowEditModal(false);
-          loadRows();
-        } else if (window.showToast) {
-          window.showToast(res?.message || 'Cập nhật thất bại', 'error');
-        }
-      } catch (e) {
-        if (window.showToast) window.showToast(e.response?.data?.message || 'Lỗi cập nhật row', 'error');
-      } finally {
-        setSaving(false);
+  const cancelEdit = () => {
+    editingRef.current = null;
+    setEditingCell(null);
+  };
+
+  // Save a single cell directly (no confirm — Supabase-like fast editing).
+  const commitCell = async (row, col) => {
+    if (!editingRef.current) return; // already handled (escape / double blur)
+    editingRef.current = null;
+    setEditingCell(null);
+
+    const original = toInputValue(col, getCellValue(row, col.name));
+    if (cellValue === original) return; // unchanged
+    const newVal = cellValue === '' && col.isNullable ? null : cellValue;
+
+    setCellSaving(true);
+    try {
+      const res = await demoToolsService.updateRow(selectedTable, buildPk(row), { [col.name]: newVal });
+      if (res && res.success) {
+        if (window.showToast) window.showToast(`Đã lưu ${col.name}`, 'success');
+        loadRows();
+      } else if (window.showToast) {
+        window.showToast(res?.message || 'Cập nhật thất bại', 'error');
+      }
+    } catch (e) {
+      if (window.showToast) window.showToast(e.response?.data?.message || 'Lỗi cập nhật', 'error');
+    } finally {
+      setCellSaving(false);
+    }
+  };
+
+  const renderInlineEditor = (col, row) => {
+    const commit = () => commitCell(row, col);
+    const handlers = {
+      autoFocus: true,
+      value: cellValue,
+      disabled: cellSaving,
+      className: 'dt-cell-input',
+      onChange: (e) => setCellValue(e.target.value),
+      onBlur: commit,
+      onKeyDown: (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); }
+        else if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
       }
     };
-
-    if (window.showConfirm) {
-      window.showConfirm(
-        'Xác nhận cập nhật',
-        `Cập nhật ${Object.keys(changed).length} cột của bảng "${selectedTable}"? Thay đổi có hiệu lực thật trên database.`,
-        doSave
+    if (col.enumLabels) {
+      return (
+        <select {...handlers}>
+          {col.isNullable && <option value="">null</option>}
+          {Object.entries(col.enumLabels).map(([num, label]) => (
+            <option key={num} value={num}>{num} — {label}</option>
+          ))}
+        </select>
       );
-    } else {
-      doSave();
     }
+    if (col.clrType === 'Boolean') {
+      return (
+        <select {...handlers}>
+          {col.isNullable && <option value="">null</option>}
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      );
+    }
+    if (isTimestampCol(col)) return <input type="datetime-local" step="1" {...handlers} />;
+    if (['Int32', 'Int64', 'Int16', 'Byte', 'Decimal', 'Double', 'Single'].includes(col.clrType)) {
+      return <input type="number" step="any" {...handlers} />;
+    }
+    return <input type="text" {...handlers} />;
   };
 
   const renderFieldInput = (col, value, onChange, disabled = false) => {
@@ -534,18 +569,31 @@ export const AdminDemoTools = () => {
                   const key = rowKey(row);
                   const isSel = selectedKeys.has(key);
                   return (
-                    <tr key={key} className={isSel ? 'selected' : ''} onClick={() => openEditModal(row)} title="Bấm để sửa row">
-                      <td className="dt-check-col" onClick={(e) => e.stopPropagation()}>
+                    <tr key={key} className={isSel ? 'selected' : ''}>
+                      <td className="dt-check-col">
                         <input type="checkbox" checked={isSel} onChange={() => toggleSelectRow(row)} />
                       </td>
                       {columns.map((col) => {
                         const k = Object.keys(row).find((rk) => rk.toLowerCase() === col.name.toLowerCase());
                         const raw = k !== undefined ? row[k] : undefined;
+                        const editing = isEditingCell(row, col);
+                        const isNumeric = ['Int32', 'Int64', 'Int16', 'Byte', 'Decimal', 'Double', 'Single'].includes(col.clrType);
                         return (
-                          <td key={col.name} className={isTimestampCol(col) || ['Int32', 'Int64', 'Int16', 'Byte', 'Decimal', 'Double', 'Single'].includes(col.clrType) ? 'dt-mono' : ''}>
-                            {formatCell(raw)}
-                            {col.enumLabels && raw !== null && raw !== undefined && col.enumLabels[raw] !== undefined && (
-                              <span className="dt-enum">({col.enumLabels[raw]})</span>
+                          <td
+                            key={col.name}
+                            className={`${isTimestampCol(col) || isNumeric ? 'dt-mono' : ''} ${editing ? 'dt-cell-editing' : ''} ${col.isPrimaryKey ? 'dt-cell-pk' : 'dt-cell-editable'}`}
+                            onClick={() => { if (!editing) beginEdit(row, col); }}
+                            title={col.isPrimaryKey ? 'Khóa chính (không sửa)' : 'Bấm để sửa'}
+                          >
+                            {editing ? (
+                              renderInlineEditor(col, row)
+                            ) : (
+                              <>
+                                {formatCell(raw)}
+                                {col.enumLabels && raw !== null && raw !== undefined && col.enumLabels[raw] !== undefined && (
+                                  <span className="dt-enum">({col.enumLabels[raw]})</span>
+                                )}
+                              </>
                             )}
                           </td>
                         );
@@ -583,42 +631,6 @@ export const AdminDemoTools = () => {
           </div>
         </div>
       </main>
-
-      {/* Edit row modal */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title={`Sửa row — ${selectedTable}`}
-        maxWidth="640px"
-        footer={
-          <>
-            <button className="btn btn-light" onClick={() => setShowEditModal(false)} disabled={saving}>Hủy</button>
-            <button className="btn btn-success fw-bold" onClick={handleSaveEdit} disabled={saving}>
-              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
-            </button>
-          </>
-        }
-      >
-        <div style={{ maxHeight: '55vh', overflowY: 'auto' }}>
-          {columns.map((col) => (
-            <div key={col.name} className="row align-items-center mb-2">
-              <div className="col-4 small fw-bold text-truncate" title={`${col.name} (${col.storeType})`}>
-                {col.name}
-                {col.isPrimaryKey && <i className="fas fa-key text-warning ms-1" style={{ fontSize: '0.6rem' }}></i>}
-                {!col.isNullable && !col.isPrimaryKey && <span className="text-danger">*</span>}
-              </div>
-              <div className="col-8">
-                {renderFieldInput(
-                  col,
-                  editValues[col.name] ?? '',
-                  (v) => setEditValues((prev) => ({ ...prev, [col.name]: v })),
-                  col.isPrimaryKey
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </Modal>
 
       {/* Insert row modal */}
       <Modal
