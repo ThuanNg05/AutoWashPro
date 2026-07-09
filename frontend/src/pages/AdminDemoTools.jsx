@@ -11,6 +11,8 @@ export const AdminDemoTools = () => {
   const [rows, setRows] = useState([]);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
 
   const currentTable = tables.find((t) => t.name === selectedTable);
   const columns = currentTable ? currentTable.columns : [];
@@ -19,7 +21,7 @@ export const AdminDemoTools = () => {
     if (!selectedTable) return;
     setLoading(true);
     try {
-      const res = await demoToolsService.getRows(selectedTable, {});
+      const res = await demoToolsService.getRows(selectedTable, { page, pageSize });
       if (res && res.success) {
         setRows(res.rows);
         setTotalCount(res.totalCount);
@@ -32,11 +34,18 @@ export const AdminDemoTools = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedTable]);
+  }, [selectedTable, page, pageSize]);
 
   useEffect(() => {
     loadRows();
   }, [loadRows]);
+
+  // Back to page 1 whenever the table changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedTable]);
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
   const formatCell = (value) => {
     if (value === null || value === undefined) return <span className="text-muted fst-italic">null</span>;
@@ -135,6 +144,29 @@ export const AdminDemoTools = () => {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="card-footer bg-white d-flex align-items-center justify-content-between flex-wrap gap-2">
+          <div className="d-flex align-items-center gap-2">
+            <span className="text-muted small">Hiển thị</span>
+            <select
+              className="form-select form-select-sm"
+              style={{ width: '80px' }}
+              value={pageSize}
+              onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+            >
+              {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <span className="text-muted small">/ trang — tổng {totalCount} row</span>
+          </div>
+          <div className="d-flex align-items-center gap-2">
+            <button className="btn btn-sm btn-outline-secondary" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+              <i className="fas fa-chevron-left"></i>
+            </button>
+            <span className="text-muted small">Trang {page} / {totalPages}</span>
+            <button className="btn btn-sm btn-outline-secondary" disabled={page >= totalPages} onClick={() => setPage(page + 1)}>
+              <i className="fas fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
