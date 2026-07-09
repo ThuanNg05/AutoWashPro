@@ -288,6 +288,70 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Shifts every timestamp of a booking (and its queue rows) by N minutes so demo
+        /// scenarios can be triggered instantly: shift ScheduledAt into the past to fire
+        /// no-show, into the near future to fire reminders, or move Queue.CheckInAt back
+        /// to jump wash stages. Shifting into the future re-arms the email flags.
+        /// </summary>
+        [HttpPost]
+        [Route("api/admin/demo-tools/bookings/{id}/shift-time")]
+        public async Task<IActionResult> ShiftBookingTime(int id, int minutes)
+        {
+            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+            if (minutes == 0) return BadRequest(new { success = false, message = "Số phút phải khác 0." });
+
+            try
+            {
+                var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.BookingId == id);
+                if (booking == null) return NotFound(new { success = false, message = $"Không tìm thấy booking #{id}." });
+
+                var shift = TimeSpan.FromMinutes(minutes);
+                booking.ScheduledAt += shift;
+                booking.CreatedAt += shift;
+                if (booking.CheckInAt.HasValue) booking.CheckInAt += shift;
+                if (booking.ConfirmedAt.HasValue) booking.ConfirmedAt += shift;
+                if (booking.WashingAt.HasValue) booking.WashingAt += shift;
+                if (booking.CompletedAt.HasValue) booking.CompletedAt += shift;
+                if (booking.NoShowAt.HasValue) booking.NoShowAt += shift;
+                if (booking.CancelledAt.HasValue) booking.CancelledAt += shift;
+                if (booking.CheckedOutAt.HasValue) booking.CheckedOutAt += shift;
+
+                bool flagsReset = false;
+                if (booking.ScheduledAt > DateTime.Now)
+                {
+                    booking.Reminder1Sent = false;
+                    booking.Reminder2Sent = false;
+                    booking.NoShowEmailSent = false;
+                    flagsReset = true;
+                }
+
+                var queues = await _context.Queues.Where(q => q.BookingId == id).ToListAsync();
+                foreach (var q in queues)
+                {
+                    q.CheckInAt += shift;
+                    if (q.StartedAt.HasValue) q.StartedAt += shift;
+                    if (q.CompletedAt.HasValue) q.CompletedAt += shift;
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = $"Đã dịch thời gian booking #{id} {(minutes > 0 ? "+" : "")}{minutes} phút" +
+                              (flagsReset ? " (đã reset các cờ email nhắc lịch)." : "."),
+                    scheduledAt = booking.ScheduledAt.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    queuesShifted = queues.Count,
+                    flagsReset
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         private static ColumnInfo FindColumnOrThrow(List<ColumnInfo> columns, string name, string table)
         {
             return columns.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
