@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -84,6 +86,30 @@ namespace Auto_Wash.Controllers
 
         /// <summary>Quotes a Postgres identifier; the only untrusted part of built SQL — values always go through parameters.</summary>
         private static string Quote(string identifier) => "\"" + identifier.Replace("\"", "\"\"") + "\"";
+
+        private async Task<T> WithConnectionAsync<T>(Func<DbConnection, Task<T>> action)
+        {
+            var conn = _context.Database.GetDbConnection();
+            bool wasOpen = conn.State == System.Data.ConnectionState.Open;
+            if (!wasOpen) await conn.OpenAsync();
+            try
+            {
+                return await action(conn);
+            }
+            finally
+            {
+                if (!wasOpen) await conn.CloseAsync();
+            }
+        }
+
+        /// <summary>Converts a raw DB value to a JSON-friendly shape; matches datetime-local format on the frontend.</summary>
+        private static object? ReadValue(object? value)
+        {
+            if (value == null || value is DBNull) return null;
+            if (value is DateTime dt) return dt.ToString("yyyy-MM-ddTHH:mm:ss");
+            if (value is byte[] bytes) return $"[bytea {bytes.Length} bytes]";
+            return value;
+        }
 
         private static List<ColumnInfo> GetColumnInfo(IEntityType entityType)
         {
