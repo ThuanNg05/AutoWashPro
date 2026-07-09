@@ -177,16 +177,8 @@ export const AdminDemoTools = () => {
     setEditingCell(null);
   };
 
-  // Save a single cell directly (no confirm — Supabase-like fast editing).
-  const commitCell = async (row, col) => {
-    if (!editingRef.current) return; // already handled (escape / double blur)
-    editingRef.current = null;
-    setEditingCell(null);
-
-    const original = toInputValue(col, getCellValue(row, col.name));
-    if (cellValue === original) return; // unchanged
-    const newVal = cellValue === '' && col.isNullable ? null : cellValue;
-
+  // Low-level: save a single column value directly (no confirm — Supabase-like).
+  const saveCell = async (row, col, newVal) => {
     setCellSaving(true);
     try {
       const res = await demoToolsService.updateRow(selectedTable, buildPk(row), { [col.name]: newVal });
@@ -201,6 +193,17 @@ export const AdminDemoTools = () => {
     } finally {
       setCellSaving(false);
     }
+  };
+
+  const commitCell = async (row, col) => {
+    if (!editingRef.current) return; // already handled (escape / double blur)
+    editingRef.current = null;
+    setEditingCell(null);
+
+    const original = toInputValue(col, getCellValue(row, col.name));
+    if (cellValue === original) return; // unchanged
+    const newVal = cellValue === '' && col.isNullable ? null : cellValue;
+    await saveCell(row, col, newVal);
   };
 
   const renderInlineEditor = (col, row) => {
