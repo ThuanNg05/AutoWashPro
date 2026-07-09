@@ -402,6 +402,25 @@ export const AdminDemoTools = () => {
   const [showShift, setShowShift] = useState(false);
   const [shiftBookingId, setShiftBookingId] = useState('');
 
+  // Tables where a row maps to a booking (so we can shift its time from the row).
+  const shiftableTable = selectedTable === 'bookings' || selectedTable === 'queue';
+
+  const getRowBookingId = (row) => {
+    const k = Object.keys(row).find((rk) => rk.toLowerCase() === 'bookingid');
+    return k !== undefined ? row[k] : null;
+  };
+
+  // Row action: prefill the shift panel with this row's booking id and open it.
+  const pickShiftBooking = (row) => {
+    const id = getRowBookingId(row);
+    if (id === null || id === undefined) {
+      if (window.showToast) window.showToast('Dòng này không gắn với booking', 'error');
+      return;
+    }
+    setShiftBookingId(String(id));
+    setShowShift(true);
+  };
+
   const shiftPresets = [
     { label: '-1 ngày', minutes: -1440 },
     { label: '-1 giờ', minutes: -60 },
@@ -578,6 +597,7 @@ export const AdminDemoTools = () => {
                 <th className="dt-check-col">
                   <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
                 </th>
+                {shiftableTable && <th className="dt-action-col" title="Dịch thời gian"><i className="fas fa-clock"></i></th>}
                 {columns.map((col) => (
                   <th key={col.name} onClick={() => toggleSort(col.name)} title="Bấm để sort">
                     <div className="dt-th-inner">
@@ -594,9 +614,9 @@ export const AdminDemoTools = () => {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={columns.length + 1} className="dt-msg">Đang tải...</td></tr>
+                <tr><td colSpan={columns.length + 1 + (shiftableTable ? 1 : 0)} className="dt-msg">Đang tải...</td></tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={columns.length + 1} className="dt-msg">Không có dữ liệu</td></tr>
+                <tr><td colSpan={columns.length + 1 + (shiftableTable ? 1 : 0)} className="dt-msg">Không có dữ liệu</td></tr>
               ) : (
                 rows.map((row) => {
                   const key = rowKey(row);
@@ -606,6 +626,18 @@ export const AdminDemoTools = () => {
                       <td className="dt-check-col">
                         <input type="checkbox" checked={isSel} onChange={() => toggleSelectRow(row)} />
                       </td>
+                      {shiftableTable && (
+                        <td className="dt-action-col">
+                          <button
+                            type="button"
+                            className="dt-row-action"
+                            title="Chọn booking này để dịch thời gian"
+                            onClick={() => pickShiftBooking(row)}
+                          >
+                            <i className="fas fa-clock"></i>
+                          </button>
+                        </td>
+                      )}
                       {columns.map((col) => {
                         const k = Object.keys(row).find((rk) => rk.toLowerCase() === col.name.toLowerCase());
                         const raw = k !== undefined ? row[k] : undefined;
