@@ -377,6 +377,61 @@
   outline: none;
 }
 
+.dt-cell-edit-wrap {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+}
+
+.dt-null-btn {
+  flex-shrink: 0;
+  border: none;
+  border-left: 1px solid var(--dt-border);
+  background: var(--dt-bg-subtle);
+  color: var(--dt-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.dt-null-btn:hover {
+  background: var(--dt-danger);
+  color: #fff;
+}
+
+.dt-null-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Per-row time-shift action (bookings/queue) */
+.dt-action-col {
+  width: 40px;
+  min-width: 40px;
+  text-align: center !important;
+  padding: 4px 0 !important;
+}
+
+.dt-row-action {
+  border: 1px solid var(--dt-border);
+  background: #fff;
+  color: var(--dt-accent);
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+
+.dt-row-action:hover {
+  background: var(--dt-accent);
+  color: #fff;
+  border-color: var(--dt-accent);
+}
+
 .dt-mono {
   font-family: 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
   font-size: 12px;
