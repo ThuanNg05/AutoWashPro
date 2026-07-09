@@ -411,10 +411,6 @@ export const AdminDemoTools = () => {
         <div className="dt-sidebar-header">
           <i className="fas fa-table-cells-large me-2"></i> Table Editor
         </div>
-        <div className="dt-schema">
-          <i className="fas fa-layer-group me-2 text-muted"></i>
-          schema <span className="dt-schema-name">public</span>
-        </div>
         <div className="dt-table-search">
           <i className="fas fa-search"></i>
           <input
@@ -444,13 +440,6 @@ export const AdminDemoTools = () => {
 
       {/* ── Right: data grid ─────────────────────────── */}
       <main className="dt-main">
-        {/* Tab bar */}
-        <div className="dt-tabbar">
-          <div className="dt-tab active">
-            <i className="fas fa-table me-2"></i>{selectedTable}
-          </div>
-        </div>
-
         {/* Toolbar */}
         <div className="dt-toolbar">
           {selectedCount > 0 ? (

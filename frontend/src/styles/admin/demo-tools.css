@@ -44,18 +44,6 @@
   color: var(--dt-text);
 }
 
-.dt-schema {
-  padding: 10px 16px;
-  font-size: 12px;
-  color: var(--dt-text-muted);
-  border-bottom: 1px solid var(--dt-border);
-}
-
-.dt-schema-name {
-  color: var(--dt-text);
-  font-weight: 600;
-}
-
 .dt-table-search {
   position: relative;
   padding: 10px 12px;
@@ -139,26 +127,6 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-
-.dt-tabbar {
-  display: flex;
-  align-items: flex-end;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--dt-border);
-  background: var(--dt-bg-subtle);
-  height: 40px;
-}
-
-.dt-tab {
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 600;
-  border: 1px solid var(--dt-border);
-  border-bottom: none;
-  border-radius: 8px 8px 0 0;
-  background: #fff;
-  margin-bottom: -1px;
 }
 
 /* ── Toolbar ─────────────────────────────── */
