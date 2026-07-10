@@ -15,7 +15,8 @@ export const AdminLayout = () => {
                     location.pathname.startsWith('/admin/queue') ? 'queue' :
                     location.pathname.startsWith('/admin/bookings') ? 'bookings' :
                     location.pathname.startsWith('/admin/customers') ? 'customers' :
-                    location.pathname.startsWith('/admin/services') ? 'services' : 'dashboard';
+                    location.pathname.startsWith('/admin/services') ? 'services' :
+                    location.pathname.startsWith('/admin/ownership-transfers') ? 'ownership-transfers' : 'dashboard';
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
@@ -64,6 +65,9 @@ export const AdminLayout = () => {
           </Link>
           <Link to="/admin/services" className={`sidebar-link ${activeNav === 'services' ? 'active' : ''}`}>
             <i className="fas fa-box"></i> <span>Dịch vụ</span>
+          </Link>
+          <Link to="/admin/ownership-transfers" className={`sidebar-link ${activeNav === 'ownership-transfers' ? 'active' : ''}`}>
+            <i className="fas fa-exchange-alt"></i> <span>Chuyển nhượng xe</span>
           </Link>
           <hr className="mx-3 opacity-10 my-4" />
           <button type="button" className="sidebar-link text-danger opacity-75 border-0 bg-transparent w-100 text-start" onClick={handleLogout}>
