@@ -4,82 +4,7 @@ import '../styles/shared.css';
 import '../styles/landing.css';
 
 export const Landing = () => {
-  const [demoState, setDemoState] = useState('idle'); // 'idle' | 'scanning' | 'recognized' | 'washing_snow' | 'washing_dry' | 'completed'
-  const [progressWidth, setProgressWidth] = useState('0%');
-  const [progressLabel, setProgressLabel] = useState('Chưa bắt đầu');
-  const [scannerStatus, setScannerStatus] = useState('HỆ THỐNG OFFLINE');
   const [scrollingNavbar, setScrollingNavbar] = useState(false);
-
-  // Real-time Wash Pipeline active step (0: idle, 1: LPR, 2: Washing, 3: Completed)
-  const [pipelineStep, setPipelineStep] = useState(0);
-
-  // Newsletter Email input
-  const [newsletterEmail, setNewsletterEmail] = useState('');
-
-  const demoTimeouts = useRef([]);
-  const demoRunningRef = useRef(false);
-
-  const clearDemoTimeouts = useCallback(() => {
-    demoTimeouts.current.forEach(t => clearTimeout(t));
-    demoTimeouts.current = [];
-  }, []);
-
-  const scheduleTimeout = useCallback((callback, ms) => {
-    const t = setTimeout(callback, ms);
-    demoTimeouts.current.push(t);
-  }, []);
-
-  const startDemoSimulation = useCallback(() => {
-    if (demoRunningRef.current) return;
-    demoRunningRef.current = true;
-
-    clearDemoTimeouts();
-
-    setDemoState('scanning');
-    setPipelineStep(1);
-    setScannerStatus('ĐANG ĐỌC BIỂN SỐ XE...');
-    setProgressWidth('0%');
-    setProgressLabel('Đang quét biển số...');
-
-    scheduleTimeout(() => {
-      setDemoState('recognized');
-      setScannerStatus('XÁC MINH PHƯƠNG TIỆN THÀNH CÔNG');
-      setProgressWidth('15%');
-      setProgressLabel('Đã xếp hàng (15%)');
-    }, 2000);
-
-    scheduleTimeout(() => {
-      setDemoState('washing_snow');
-      setPipelineStep(2);
-      setScannerStatus('TIẾN TRÌNH: RỬA VỎ & PHUN BỌT TUYẾT');
-      setProgressWidth('50%');
-      setProgressLabel('Đang phun bọt tuyết (50%)');
-    }, 4000);
-
-    scheduleTimeout(() => {
-      setDemoState('washing_dry');
-      setScannerStatus('TIẾN TRÌNH: SẤY KHÔ & HIỆU CHỈNH BÓNG');
-      setProgressWidth('85%');
-      setProgressLabel('Đang sấy khô (85%)');
-    }, 6500);
-
-    scheduleTimeout(() => {
-      setDemoState('completed');
-      setPipelineStep(3);
-      setScannerStatus('HOÀN THÀNH RỬA XE - HẸN GẶP LẠI!');
-      setProgressWidth('100%');
-      setProgressLabel('Đã hoàn thành (100%)');
-    }, 9000);
-
-    scheduleTimeout(() => {
-      setDemoState('idle');
-      setPipelineStep(0);
-      setScannerStatus('HỆ THỐNG OFFLINE');
-      setProgressWidth('0%');
-      setProgressLabel('Chưa bắt đầu');
-      demoRunningRef.current = false;
-    }, 13000);
-  }, [clearDemoTimeouts, scheduleTimeout]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -93,29 +18,10 @@ export const Landing = () => {
     window.addEventListener('scroll', handleScroll);
     handleScroll();
 
-    // Auto-trigger demo once after 1.2 seconds
-    const initialDemoTimer = setTimeout(() => {
-      startDemoSimulation();
-    }, 1200);
-
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      clearTimeout(initialDemoTimer);
-      clearDemoTimeouts();
-      demoRunningRef.current = false;
     };
-  }, [clearDemoTimeouts, startDemoSimulation]);
-
-  const handleNewsletterSubmit = (e) => {
-    e.preventDefault();
-    if (!newsletterEmail.trim()) return;
-    if (window.showToast) {
-      window.showToast('Cảm ơn bạn đã đăng ký nhận tin tức từ AutoWash Pro!', 'success');
-    } else {
-      alert('Đăng ký nhận tin tức thành công!');
-    }
-    setNewsletterEmail('');
-  };
+  }, []);
 
   const scrollToSection = (id) => {
     const element = document.getElementById(id);
@@ -129,8 +35,6 @@ export const Landing = () => {
       });
     }
   };
-
-  const isDemoRunning = demoState !== 'idle';
 
   return (
     <div className="landing-wrapper">
@@ -240,12 +144,11 @@ export const Landing = () => {
       </nav>
 
       {/* SECTION 1: HERO SECTION */}
-      <header className="container landing-hero">
-        <div className="row align-items-center g-5">
-          {/* Left: Title & Text & CTAs */}
-          <div className="col-lg-6 text-start animate-up">
-            <div className="hero-badge">
-              <i className="fas fa-robot me-2"></i> Công nghệ nhận diện thông minh LPR
+      <header className="container landing-hero text-center d-flex flex-column align-items-center">
+        <div className="row justify-content-center w-100">
+          <div className="col-lg-9 text-center animate-up">
+            <div className="hero-badge mx-auto">
+              <i className="fas fa-magic me-2"></i> Trải nghiệm dịch vụ thế hệ mới
             </div>
 
             <h1 className="hero-title fw-bold mb-3">
@@ -255,154 +158,15 @@ export const Landing = () => {
               </span>
             </h1>
 
-            <p className="hero-desc">
-              Tiết kiệm 90% thời gian chờ đợi với quy trình nhận diện biển số AI tự động,
-              thanh toán trực tuyến bảo mật và theo dõi tiến trình thực tế ngay trên thiết bị của bạn.
+            <p className="hero-desc mx-auto">
+              Tiết kiệm thời gian chờ đợi với quy trình đặt lịch trực tuyến bảo mật, 
+              theo dõi tiến trình thực tế của hàng chờ và phục vụ chuyên nghiệp ngay tại trạm.
             </p>
 
-            <div className="d-flex flex-wrap gap-3">
+            <div className="d-flex flex-wrap justify-content-center gap-3">
               <Link to="/login" className="hero-cta-btn-primary">
                 Bắt đầu ngay <i className="fas fa-arrow-right"></i>
               </Link>
-              <button
-                onClick={startDemoSimulation}
-                disabled={isDemoRunning && demoState !== 'completed'}
-                className="hero-cta-btn-secondary"
-              >
-                <i className={`fas ${isDemoRunning && demoState !== 'completed' ? 'fa-spinner fa-spin' : 'fa-play'} me-2`}></i>
-                <span>
-                  {isDemoRunning && demoState !== 'completed' ? 'Đang mô phỏng...' : 'Mô phỏng quy trình LPR'}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* Right: Interactive Real-time Wash Simulator */}
-          <div className="col-lg-6 animate-up" style={{ animationDelay: '0.15s' }}>
-            <div className="lpr-mockup-card">
-              {/* Simulator Camera Viewport */}
-              <div
-                className={`scanner-viewport-landing ${
-                  demoState === 'scanning' ? 'scanning' :
-                  demoState !== 'idle' ? 'success' : ''
-                }`}
-              >
-                <div className="scanner-grid"></div>
-                {demoState === 'scanning' && <div className="scanner-line"></div>}
-
-                {/* Bubble animations when washing */}
-                {(demoState === 'washing_snow' || demoState === 'washing_dry') && (
-                  <div className="bubble-animation-overlay">
-                    <div className="bubble" style={{ left: '10%', width: '15px', height: '15px', animationDelay: '0s', animationDuration: '2s' }}></div>
-                    <div className="bubble" style={{ left: '25%', width: '25px', height: '25px', animationDelay: '0.5s', animationDuration: '2.5s' }}></div>
-                    <div className="bubble" style={{ left: '40%', width: '10px', height: '10px', animationDelay: '0.2s', animationDuration: '1.8s' }}></div>
-                    <div className="bubble" style={{ left: '60%', width: '20px', height: '20px', animationDelay: '0.8s', animationDuration: '3s' }}></div>
-                    <div className="bubble" style={{ left: '75%', width: '30px', height: '30px', animationDelay: '0.1s', animationDuration: '2.2s' }}></div>
-                    <div className="bubble" style={{ left: '88%', width: '12px', height: '12px', animationDelay: '0.4s', animationDuration: '2.7s' }}></div>
-                  </div>
-                )}
-
-                {/* Sparkle star animations on Complete */}
-                {demoState === 'completed' && (
-                  <div className="bubble-animation-overlay">
-                    <i className="fas fa-star sparkle-icon" style={{ top: '20%', left: '20%', animationDelay: '0s' }}></i>
-                    <i className="fas fa-star sparkle-icon" style={{ top: '65%', left: '75%', animationDelay: '0.4s' }}></i>
-                    <i className="fas fa-star sparkle-icon" style={{ top: '40%', left: '45%', animationDelay: '0.8s' }}></i>
-                  </div>
-                )}
-
-                {/* Corner Reticles */}
-                <div className="scanner-reticle reticle-tl"></div>
-                <div className="scanner-reticle reticle-tr"></div>
-                <div className="scanner-reticle reticle-bl"></div>
-                <div className="scanner-reticle reticle-br"></div>
-
-                <div className="w-100 h-100 d-flex align-items-center justify-content-center flex-column">
-                  {demoState === 'idle' && (
-                    <div className="text-center" style={{ opacity: 0.35 }}>
-                      <i className="fas fa-video text-white fa-3x mb-3"></i>
-                      <div className="text-white small fw-bold" style={{ fontSize: '0.72rem', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                        Camera AI Sẵn Sàng Quét LPR
-                      </div>
-                    </div>
-                  )}
-
-                  {demoState === 'scanning' && (
-                    <div className="text-center" style={{ opacity: 0.7 }}>
-                      <i className="fas fa-camera text-white fa-3x mb-3 fa-pulse"></i>
-                      <div className="text-white small fw-bold" style={{ fontSize: '0.72rem', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                        Nhận dạng biển số...
-                      </div>
-                    </div>
-                  )}
-
-                  {demoState !== 'idle' && demoState !== 'scanning' && (
-                    <div className="scanner-plate-box">51G - 123.45</div>
-                  )}
-                </div>
-
-                <div className="scanner-overlay-text">
-                  {scannerStatus}
-                </div>
-              </div>
-
-              {/* Real-time Wash Pipeline Steps Flow */}
-              <div className="pipeline-container">
-                <div className="pipeline-line-progress"></div>
-                <div
-                  className="pipeline-line-active"
-                  style={{
-                    width:
-                      pipelineStep === 1 ? '10%' :
-                      pipelineStep === 2 ? '50%' :
-                      pipelineStep === 3 ? '90%' : '0%'
-                  }}
-                ></div>
-
-                <div className={`pipeline-step-node ${pipelineStep >= 1 ? 'completed' : ''} ${pipelineStep === 1 ? 'active' : ''}`}>
-                  <div className="pipeline-node-circle">
-                    {pipelineStep > 1 ? <i className="fas fa-check"></i> : '1'}
-                  </div>
-                  <div className="pipeline-node-label">1. Quét LPR</div>
-                </div>
-
-                <div className={`pipeline-step-node ${pipelineStep >= 2 ? 'completed' : ''} ${pipelineStep === 2 ? 'active' : ''}`}>
-                  <div className="pipeline-node-circle">
-                    {pipelineStep > 2 ? <i className="fas fa-check"></i> : '2'}
-                  </div>
-                  <div className="pipeline-node-label">2. Đang rửa</div>
-                </div>
-
-                <div className={`pipeline-step-node ${pipelineStep >= 3 ? 'completed' : ''} ${pipelineStep === 3 ? 'active' : ''}`}>
-                  <div className="pipeline-node-circle">
-                    {pipelineStep > 3 ? <i className="fas fa-check"></i> : '3'}
-                  </div>
-                  <div className="pipeline-node-label">3. Xong</div>
-                </div>
-              </div>
-
-              {/* Progress Bar Label */}
-              <div className="mt-3 text-start border-top pt-3">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <span className="text-secondary small fw-bold" style={{ fontSize: '0.65rem', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    Tiến trình trực quan
-                  </span>
-                  <span className="small fw-bold text-primary-blue" style={{ fontSize: '0.8rem', color: '#0284c7' }}>
-                    {progressLabel}
-                  </span>
-                </div>
-                <div className="progress" style={{ height: '8px', borderRadius: '10px', overflow: 'hidden', background: '#e2e8f0' }}>
-                  <div
-                    className="progress-bar"
-                    role="progressbar"
-                    style={{
-                      width: progressWidth,
-                      background: 'linear-gradient(90deg,#0ea5e9,#0284c7)',
-                      transition: 'width 0.8s ease',
-                    }}
-                  ></div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -411,26 +175,17 @@ export const Landing = () => {
       {/* SECTION 2: STATS */}
       <section className="stats-section pb-5 bg-light-gradient">
         <div className="container">
-          <div className="row g-4">
-            <div className="col-6 col-md-3 animate-up">
+          <div className="row g-4 justify-content-center">
+            <div className="col-12 col-md-4 animate-up">
               <div className="stat-card">
                 <div className="stat-icon-wrapper">
-                  <i className="fas fa-shield-halved"></i>
+                  <i className="fas fa-calendar-check"></i>
                 </div>
-                <div className="stat-number">99.8%</div>
-                <div className="stat-label">Độ chính xác LPR</div>
+                <div className="stat-number">100%</div>
+                <div className="stat-label">Đúng giờ hẹn đặt lịch</div>
               </div>
             </div>
-            <div className="col-6 col-md-3 animate-up" style={{ animationDelay: '0.1s' }}>
-              <div className="stat-card">
-                <div className="stat-icon-wrapper">
-                  <i className="fas fa-stopwatch"></i>
-                </div>
-                <div className="stat-number">5 phút</div>
-                <div className="stat-label">Thời gian rửa trung bình</div>
-              </div>
-            </div>
-            <div className="col-6 col-md-3 animate-up" style={{ animationDelay: '0.2s' }}>
+            <div className="col-12 col-md-4 animate-up" style={{ animationDelay: '0.1s' }}>
               <div className="stat-card">
                 <div className="stat-icon-wrapper">
                   <i className="fas fa-car-side"></i>
@@ -439,7 +194,7 @@ export const Landing = () => {
                 <div className="stat-label">Lượt xe hoàn tất</div>
               </div>
             </div>
-            <div className="col-6 col-md-3 animate-up" style={{ animationDelay: '0.3s' }}>
+            <div className="col-12 col-md-4 animate-up" style={{ animationDelay: '0.2s' }}>
               <div className="stat-card">
                 <div className="stat-icon-wrapper">
                   <i className="fas fa-star"></i>
@@ -482,12 +237,12 @@ export const Landing = () => {
             <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.1s' }}>
               <div className="stat-card h-100" style={{ padding: '36px 20px', background: '#f8fafc' }}>
                 <div className="stat-icon-wrapper" style={{ width: '60px', height: '60px', borderRadius: '50%', fontSize: '1.5rem', background: 'rgba(2, 132, 199, 0.1)' }}>
-                  <i className="fas fa-camera"></i>
+                  <i className="fas fa-id-card"></i>
                 </div>
                 <div style={{ fontSize: '0.72rem', fontWeight: '800', color: '#0284c7', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bước 2</div>
-                <h5 className="fw-bold text-dark mt-2 mb-2" style={{ fontSize: '1.1rem' }}>Nhận diện biển số LPR</h5>
+                <h5 className="fw-bold text-dark mt-2 mb-2" style={{ fontSize: '1.1rem' }}>Xác nhận thông tin</h5>
                 <p className="text-secondary small mb-0 text-center" style={{ lineHeight: '1.5' }}>
-                  Camera AI tự động quét nhận diện biển số xe khi vào cổng để sắp xếp làn rửa.
+                  Khách hàng đến trạm và nhân viên check-in xe dựa trên biển số đã đăng ký.
                 </p>
               </div>
             </div>
@@ -523,203 +278,137 @@ export const Landing = () => {
         </div>
       </section>
 
-      {/* SECTION 4: SERVICES BẢNG GIÁ DỊCH VỤ RỬA XE */}
+      {/* SECTION 4: SERVICES */}
       <section id="services" className="py-6 bg-light-gradient">
         <div className="container">
           <div className="text-center mb-5">
-            <small className="section-subtitle">Dịch vụ tại trạm</small>
-            <h2 className="section-title">Bảng Giá Các Gói Dịch Vụ</h2>
+            <small className="section-subtitle">Dịch vụ & Tính năng</small>
+            <h2 className="section-title">Tính Năng Cốt Lõi Của Auto-Wash Pro</h2>
             <p className="text-secondary mx-auto mt-2" style={{ maxWidth: '560px', fontSize: '0.95rem' }}>
-              Khách hàng thanh toán linh hoạt theo từng lượt sử dụng dịch vụ trực tiếp hoặc đặt lịch trước.
+              Hệ thống được thiết kế toàn diện nhằm tối ưu hóa trải nghiệm chăm sóc xe của bạn thông qua các giải pháp công nghệ hiện đại.
             </p>
           </div>
 
           <div className="row g-4 justify-content-center">
-            {/* Gói 1: Rửa tiêu chuẩn */}
-            <div className="col-md-6 col-lg-3 animate-up">
-              <div className="pricing-card">
-                <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Rửa Tiêu Chuẩn</h4>
-                <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Làm sạch cơ bản vỏ xe bằng bọt tuyết chuyên dụng và hút bụi khoang lái.</p>
-                <div className="pricing-card-price-box">
-                  <span className="pricing-amount">150,000 đ</span>
-                  <span className="pricing-period">/ lượt</span>
+            {/* Card 1: Smart Vehicle Wash */}
+            <div className="col-md-6 col-lg-4 animate-up">
+              <div className="service-feature-card">
+                <div className="service-feature-icon">
+                  <i className="fas fa-soap"></i>
                 </div>
-                <div className="pricing-features-list">
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Rửa bọt tuyết vỏ ngoài</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Hút bụi thảm chân cabin</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Lau sạch bề mặt kính lái</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Quét bóng dưỡng đen lốp xe</span>
-                  </div>
-                </div>
-                <Link to="/login" className="pricing-cta-btn pricing-cta-btn-outline">
-                  Đặt lịch ngay
-                </Link>
+                <h4 className="service-feature-title">Smart Vehicle Wash</h4>
+                <p className="service-feature-desc">
+                  Dịch vụ rửa xe máy và ô tô chuyên nghiệp. Làm sạch nhanh chóng, chất lượng cao với nhiều gói dịch vụ đa dạng phù hợp cho từng loại xe.
+                </p>
               </div>
             </div>
 
-            {/* Gói 2: Chăm sóc nâng cao (BEST SELLER) */}
-            <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.1s' }}>
-              <div className="pricing-card popular-card">
-                <div className="popular-badge">PHỔ BIẾN NHẤT</div>
-                <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Chăm Sóc Nâng Cao</h4>
-                <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Làm sạch sâu các chi tiết khe kẽ bản lề và vệ sinh gầm xe chống gỉ sét.</p>
-                <div className="pricing-card-price-box">
-                  <span className="pricing-amount">350,000 đ</span>
-                  <span className="pricing-period">/ lượt</span>
+            {/* Card 2: Online Booking */}
+            <div className="col-md-6 col-lg-4 animate-up" style={{ animationDelay: '0.05s' }}>
+              <div className="service-feature-card">
+                <div className="service-feature-icon">
+                  <i className="fas fa-calendar-check"></i>
                 </div>
-                <div className="pricing-features-list">
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Rửa bọt tuyết + tẩy nhựa đường</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Xịt rửa gầm xe áp lực cao</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Vệ sinh các khe bản lề cửa xe</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Khử mùi nội thất chuyên dụng</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Tích điểm thăng hạng nhân x1.2</span>
-                  </div>
-                </div>
-                <Link to="/login" className="pricing-cta-btn pricing-cta-btn-solid">
-                  Đặt lịch ngay
-                </Link>
+                <h4 className="service-feature-title">Online Booking</h4>
+                <p className="service-feature-desc">
+                  Đặt lịch hẹn rửa xe trực tuyến dễ dàng. Chủ động lựa chọn ngày giờ mong muốn, hỗ trợ thay đổi lịch trình hoặc hủy lịch nhanh chóng.
+                </p>
               </div>
             </div>
 
-            {/* Gói 3: Vệ sinh nội thất */}
-            <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.2s' }}>
-              <div className="pricing-card">
-                <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Vệ Sinh Nội Thất</h4>
-                <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Giặt sâu ghế ngồi và làm sạch khoang nội thất bằng công nghệ hơi nước nóng.</p>
-                <div className="pricing-card-price-box">
-                  <span className="pricing-amount">600,000 đ</span>
-                  <span className="pricing-period">/ lượt</span>
+            {/* Card 3: Queue Management */}
+            <div className="col-md-6 col-lg-4 animate-up" style={{ animationDelay: '0.1s' }}>
+              <div className="service-feature-card">
+                <div className="service-feature-icon">
+                  <i className="fas fa-list-ol"></i>
                 </div>
-                <div className="pricing-features-list">
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Giặt ghế da hoặc ghế nỉ chuyên sâu</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Dưỡng bóng nhựa taplo & tapi cửa</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Hút bụi sâu toàn bộ trần sàn nỉ</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Khử trùng hơi nước nóng diệt khuẩn</span>
-                  </div>
-                </div>
-                <Link to="/login" className="pricing-cta-btn pricing-cta-btn-outline">
-                  Đặt lịch ngay
-                </Link>
+                <h4 className="service-feature-title">Queue Management</h4>
+                <p className="service-feature-desc">
+                  Theo dõi danh sách hàng chờ theo thời gian thực. Quy trình check-in tự động nhanh gọn và giám sát chặt chẽ tiến trình rửa xe của bạn.
+                </p>
               </div>
             </div>
 
-            {/* Gói 4: Phủ Ceramic */}
-            <div className="col-md-6 col-lg-3 animate-up" style={{ animationDelay: '0.3s' }}>
-              <div className="pricing-card">
-                <h4 className="pricing-card-title" style={{ fontSize: '1.15rem' }}>Phủ Ceramic</h4>
-                <p className="pricing-card-desc" style={{ minHeight: '54px' }}>Hiệu chỉnh bề mặt sơn xước dăm và phủ tinh thể ceramic bảo vệ tối đa lớp bóng sơn.</p>
-                <div className="pricing-card-price-box">
-                  <span className="pricing-amount">1,500,000 đ</span>
-                  <span className="pricing-period">/ lượt</span>
+            {/* Card 4: Loyalty Rewards */}
+            <div className="col-md-6 col-lg-4 animate-up" style={{ animationDelay: '0.15s' }}>
+              <div className="service-feature-card">
+                <div className="service-feature-icon">
+                  <i className="fas fa-award"></i>
                 </div>
-                <div className="pricing-features-list">
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Đánh bóng phục hồi sơn xe 3 bước</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Phủ Nano Ceramic kháng nước hiệu quả</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Tăng cường độ sâu bóng lớp sơn xe</span>
-                  </div>
-                  <div className="pricing-feature-item">
-                    <i className="fas fa-circle-check"></i>
-                    <span>Bảo hành lớp sơn phủ trong 12 tháng</span>
-                  </div>
+                <h4 className="service-feature-title">Loyalty Rewards</h4>
+                <p className="service-feature-desc">
+                  Tích lũy điểm thưởng tự động sau mỗi lượt sử dụng dịch vụ thành công. Đổi điểm nhận quà và tận hưởng các đặc quyền dành riêng cho thành viên.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 5: Promotions & Vouchers */}
+            <div className="col-md-6 col-lg-4 animate-up" style={{ animationDelay: '0.2s' }}>
+              <div className="service-feature-card">
+                <div className="service-feature-icon">
+                  <i className="fas fa-tags"></i>
                 </div>
-                <Link to="/login" className="pricing-cta-btn pricing-cta-btn-outline">
-                  Đặt lịch ngay
-                </Link>
+                <h4 className="service-feature-title">Promotions & Vouchers</h4>
+                <p className="service-feature-desc">
+                  Tham gia các chiến dịch ưu đãi theo mùa hấp dẫn. Săn mã giảm giá, voucher dịch vụ và nhận các lời mời chương trình tri ân đặc biệt.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 6: Vehicle Management */}
+            <div className="col-md-6 col-lg-4 animate-up" style={{ animationDelay: '0.25s' }}>
+              <div className="service-feature-card">
+                <div className="service-feature-icon">
+                  <i className="fas fa-car"></i>
+                </div>
+                <h4 className="service-feature-title">Vehicle Management</h4>
+                <p className="service-feature-desc">
+                  Đăng ký và quản lý thông tin của nhiều phương tiện cùng lúc. Cập nhật biển số xe chính xác và tra cứu lịch sử đặt lịch của từng xe.
+                </p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SECTION 5: LOYALTY (3 VIP cards với tích điểm tự động dựa trên chi tiêu thực tế) */}
+      {/* SECTION 5: LOYALTY */}
       <section id="loyalty" className="py-6 bg-white-pure">
         <div className="container">
           <div className="text-center mb-5">
-            <small className="section-subtitle">Chương trình tích điểm</small>
-            <h2 className="section-title">Hạng Thành Viên Tích Điểm Tự Động</h2>
-            <p className="text-secondary mx-auto mt-2" style={{ maxWidth: '560px', fontSize: '0.95rem' }}>
-              Điểm thành viên được cộng tự động dựa trên chi phí thanh toán thực tế của mỗi lượt rửa xe. 
-              Hoàn toàn không có phí đăng ký thành viên hay phí duy trì hàng tháng.
+            <small className="section-subtitle">Loyalty Rewards Program</small>
+            <h2 className="section-title">Chương Trình Khách Hàng Thân Thiết</h2>
+            <p className="text-secondary mx-auto mt-2" style={{ maxWidth: '640px', fontSize: '0.95rem', lineHeight: '1.6' }}>
+              Mỗi lần sử dụng dịch vụ, khách hàng sẽ tích lũy điểm thưởng để mở khóa nhiều quyền lợi hấp dẫn. 
+              Thành viên càng ở hạng cao sẽ càng nhận được nhiều ưu đãi và đặc quyền.
             </p>
           </div>
 
           <div className="row g-4 justify-content-center">
             {/* Card 1: Silver */}
             <div className="col-md-4 animate-up">
-              <div className="tier-card tier-silver">
-                <div className="tier-badge">Silver Member</div>
-                <div className="tier-points">100 - 499 PTS</div>
-                
-                {/* Progression Bar */}
-                <div className="loyalty-progress-container">
-                  <div className="loyalty-progress-label">
-                    <span>Mức tích điểm thăng hạng</span>
-                    <span>50% (250/500 PTS)</span>
-                  </div>
-                  <div className="loyalty-progress-bar">
-                    <div className="loyalty-progress-fill" style={{ width: '50%' }}></div>
-                  </div>
-                  <div className="text-muted mt-2" style={{ fontSize: '0.72rem', fontWeight: '600' }}>
-                    *Cần tích lũy thêm 250 PTS chi tiêu để nâng hạng Vàng.
+              <div className="tier-card tier-silver d-flex flex-column h-100">
+                <div className="d-flex align-items-center justify-content-between mb-4">
+                  <div className="tier-badge-pill silver">Silver Member</div>
+                  <div className="tier-icon-wrapper silver">
+                    <i className="fas fa-award"></i>
                   </div>
                 </div>
+                
+                <h4 className="tier-card-title-new">Thành Viên Bạc</h4>
+                <p className="tier-card-subtitle-new text-muted">Hạng thành viên khởi đầu sau khi tích lũy mốc điểm cơ bản.</p>
 
-                <div className="tier-perks-list border-top pt-3">
+                <div className="tier-perks-list border-top pt-3 mt-auto">
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Tích lũy điểm thưởng x1.0 chi tiêu dịch vụ</span>
+                    <span>Hỗ trợ ưu tiên (Priority support)</span>
                   </div>
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Quy đổi voucher giảm giá từ 5% hóa đơn</span>
+                    <span>Chương trình khuyến mãi thành viên độc quyền (Exclusive member promotions)</span>
                   </div>
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Đặt lịch trực tuyến dễ dàng qua tài khoản</span>
+                    <span>Tích lũy điểm thưởng đổi voucher (Earn reward points)</span>
                   </div>
                 </div>
               </div>
@@ -727,36 +416,29 @@ export const Landing = () => {
 
             {/* Card 2: Gold */}
             <div className="col-md-4 animate-up" style={{ animationDelay: '0.1s' }}>
-              <div className="tier-card tier-gold">
-                <div className="tier-badge">Gold Member</div>
-                <div className="tier-points">500 - 999 PTS</div>
-                
-                {/* Progression Bar */}
-                <div className="loyalty-progress-container">
-                  <div className="loyalty-progress-label">
-                    <span>Mức tích điểm thăng hạng</span>
-                    <span>75% (750/1000 PTS)</span>
-                  </div>
-                  <div className="loyalty-progress-bar">
-                    <div className="loyalty-progress-fill" style={{ width: '75%' }}></div>
-                  </div>
-                  <div className="text-muted mt-2" style={{ fontSize: '0.72rem', fontWeight: '600' }}>
-                    *Cần tích lũy thêm 250 PTS chi tiêu để nâng hạng Bạch Kim.
+              <div className="tier-card tier-gold d-flex flex-column h-100">
+                <div className="d-flex align-items-center justify-content-between mb-4">
+                  <div className="tier-badge-pill gold">Gold Member</div>
+                  <div className="tier-icon-wrapper gold">
+                    <i className="fas fa-gem"></i>
                   </div>
                 </div>
+                
+                <h4 className="tier-card-title-new">Thành Viên Vàng</h4>
+                <p className="tier-card-subtitle-new text-muted">Hạng thành viên trung cấp với nhiều ưu đãi hấp dẫn gia tăng.</p>
 
-                <div className="tier-perks-list border-top pt-3">
+                <div className="tier-perks-list border-top pt-3 mt-auto">
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Tích lũy điểm thưởng x1.2 chi tiêu dịch vụ</span>
+                    <span>Tỷ lệ tích điểm & giá trị voucher cao hơn (Higher reward benefits)</span>
                   </div>
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Tự động sắp xếp làn rửa nhanh qua LPR biển số</span>
+                    <span>Quyền tiếp cận sớm các đợt khuyến mãi lớn (Early access to promotions)</span>
                   </div>
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Voucher 10% dịp đặc biệt & quà tháng sinh nhật</span>
+                    <span>Cơ hội đặt lịch vào khung giờ cao điểm (Priority booking opportunities)</span>
                   </div>
                 </div>
               </div>
@@ -764,40 +446,33 @@ export const Landing = () => {
 
             {/* Card 3: Platinum */}
             <div className="col-md-4 animate-up" style={{ animationDelay: '0.2s' }}>
-              <div className="tier-card tier-platinum">
-                <div className="tier-badge">Platinum Member</div>
-                <div className="tier-points">1,000+ PTS</div>
-                
-                {/* Progression Bar */}
-                <div className="loyalty-progress-container">
-                  <div className="loyalty-progress-label">
-                    <span>Hạng thành viên hiện tại</span>
-                    <span>MAX RANK (1,250 PTS)</span>
-                  </div>
-                  <div className="loyalty-progress-bar">
-                    <div className="loyalty-progress-fill" style={{ width: '100%' }}></div>
-                  </div>
-                  <div className="text-success mt-2" style={{ fontSize: '0.72rem', fontWeight: '700' }}>
-                    *Đã đạt cấp độ thành viên cao nhất tại trạm!
+              <div className="tier-card tier-platinum d-flex flex-column h-100">
+                <div className="d-flex align-items-center justify-content-between mb-4">
+                  <div className="tier-badge-pill platinum">Platinum Member</div>
+                  <div className="tier-icon-wrapper platinum">
+                    <i className="fas fa-crown"></i>
                   </div>
                 </div>
+                
+                <h4 className="tier-card-title-new">Thành Viên Bạch Kim</h4>
+                <p className="tier-card-subtitle-new text-muted">Hạng thành viên tối cao sở hữu mọi đặc quyền đặc biệt tại trạm.</p>
 
-                <div className="tier-perks-list border-top pt-3">
+                <div className="tier-perks-list border-top pt-3 mt-auto">
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Tích lũy điểm thưởng tối đa x1.5 chi tiêu dịch vụ</span>
+                    <span>Đặc quyền thành viên cao cấp nhất (Premium member privileges)</span>
                   </div>
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Được dẫn thẳng vào làn rửa ưu tiên không cần xếp hàng</span>
+                    <span>Các gói voucher giảm giá tốt nhất (Best promotional offers)</span>
                   </div>
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Miễn phí trà/cafe phòng chờ chờ VIP của trạm</span>
+                    <span>Điểm thưởng tích lũy tối đa (Maximum loyalty rewards)</span>
                   </div>
                   <div className="tier-perk-item">
                     <i className="fas fa-check-circle"></i>
-                    <span>Nhận mã giảm giá 15% trọn đời toàn bộ dịch vụ</span>
+                    <span>Các chiến dịch và sự kiện tri ân riêng biệt (Exclusive campaigns)</span>
                   </div>
                 </div>
               </div>
@@ -831,7 +506,7 @@ export const Landing = () => {
                 <div className="benefit-check">
                   <i className="fas fa-check"></i>
                 </div>
-                <span className="benefit-text">Nhận diện LPR biển số nhanh trong 2s</span>
+                <span className="benefit-text">Xác nhận check-in nhanh chóng tại trạm</span>
               </div>
             </div>
             <div className="col-md-6 col-lg-4 animate-up" style={{ animationDelay: '0.1s' }}>
@@ -890,13 +565,13 @@ export const Landing = () => {
         <div className="container">
           <div className="row g-5 mb-5 text-start">
             {/* Col 1: Brand Info */}
-            <div className="col-lg-4 col-md-6">
+            <div className="col-lg-5 col-md-6">
               <h5 className="fw-bold text-dark mb-3">
                 AutoWash <span className="text-primary-blue" style={{ color: '#0284c7' }}>Pro</span>
               </h5>
               <p className="text-secondary small mb-3" style={{ lineHeight: '1.6' }}>
-                Hệ thống quản lý rửa xe thông minh tích hợp công nghệ AI nhận diện biển số LPR, 
-                đem lại trải nghiệm chăm sóc xe tự động, siêu tốc và đẳng cấp.
+                Hệ thống quản lý đặt lịch rửa xe thông minh, 
+                đem lại trải nghiệm chăm sóc xe hiện đại, siêu tốc và đẳng cấp.
               </p>
               <div className="text-muted small" style={{ fontSize: '0.75rem' }}>
                 SWP391 Project — FPT University Ho Chi Minh
@@ -904,7 +579,7 @@ export const Landing = () => {
             </div>
 
             {/* Col 2: Quick Links */}
-            <div className="col-lg-2 col-md-6 footer-link-group">
+            <div className="col-lg-3 col-md-3 footer-link-group">
               <h6 className="fw-bold text-dark small text-uppercase mb-2" style={{ letterSpacing: '0.5px' }}>Khám Phá</h6>
               <a href="#" onClick={(e) => { e.preventDefault(); scrollToSection('how-it-works'); }} className="footer-link">Quy trình</a>
               <a href="#" onClick={(e) => { e.preventDefault(); scrollToSection('services'); }} className="footer-link">Gói dịch vụ</a>
@@ -913,29 +588,12 @@ export const Landing = () => {
             </div>
 
             {/* Col 3: Company */}
-            <div className="col-lg-2 col-md-6 footer-link-group">
+            <div className="col-lg-4 col-md-3 footer-link-group">
               <h6 className="fw-bold text-dark small text-uppercase mb-2" style={{ letterSpacing: '0.5px' }}>Trạm Rửa Xe</h6>
               <a href="#" onClick={(e) => e.preventDefault()} className="footer-link">Về chúng tôi</a>
               <a href="#" onClick={(e) => e.preventDefault()} className="footer-link">Liên hệ hỗ trợ</a>
               <a href="#" onClick={(e) => e.preventDefault()} className="footer-link">Tuyển dụng</a>
               <a href="#" onClick={(e) => e.preventDefault()} className="footer-link">Điều khoản dịch vụ</a>
-            </div>
-
-            {/* Col 4: Newsletter */}
-            <div className="col-lg-4 col-md-6 text-start">
-              <h6 className="fw-bold text-dark small text-uppercase mb-2" style={{ letterSpacing: '0.5px' }}>Nhận Bản Tin Ưu Đãi</h6>
-              <p className="text-secondary small mb-3">Đăng ký email để nhận thông báo về các ưu đãi dịch vụ và voucher mới từ trạm.</p>
-              <form onSubmit={handleNewsletterSubmit} className="newsletter-input-group">
-                <input
-                  type="email"
-                  className="newsletter-input"
-                  placeholder="Nhập email của bạn..."
-                  value={newsletterEmail}
-                  onChange={(e) => setNewsletterEmail(e.target.value)}
-                  required
-                />
-                <button type="submit" className="newsletter-btn">Đăng ký</button>
-              </form>
             </div>
           </div>
 

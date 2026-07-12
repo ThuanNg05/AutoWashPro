@@ -24,8 +24,15 @@ namespace Auto_Wash.Controllers
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Lấy danh sách hàng đợi các xe đang chờ rửa hôm nay (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <response code="200">Lấy danh sách hàng đợi thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
         [Route("Admin/GetQueue")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetQueue()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -41,8 +48,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Tiến hàng đợi cho một xe (chuyển sang bước tiếp theo: Chờ rửa -> Đang rửa -> Đang sấy -> Hoàn thành) (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID hàng đợi.</param>
+        /// <response code="200">Chuyển trạng thái hàng đợi thành công.</response>
+        /// <response code="400">Yêu cầu chuyển trạng thái không hợp lệ.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPost]
         [Route("Admin/AdvanceQueue")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> AdvanceQueue(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -62,8 +79,19 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Cập nhật thông tin chi tiết trạng thái hàng đợi hoặc ghi chú nhân viên (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID hàng đợi.</param>
+        /// <param name="request">Thông tin cập nhật (Trạng thái và ghi chú).</param>
+        /// <response code="200">Cập nhật thành công.</response>
+        /// <response code="400">Yêu cầu cập nhật không hợp lệ.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPost]
         [Route("Admin/UpdateQueue")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> UpdateQueue(int id, [FromBody] UpdateQueueRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -88,8 +116,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Thực hiện thủ tục checkout thanh toán và hoàn tất rửa xe cho xe trong hàng đợi (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID hàng đợi cần checkout.</param>
+        /// <response code="200">Checkout và tính toán hóa đơn thành công.</response>
+        /// <response code="400">Yêu cầu thanh toán không hợp lệ.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPost]
         [Route("Admin/CheckoutQueue")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> CheckoutQueue(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -110,8 +148,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Hủy hàng đợi cho một xe (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID hàng đợi cần hủy.</param>
+        /// <response code="200">Hủy hàng đợi thành công.</response>
+        /// <response code="400">Không thể hủy do trạng thái không hợp lệ.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPost]
         [Route("Admin/CancelQueue")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> CancelQueue(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -131,8 +179,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Thêm khách hàng vãng lai (không đặt lịch trước) trực tiếp vào hàng đợi (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="request">Biển số xe và tên khách hàng vãng lai.</param>
+        /// <response code="200">Thêm xe vãng lai thành công.</response>
+        /// <response code="400">Biển số không hợp lệ hoặc xe đang có lịch chưa hoàn tất.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPost]
         [Route("Admin/AddWalkIn")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> AddWalkIn([FromBody] WalkInRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();

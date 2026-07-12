@@ -9,6 +9,7 @@ using Auto_Wash.Services;
 using Auto_Wash.Data;
 using Auto_Wash.Data.Entities;
 using Auto_Wash.Helpers;
+using Auto_Wash.DTOs.OwnershipTransfer;
 
 namespace Auto_Wash.Controllers
 {
@@ -35,8 +36,18 @@ namespace Auto_Wash.Controllers
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Kiểm tra biển số xe trên hệ thống trước khi bắt đầu chuyển nhượng.
+        /// </summary>
+        /// <param name="licensePlate">Biển số xe cần kiểm tra.</param>
+        /// <response code="200">Kiểm tra thành công (trả về trạng thái xe đã tồn tại hay chưa, có thuộc về người dùng hiện tại không).</response>
+        /// <response code="400">Biển số xe trống.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpGet]
         [Route("api/ownership-transfer/check-plate")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> CheckPlate(string licensePlate)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -67,8 +78,18 @@ namespace Auto_Wash.Controllers
             return Ok(new { success = true, exists = true, isOwn = false, brand = vehicle.Brand, model = vehicle.Model, vehicleClass = vehicle.VehicleClass, message = "This vehicle is already linked to another customer account." });
         }
 
+        /// <summary>
+        /// Xác thực hình ảnh đăng ký xe qua OCR để trích xuất biển số.
+        /// </summary>
+        /// <param name="request">Đường dẫn ảnh đăng ký và biển số nhập tay.</param>
+        /// <response code="200">Xác thực OCR thành công.</response>
+        /// <response code="400">Thiếu thông tin hoặc biển số không trùng khớp.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpPost]
         [Route("api/ownership-transfer/verify-image-ocr")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> VerifyImageOcr([FromBody] VerifyImageOcrRequest request)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -97,8 +118,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Đăng ký xe mới chưa có trên hệ thống bằng ảnh OCR và mã OTP.
+        /// </summary>
+        /// <param name="request">Thông tin chi tiết xe, ảnh và mã OTP.</param>
+        /// <response code="200">Đăng ký xe qua OCR thành công.</response>
+        /// <response code="400">OTP không chính xác hoặc dữ liệu xe lỗi.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpPost]
         [Route("api/ownership-transfer/register")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> RegisterVehicleOcr([FromBody] RegisterOcrRequest request)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -139,8 +170,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Yêu cầu gửi mã OTP để bắt đầu thủ tục chuyển nhượng xe đang thuộc sở hữu của người khác.
+        /// </summary>
+        /// <param name="request">Biển số xe cần chuyển nhượng.</param>
+        /// <response code="200">Gửi OTP thành công.</response>
+        /// <response code="400">Yêu cầu không hợp lệ hoặc xe không tồn tại.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpPost]
         [Route("api/ownership-transfer/request-otp")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> RequestTransferOtp([FromBody] SendTransferOtpRequest request)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -170,8 +211,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Gửi yêu cầu chuyển nhượng xe (từ chủ xe mới gửi sang chủ cũ).
+        /// </summary>
+        /// <param name="request">Biển số xe, ảnh OCR và mã OTP.</param>
+        /// <response code="200">Tạo yêu cầu chuyển nhượng thành công.</response>
+        /// <response code="400">Yêu cầu không hợp lệ hoặc sai OTP.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpPost]
         [Route("api/ownership-transfer/request")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> CreateTransferRequest([FromBody] TransferRequestModel request)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -207,8 +258,19 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Chủ xe hiện tại xác nhận Đồng ý hoặc Từ chối yêu cầu chuyển nhượng.
+        /// </summary>
+        /// <param name="id">ID của yêu cầu chuyển nhượng.</param>
+        /// <param name="request">Quyết định chuyển nhượng (Approve hoặc Reject).</param>
+        /// <response code="200">Xử lý quyết định thành công.</response>
+        /// <response code="400">Quyết định không hợp lệ hoặc yêu cầu đã quá hạn.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpPost]
         [Route("api/ownership-transfer/{id}/owner-decision")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ConfirmTransferRequest(int id, [FromBody] OwnerDecisionModel request)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -242,8 +304,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Người mua xe hủy bỏ yêu cầu chuyển nhượng do chính mình gửi.
+        /// </summary>
+        /// <param name="id">ID của yêu cầu chuyển nhượng.</param>
+        /// <response code="200">Hủy yêu cầu thành công.</response>
+        /// <response code="400">Không thể hủy do yêu cầu ở trạng thái không cho phép.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpPost]
         [Route("api/ownership-transfer/{id}/cancel")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> CancelTransferRequest(int id)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -268,8 +340,19 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Admin hoặc nhân viên phê duyệt chính thức đơn chuyển nhượng (sau khi chủ cũ đồng ý).
+        /// </summary>
+        /// <param name="id">ID của yêu cầu chuyển nhượng.</param>
+        /// <param name="request">Quyết định phê duyệt (Đồng ý/Từ chối) và lý do.</param>
+        /// <response code="200">Admin xử lý đơn thành công.</response>
+        /// <response code="400">Yêu cầu không khả dụng để phê duyệt.</response>
+        /// <response code="401">Không có quyền Admin/Staff.</response>
         [HttpPost]
         [Route("api/ownership-transfer/{id}/admin-decision")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ProcessAdminRequest(int id, [FromBody] AdminDecisionModel request)
         {
             if (!IsAdminOrStaff())
@@ -309,8 +392,15 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy danh sách các yêu cầu chuyển nhượng xe do khách hàng hiện tại đã gửi đi.
+        /// </summary>
+        /// <response code="200">Lấy danh sách thành công.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpGet]
         [Route("api/ownership-transfer/customer/sent")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetCustomerSentRequests()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -356,8 +446,15 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy danh sách các yêu cầu chuyển nhượng xe do người khác gửi tới khách hàng hiện tại.
+        /// </summary>
+        /// <response code="200">Lấy danh sách thành công.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpGet]
         [Route("api/ownership-transfer/customer/received")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetCustomerReceivedRequests()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -403,8 +500,17 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy danh sách tất cả các yêu cầu chuyển nhượng trên hệ thống (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="status">Trạng thái lọc yêu cầu chuyển nhượng.</param>
+        /// <param name="search">Từ khóa tìm kiếm theo biển số hoặc tên khách hàng.</param>
+        /// <response code="200">Lấy danh sách thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
         [Route("api/ownership-transfer/admin/requests")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAdminRequests(string? status, string? search)
         {
             if (!IsAdminOrStaff())
@@ -474,8 +580,16 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy lịch sử chuyển nhượng sở hữu của một phương tiện cụ thể (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID phương tiện cần xem lịch sử.</param>
+        /// <response code="200">Lấy lịch sử thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
         [Route("api/ownership-transfer/vehicle/{id}/history")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetVehicleOwnershipHistory(int id)
         {
             if (!IsAdminOrStaff())
@@ -509,8 +623,19 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Tải lên ảnh giấy đăng ký xe để làm thủ tục xác thực OCR.
+        /// </summary>
+        /// <param name="file">Tệp tin ảnh upload.</param>
+        /// <response code="200">Tải tệp tin lên thành công.</response>
+        /// <response code="400">Tệp tin trống hoặc không hợp lệ.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpPost]
+        [Consumes("multipart/form-data")]
         [Route("api/ownership-transfer/upload")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> UploadImage(IFormFile file)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -559,46 +684,5 @@ namespace Auto_Wash.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
-    }
-
-    // Models for request binding
-    public class VerifyImageOcrRequest
-    {
-        public string LicensePlate { get; set; } = string.Empty;
-        public string RegistrationImageUrl { get; set; } = string.Empty;
-    }
-
-    public class RegisterOcrRequest
-    {
-        public string LicensePlate { get; set; } = string.Empty;
-        public string Brand { get; set; } = string.Empty;
-        public string Model { get; set; } = string.Empty;
-        public string VehicleClass { get; set; } = string.Empty;
-        public string RegistrationImageUrl { get; set; } = string.Empty;
-        public string OtpCode { get; set; } = string.Empty;
-    }
-
-    public class TransferRequestModel
-    {
-        public string LicensePlate { get; set; } = string.Empty;
-        public string RegistrationImageUrl { get; set; } = string.Empty;
-        public string? Reason { get; set; }
-        public string OtpCode { get; set; } = string.Empty;
-    }
-
-    public class SendTransferOtpRequest
-    {
-        public string LicensePlate { get; set; } = string.Empty;
-    }
-
-    public class OwnerDecisionModel
-    {
-        public string Decision { get; set; } = string.Empty; // Approve or Reject
-    }
-
-    public class AdminDecisionModel
-    {
-        public bool Approve { get; set; }
-        public string? Reason { get; set; }
     }
 }

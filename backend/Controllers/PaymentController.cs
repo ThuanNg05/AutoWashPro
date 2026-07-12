@@ -13,6 +13,7 @@ using Auto_Wash.Data.Entities;
 using Auto_Wash.Services;
 using Auto_Wash.DTOs;
 using Auto_Wash.Helpers;
+using Auto_Wash.DTOs.Payment;
 
 namespace Auto_Wash.Controllers
 {
@@ -43,13 +44,20 @@ namespace Auto_Wash.Controllers
             _logger = logger;
         }
 
-        public class CreatePaymentRequest
-        {
-            public int BookingId { get; set; }
-        }
 
+
+        /// <summary>
+        /// Tạo link thanh toán trực tuyến qua cổng PayOS cho một lịch đặt.
+        /// </summary>
+        /// <param name="request">Chứa ID của lịch đặt cần thanh toán.</param>
+        /// <response code="200">Tạo link thanh toán thành công.</response>
+        /// <response code="400">Yêu cầu không hợp lệ hoặc lịch đặt không khả dụng để thanh toán.</response>
+        /// <response code="404">Không tìm thấy lịch đặt.</response>
         [HttpPost]
         [Route("create")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentRequest request)
         {
             if (request == null || request.BookingId <= 0)
@@ -83,8 +91,13 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Callback nhận thông tin phản hồi sau khi thanh toán từ cổng PayOS (Redirect).
+        /// </summary>
+        /// <response code="302">Chuyển hướng trình duyệt về trang kết quả thanh toán trên Frontend.</response>
         [HttpGet]
         [Route("return")]
+        [ProducesResponseType(StatusCodes.Status302Found)]
         public async Task<IActionResult> PaymentReturn()
         {
             _logger.LogInformation("PaymentReturn: Received redirect callback query: {Query}", Request.QueryString.Value);
@@ -127,8 +140,16 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Webhook nhận thông báo thay đổi trạng thái giao dịch tự động từ cổng PayOS.
+        /// </summary>
+        /// <param name="webhookBody">Dữ liệu thông báo trạng thái thanh toán từ PayOS.</param>
+        /// <response code="200">Xử lý webhook thành công (cập nhật trạng thái thanh toán và lịch đặt).</response>
+        /// <response code="400">Dữ liệu webhook sai chữ ký hoặc checksum không hợp lệ.</response>
         [HttpPost]
         [Route("webhook")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> PaymentWebhook([FromBody] Webhook webhookBody)
         {
             _logger.LogInformation("========== PAYOS WEBHOOK HIT ==========");
@@ -229,8 +250,14 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy thông tin trạng thái thanh toán hiện tại của một lịch đặt.
+        /// </summary>
+        /// <param name="bookingId">ID của lịch đặt cần kiểm tra thanh toán.</param>
+        /// <response code="200">Lấy thông tin thanh toán thành công.</response>
         [HttpGet]
         [Route("{bookingId}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
         public async Task<IActionResult> GetPaymentStatus(int bookingId)
         {
             try

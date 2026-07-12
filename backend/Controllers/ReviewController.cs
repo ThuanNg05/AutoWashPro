@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Auto_Wash.Data;
 using Auto_Wash.Data.Entities;
 using Auto_Wash.Services;
+using Auto_Wash.DTOs.Review;
 
 namespace Auto_Wash.Controllers
 {
@@ -28,8 +29,20 @@ namespace Auto_Wash.Controllers
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Tạo một đánh giá mới cho đơn đặt lịch đã hoàn thành.
+        /// </summary>
+        /// <param name="request">Thông tin đánh giá bao gồm ID đặt lịch, số sao (1-5), và bình luận.</param>
+        /// <response code="200">Gửi đánh giá thành công.</response>
+        /// <response code="400">Dữ liệu đánh giá lỗi hoặc đơn hàng chưa hoàn thành / đã đánh giá.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
+        /// <response code="404">Không tìm thấy đơn đặt lịch.</response>
         [HttpPost]
         [Route("api/reviews")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> CreateReview([FromBody] CreateReviewDto request)
         {
             if (request == null)
@@ -108,8 +121,15 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy danh sách các đánh giá đã thực hiện của khách hàng hiện tại.
+        /// </summary>
+        /// <response code="200">Lấy danh sách đánh giá thành công.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpGet]
         [Route("api/reviews/customer")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetCustomerReviews()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -149,8 +169,15 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy danh sách các lịch đặt đã hoàn thành nhưng chưa được đánh giá.
+        /// </summary>
+        /// <response code="200">Lấy danh sách thành công.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpGet]
         [Route("api/reviews/pending")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetPendingReviews()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -188,8 +215,15 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy toàn bộ danh sách đánh giá (dành cho Admin hoặc Staff).
+        /// </summary>
+        /// <response code="200">Lấy toàn bộ đánh giá thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
         [Route("api/reviews/admin")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAdminReviews()
         {
             if (!IsAdminOrStaff())
@@ -229,12 +263,5 @@ namespace Auto_Wash.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
-    }
-
-    public class CreateReviewDto
-    {
-        public int BookingId { get; set; }
-        public int Rating { get; set; }
-        public string? Comment { get; set; }
     }
 }

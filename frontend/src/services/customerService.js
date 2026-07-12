@@ -2,7 +2,7 @@ import api from './api';
 
 export const customerService = {
   updateProfile: async (fullName, phone) => {
-    const response = await api.post('/Customer/UpdateProfile', {
+    const response = await api.patch('/api/v1/customer/profile', {
       FullName: fullName,
       Phone: phone
     });
@@ -10,14 +10,14 @@ export const customerService = {
   },
 
   sendEmailOtp: async (email) => {
-    const response = await api.post('/Customer/SendEmailOtp', {
+    const response = await api.post('/api/v1/customer/send-email-otp', {
       Email: email
     });
     return response.data;
   },
 
   verifyEmailAndChangePassword: async (email, otpCode, currentPassword, newPassword) => {
-    const response = await api.post('/Customer/VerifyEmailAndChangePassword', {
+    const response = await api.post('/api/v1/customer/verify-email-change-password', {
       Email: email,
       OtpCode: otpCode,
       CurrentPassword: currentPassword,
@@ -67,29 +67,29 @@ export const customerService = {
   },
 
   getServices: async () => {
-    const response = await api.get('/Customer/GetServices');
+    const response = await api.get('/api/v1/services');
     return response.data;
   },
 
   createBooking: async (bookingData) => {
-    const response = await api.post('/Customer/CreateBooking', bookingData);
+    const response = await api.post('/api/v1/bookings', bookingData);
     return response.data;
   },
 
   getBookingDetail: async (id) => {
-    const response = await api.get(`/Customer/GetBookingDetail/${id}`);
+    const response = await api.get(`/api/v1/bookings/${id}`);
     return response.data;
   },
 
   cancelBooking: async (id, reason) => {
-    const response = await api.post(`/Customer/CancelBooking/${id}`, {
+    const response = await api.patch(`/api/v1/bookings/${id}/cancel`, {
       Reason: reason
     });
     return response.data;
   },
 
   rescheduleBooking: async (id, scheduledAt, reason) => {
-    const response = await api.post(`/Customer/RescheduleBooking/${id}`, {
+    const response = await api.patch(`/api/v1/bookings/${id}/reschedule`, {
       ScheduledAt: scheduledAt,
       Reason: reason
     });
@@ -116,59 +116,57 @@ export const customerService = {
   },
 
   getBookingConfig: async () => {
-    const response = await api.get('/Customer/GetBookingConfig');
+    const response = await api.get('/api/v1/bookings/config');
     return response.data;
   },
 
   getOccupiedSlots: async (date) => {
-    const response = await api.get(`/Customer/GetOccupiedSlots?date=${date}`);
+    const response = await api.get(`/api/v1/bookings/occupied-slots?date=${date}`);
     return response.data;
   },
 
   getEarliestAvailableDate: async (startDate, windowDays) => {
-    const response = await api.get(`/Customer/GetEarliestAvailableDate?startDate=${startDate}&windowDays=${windowDays}`);
+    const response = await api.get(`/api/v1/bookings/earliest-available-date?startDate=${startDate}&windowDays=${windowDays}`);
     return response.data;
   },
 
   getWashHistory: async () => {
-    const response = await api.get('/Customer/GetWashHistory');
+    const response = await api.get('/api/v1/bookings/history');
     return response.data;
   },
 
   getActiveBooking: async () => {
-    const response = await api.get('/Customer/GetActiveBooking');
+    const response = await api.get('/api/v1/bookings/active');
     return response.data;
   },
 
   getVouchers: async () => {
-    const response = await api.get('/Customer/GetVouchers');
+    const response = await api.get('/api/v1/vouchers');
     return response.data;
   },
 
   getNotifications: async () => {
-    const response = await api.get('/Customer/GetNotifications');
+    const response = await api.get('/api/v1/notifications');
     return response.data;
   },
 
   markNotificationAsRead: async (id) => {
-    const response = await api.post('/Customer/MarkNotificationAsRead', {
-      Id: id
-    });
+    const response = await api.patch(`/api/v1/notifications/${id}/read`);
     return response.data;
   },
 
   getRewards: async () => {
-    const response = await api.get('/Customer/GetRewards');
+    const response = await api.get('/api/v1/rewards');
     return response.data;
   },
 
   getLoyaltyStatus: async () => {
-    const response = await api.get('/Customer/GetLoyaltyStatus');
+    const response = await api.get('/api/v1/customer/loyalty-status');
     return response.data;
   },
 
   redeemReward: async (rewardId) => {
-    const response = await api.post('/Customer/RedeemReward', {
+    const response = await api.post('/api/v1/customer/redeem-reward', {
       RewardId: rewardId
     });
     return response.data;

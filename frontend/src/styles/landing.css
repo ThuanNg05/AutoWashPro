@@ -918,3 +918,107 @@
         padding-bottom: 5rem !important;
     }
 }
+
+/* ── Service Features Card ─────────────────────────────────── */
+.service-feature-card {
+    background: #ffffff;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    border-radius: 20px;
+    padding: 32px;
+    text-align: center;
+    height: 100%;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.02);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.service-feature-card:hover {
+    transform: translateY(-6px);
+    border-color: #0284c7;
+    box-shadow: 0 20px 40px rgba(2, 132, 199, 0.08);
+}
+
+.service-feature-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: rgba(2, 132, 199, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0284c7;
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.service-feature-card:hover .service-feature-icon {
+    background: #0284c7;
+    color: #ffffff;
+    transform: rotate(5deg) scale(1.1);
+}
+
+.service-feature-title {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 12px;
+}
+
+.service-feature-desc {
+    font-size: 0.88rem;
+    color: #64748b;
+    line-height: 1.6;
+    margin-bottom: 0;
+}
+
+/* ── Loyalty Program New UI ────────────────────────────────── */
+.tier-badge-pill {
+    padding: 6px 14px;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.tier-badge-pill.silver { background: #f1f5f9; color: #475569; }
+.tier-badge-pill.gold { background: #fffbeb; color: #b45309; }
+.tier-badge-pill.platinum { background: #f0f9ff; color: #0369a1; }
+
+.tier-icon-wrapper {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    transition: all 0.3s ease;
+}
+.tier-icon-wrapper.silver { background: #f1f5f9; color: #475569; }
+.tier-icon-wrapper.gold { background: #fffbeb; color: #b45309; }
+.tier-icon-wrapper.platinum { background: #f0f9ff; color: #0369a1; }
+
+.tier-card:hover .tier-icon-wrapper {
+    transform: scale(1.15) rotate(-10deg);
+}
+.tier-card:hover .tier-icon-wrapper.silver { background: #e2e8f0; }
+.tier-card:hover .tier-icon-wrapper.gold { background: #fde68a; }
+.tier-card:hover .tier-icon-wrapper.platinum { background: #bae6fd; }
+
+.tier-card-title-new {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 8px;
+    margin-top: 8px;
+}
+
+.tier-card-subtitle-new {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 24px;
+}
+
