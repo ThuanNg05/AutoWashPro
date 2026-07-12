@@ -7,6 +7,8 @@ using Auto_Wash.Helpers;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.OpenApi.Models;
+using System.Reflection;
 
 namespace Auto_Wash
 {
@@ -39,7 +41,50 @@ namespace Auto_Wash
             builder.Logging.AddProvider(new FileLoggerProvider(debugBePath));
 
             // Add services to the container.
-            builder.Services.AddControllersWithViews();
+            builder.Services.AddControllersWithViews()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+                });
+
+            // Register SwaggerGen
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "Auto-Wash Pro API Documentation",
+                    Version = "v1",
+                    Description = "API documentation for the Auto-Wash Pro smart car wash management system."
+                });
+
+                // Load XML comments for Swagger UI summaries
+                var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                if (File.Exists(xmlPath))
+                {
+                    options.IncludeXmlComments(xmlPath);
+                }
+
+                // Setup Cookie authentication representation in Swagger
+                options.AddSecurityDefinition("CookieAuth", new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.ApiKey,
+                    In = ParameterLocation.Cookie,
+                    Name = ".AspNetCore.Session",
+                    Description = "ASP.NET Core Session Cookie (.AspNetCore.Session) after logging in via /Account/Login."
+                });
+
+                options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "CookieAuth" }
+                        },
+                        new string[] { }
+                    }
+                });
+            });
 
             // Real-time push (replaces/augments timer polling for new-booking detection)
             builder.Services.AddSignalR();
@@ -104,6 +149,8 @@ namespace Auto_Wash
             builder.Services.AddHostedService<BookingWorkflowBackgroundService>();
 
 
+            builder.Services.AddHealthChecks();
+
             // Session support
             builder.Services.AddDistributedMemoryCache();
             builder.Services.AddSession(options =>
@@ -117,11 +164,23 @@ namespace Auto_Wash
 
             var app = builder.Build();
 
+            // Centralized global exception handler
+            app.UseMiddleware<GlobalExceptionMiddleware>();
+
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
                 app.UseHsts();
                 app.UseHttpsRedirection();
+            }
+            else
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Auto-Wash Pro API v1");
+                    c.RoutePrefix = "swagger";
+                });
             }
 
             app.UseDefaultFiles(); // Enables serving index.html as default page
@@ -142,6 +201,7 @@ namespace Auto_Wash
             app.MapHub<BookingHub>("/hubs/bookings"); // Real-time booking events (staff/admin)
 
             app.MapFallbackToFile("index.html"); // Fallback for React Router client routes
+            app.MapHealthChecks("/api/health");
             await app.RunAsync();
         }
     }

@@ -23,8 +23,15 @@ namespace Auto_Wash.Controllers
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Lấy toàn bộ danh sách lịch đặt xe trên hệ thống (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <response code="200">Lấy danh sách thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
         [Route("api/admin/bookings")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetBookings()
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -40,8 +47,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy thông tin chi tiết một lịch đặt xe cụ thể (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID lịch đặt cần xem.</param>
+        /// <response code="200">Lấy thông tin chi tiết thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
+        /// <response code="404">Không tìm thấy lịch đặt.</response>
         [HttpGet]
         [Route("api/admin/bookings/{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetBookingDetail(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -61,8 +78,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Phê duyệt xác nhận lịch đặt xe (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID lịch đặt cần xác nhận.</param>
+        /// <response code="200">Xác nhận lịch đặt thành công.</response>
+        /// <response code="400">Lịch đặt không khả dụng để xác nhận.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPut]
         [Route("api/admin/bookings/{id}/confirm")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ConfirmBooking(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -82,8 +109,19 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Hủy lịch đặt xe từ phía quản trị viên (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID lịch đặt cần hủy.</param>
+        /// <param name="request">Lý do hủy lịch.</param>
+        /// <response code="200">Hủy lịch đặt thành công.</response>
+        /// <response code="400">Thiếu lý do hoặc trạng thái lịch không cho phép hủy.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPut]
         [Route("api/admin/bookings/{id}/cancel")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> CancelBooking(int id, [FromBody] CancelBookingDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -140,8 +178,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Check-in xe đã đến tiệm và chuyển thông tin vào hàng đợi (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID lịch đặt cần check-in.</param>
+        /// <response code="200">Check-in thành công.</response>
+        /// <response code="400">Đơn hàng chưa thanh toán hoặc trạng thái không hợp lệ.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPut]
         [Route("api/admin/bookings/{id}/checkin")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> CheckInBooking(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -161,8 +209,19 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Dời lịch hẹn cho khách hàng từ phía quản trị viên (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID lịch đặt cần dời.</param>
+        /// <param name="request">Ngày giờ dời lịch mới và lý do.</param>
+        /// <response code="200">Dời lịch thành công.</response>
+        /// <response code="400">Khung giờ mới bị trùng hoặc dữ liệu đổi lịch bị thiếu.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPut]
         [Route("api/admin/bookings/{id}/reschedule")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> RescheduleBooking(int id, [FromBody] RescheduleBookingDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });

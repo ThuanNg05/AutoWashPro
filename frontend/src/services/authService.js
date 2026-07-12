@@ -2,7 +2,7 @@ import api from './api';
 
 export const authService = {
   login: async (identifier, password) => {
-    const response = await api.post('/Account/Login', {
+    const response = await api.post('/api/v1/account/login', {
       Identifier: identifier,
       Password: password
     });
@@ -10,17 +10,17 @@ export const authService = {
   },
 
   logout: async () => {
-    const response = await api.post('/api/account/logout');
+    const response = await api.post('/api/v1/account/logout');
     return response.data;
   },
 
   getCurrentUser: async () => {
-    const response = await api.get('/api/account/me');
+    const response = await api.get('/api/v1/account/me');
     return response.data;
   },
 
   googleLogin: async (email, fullName, googleId) => {
-    const response = await api.post('/Account/GoogleLogin', {
+    const response = await api.post('/api/v1/account/google-login', {
       Email: email,
       FullName: fullName,
       GoogleId: googleId
@@ -29,7 +29,7 @@ export const authService = {
   },
 
   completeGoogleSignup: async (email, fullName, googleId, phone, password) => {
-    const response = await api.post('/Account/CompleteGoogleSignup', {
+    const response = await api.post('/api/v1/account/complete-google-signup', {
       Email: email,
       FullName: fullName,
       GoogleId: googleId,
@@ -40,14 +40,14 @@ export const authService = {
   },
 
   sendRegisterOtp: async (email) => {
-    const response = await api.post('/Account/SendRegisterOtp', {
+    const response = await api.post('/api/v1/account/send-register-otp', {
       Email: email
     });
     return response.data;
   },
 
   register: async (email, fullName, phone, password, otpCode) => {
-    const response = await api.post('/Account/Register', {
+    const response = await api.post('/api/v1/account/register', {
       Email: email,
       FullName: fullName,
       Phone: phone,

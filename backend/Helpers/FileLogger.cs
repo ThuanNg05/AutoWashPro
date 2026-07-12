@@ -6,12 +6,12 @@ namespace Auto_Wash.Helpers
 {
     public class FileLogger : ILogger
     {
-        private readonly string _filePath;
+        private readonly string _logDirectory;
         private static readonly object _lock = new object();
 
-        public FileLogger(string filePath)
+        public FileLogger(string logDirectory)
         {
-            _filePath = filePath;
+            _logDirectory = logDirectory;
         }
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
@@ -30,11 +30,20 @@ namespace Auto_Wash.Helpers
                 logRecord += Environment.NewLine + exception.ToString();
             }
 
+            // Sinh tên file log động theo ngày hiện tại: debug_be_yyyy_MM_dd.log
+            var logFileName = $"debug_be_{DateTime.Today:yyyy_MM_dd}.log";
+            var filePath = Path.Combine(_logDirectory, logFileName);
+
             lock (_lock)
             {
                 try
                 {
-                    File.AppendAllText(_filePath, logRecord + Environment.NewLine);
+                    // Tự động tạo thư mục log nếu chưa tồn tại
+                    if (!Directory.Exists(_logDirectory))
+                    {
+                        Directory.CreateDirectory(_logDirectory);
+                    }
+                    File.AppendAllText(filePath, logRecord + Environment.NewLine);
                 }
                 catch
                 {
@@ -46,16 +55,16 @@ namespace Auto_Wash.Helpers
 
     public class FileLoggerProvider : ILoggerProvider
     {
-        private readonly string _filePath;
+        private readonly string _logDirectory;
 
-        public FileLoggerProvider(string filePath)
+        public FileLoggerProvider(string logDirectory)
         {
-            _filePath = filePath;
+            _logDirectory = logDirectory;
         }
 
         public ILogger CreateLogger(string categoryName)
         {
-            return new FileLogger(_filePath);
+            return new FileLogger(_logDirectory);
         }
 
         public void Dispose() { }
@@ -63,9 +72,9 @@ namespace Auto_Wash.Helpers
 
     public static class FileLoggerExtensions
     {
-        public static ILoggingBuilder AddFile(this ILoggingBuilder builder, string filePath)
+        public static ILoggingBuilder AddFile(this ILoggingBuilder builder, string logDirectory)
         {
-            builder.AddProvider(new FileLoggerProvider(filePath));
+            builder.AddProvider(new FileLoggerProvider(logDirectory));
             return builder;
         }
     }

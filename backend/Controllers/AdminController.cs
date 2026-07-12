@@ -25,7 +25,15 @@ namespace Auto_Wash.Controllers
 
         // ── Dashboard Stats API ───────────────────────────────────────
 
+        /// <summary>
+        /// Lấy thống kê tổng hợp số liệu cho màn hình Dashboard quản trị (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <response code="200">Lấy thống kê thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
+        [Route("Admin/DashboardStats")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> DashboardStats()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -43,7 +51,15 @@ namespace Auto_Wash.Controllers
 
         // ── Loyalty Config API ────────────────────────────────────────
 
+        /// <summary>
+        /// Lấy cấu hình các hạng thành viên và quy tắc tích lũy điểm Loyalty (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <response code="200">Lấy cấu hình thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
+        [Route("Admin/GetLoyaltyConfig")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetLoyaltyConfig()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -59,7 +75,16 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Cập nhật cấu hình hạng thành viên và quy tắc tích lũy điểm (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="request">Bảng cấu hình các hạng thành viên mới.</param>
+        /// <response code="200">Lưu cấu hình thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPost]
+        [Route("Admin/SaveLoyaltyConfig")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> SaveLoyaltyConfig([FromBody] SaveLoyaltyConfigRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -78,7 +103,15 @@ namespace Auto_Wash.Controllers
 
         // ── Monthly Tier Review API ───────────────────────────────────
 
+        /// <summary>
+        /// Lấy danh sách các tài khoản khách hàng chuẩn bị nâng/hạ hạng thành viên trong đợt review tháng (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <response code="200">Lấy danh sách review thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
+        [Route("Admin/TierReview")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> TierReview()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -96,7 +129,15 @@ namespace Auto_Wash.Controllers
 
         // ── Run Tier Review (Apply) API ───────────────────────────────
 
+        /// <summary>
+        /// Chạy quy trình xét duyệt nâng/hạ hạng thành viên tự động và áp dụng đổi hạng (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <response code="200">Xét duyệt và nâng hạng thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPost]
+        [Route("Admin/RunTierReview")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> RunTierReview()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -114,7 +155,15 @@ namespace Auto_Wash.Controllers
 
         // ── Service Management API ─────────────────────────────────────
 
+        /// <summary>
+        /// Lấy toàn bộ danh sách dịch vụ (cả hoạt động và tạm dừng) của tiệm (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <response code="200">Lấy danh sách thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
+        [Route("Admin/GetServices")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetServices()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -130,7 +179,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Thêm mới hoặc cập nhật thông tin dịch vụ rửa xe (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="request">Thông tin dịch vụ cần lưu.</param>
+        /// <response code="200">Lưu dịch vụ thành công.</response>
+        /// <response code="400">Dữ liệu dịch vụ không hợp lệ.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpPost]
+        [Route("Admin/SaveService")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> SaveService([FromBody] SaveServiceRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -150,7 +210,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Bật/Tắt hoạt động của một dịch vụ rửa xe (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID dịch vụ cần Toggle.</param>
+        /// <response code="200">Thay đổi trạng thái thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
+        /// <response code="404">Không tìm thấy dịch vụ tương ứng.</response>
         [HttpPost]
+        [Route("Admin/ToggleService")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> ToggleService([FromQuery] int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -167,7 +238,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Xóa dịch vụ rửa xe khỏi hệ thống (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID dịch vụ cần xóa.</param>
+        /// <response code="200">Xóa dịch vụ thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
+        /// <response code="404">Không tìm thấy dịch vụ tương ứng.</response>
         [HttpPost]
+        [Route("Admin/DeleteService")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> DeleteService([FromQuery] int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -186,7 +268,16 @@ namespace Auto_Wash.Controllers
 
         // ── Customer Management API ────────────────────────────────────
 
+        /// <summary>
+        /// Tìm kiếm và lấy danh sách khách hàng (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="search">Tên hoặc số điện thoại cần tìm kiếm.</param>
+        /// <response code="200">Lấy danh sách thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
+        [Route("Admin/GetCustomers")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetCustomers([FromQuery] string? search)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -202,7 +293,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy thông tin chi tiết một khách hàng bao gồm xe, điểm tích lũy (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="id">ID khách hàng.</param>
+        /// <response code="200">Lấy chi tiết thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
+        /// <response code="404">Không tìm thấy khách hàng.</response>
         [HttpGet]
+        [Route("Admin/GetCustomerDetail")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetCustomerDetail([FromQuery] int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -219,7 +321,20 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Cộng/Trừ điểm tích lũy thủ công cho khách hàng (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="request">ID khách hàng, số điểm thay đổi và lý do điều chỉnh.</param>
+        /// <response code="200">Điều chỉnh điểm thành công.</response>
+        /// <response code="400">Dữ liệu điều chỉnh điểm không hợp lệ.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
+        /// <response code="404">Không tìm thấy khách hàng.</response>
         [HttpPost]
+        [Route("Admin/AdjustCustomerPoints")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> AdjustCustomerPoints([FromBody] AdjustPointsRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -241,7 +356,15 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy danh sách voucher khuyến mại có thể cấp phát trực tiếp cho khách hàng (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <response code="200">Lấy danh sách voucher thành công.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
         [HttpGet]
+        [Route("Admin/GetAvailableVouchers")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAvailableVouchers()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -257,7 +380,20 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Cấp phát thủ công một voucher cho khách hàng (chỉ dành cho Admin/Staff).
+        /// </summary>
+        /// <param name="request">ID khách hàng và ID quà tặng/voucher muốn tặng.</param>
+        /// <response code="200">Cấp phát voucher thành công.</response>
+        /// <response code="400">Dữ liệu cấp phát không hợp lệ.</response>
+        /// <response code="401">Chưa đăng nhập hoặc không có quyền Admin/Staff.</response>
+        /// <response code="404">Không tìm thấy khách hàng hoặc voucher.</response>
         [HttpPost]
+        [Route("Admin/AssignVoucher")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> AssignVoucher([FromBody] AssignVoucherRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
