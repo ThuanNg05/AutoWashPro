@@ -30,6 +30,9 @@ namespace Auto_Wash.Data.Entities
         [MaxLength(50)]
         public string VehicleClass { get; set; } = string.Empty;
 
+        [MaxLength(500)]
+        public string? RegistrationImageUrl { get; set; }
+
         public DateTime RegisteredAt { get; set; } = DateTime.Now;
 
         // Navigation properties
@@ -38,5 +41,7 @@ namespace Auto_Wash.Data.Entities
 
         public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
         public virtual ICollection<Queue> Queues { get; set; } = new List<Queue>();
+        public virtual ICollection<OwnershipTransferRequest> OwnershipTransferRequests { get; set; } = new List<OwnershipTransferRequest>();
+        public virtual ICollection<VehicleOwnershipHistory> OwnershipHistories { get; set; } = new List<VehicleOwnershipHistory>();
     }
 }

@@ -120,6 +120,15 @@ namespace Auto_Wash.Services
                 return (false, "Không tìm thấy phương tiện tương ứng của bạn!");
             }
 
+            bool isLocked = await _context.OwnershipTransferRequests
+                .AnyAsync(r => r.VehicleId == vehicleId && 
+                               (r.Status == OwnershipTransferStatus.PendingAdminApproval || 
+                                r.Status == OwnershipTransferStatus.PendingAdminReview));
+            if (isLocked)
+            {
+                return (false, "Không thể sửa phương tiện khi đang trong quá trình chuyển nhượng sở hữu.");
+            }
+
             if (string.IsNullOrWhiteSpace(brand) || string.IsNullOrWhiteSpace(model) || string.IsNullOrWhiteSpace(vehicleClass))
             {
                 return (false, "Vui lòng nhập đầy đủ thông tin phương tiện.");
@@ -141,6 +150,15 @@ namespace Auto_Wash.Services
             if (vehicle == null)
             {
                 return (false, "Không tìm thấy phương tiện tương ứng của bạn!");
+            }
+
+            bool isLocked = await _context.OwnershipTransferRequests
+                .AnyAsync(r => r.VehicleId == vehicleId && 
+                               (r.Status == OwnershipTransferStatus.PendingAdminApproval || 
+                                r.Status == OwnershipTransferStatus.PendingAdminReview));
+            if (isLocked)
+            {
+                return (false, "Không thể xóa phương tiện khi đang trong quá trình chuyển nhượng sở hữu.");
             }
 
             // Check if vehicle has active bookings
