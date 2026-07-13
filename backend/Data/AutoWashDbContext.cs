@@ -30,6 +30,8 @@ namespace Auto_Wash.Data
         public DbSet<BookingRescheduleHistory> BookingRescheduleHistories { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
         public DbSet<TierChangeLog> TierChangeLogs { get; set; } = null!;
+        public DbSet<OwnershipTransferRequest> OwnershipTransferRequests { get; set; } = null!;
+        public DbSet<VehicleOwnershipHistory> VehicleOwnershipHistories { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -69,6 +71,11 @@ namespace Auto_Wash.Data
                 .Property(lt => lt.TransactionType)
                 .HasConversion(loyaltyTxTypeConverter)
                 .HasMaxLength(20);
+
+            builder.Entity<OwnershipTransferRequest>()
+                .Property(r => r.Status)
+                .HasConversion<string>()
+                .HasMaxLength(30);
 
             // 1. OtpVerifications
 
@@ -424,8 +431,50 @@ namespace Auto_Wash.Data
                     IsFeatured = true
                 }
             );
+            builder.Entity<OwnershipTransferRequest>(entity =>
+            {
+                entity.HasKey(e => e.TransferRequestId);
 
+                entity.HasOne(e => e.Vehicle)
+                    .WithMany(v => v.OwnershipTransferRequests)
+                    .HasForeignKey(e => e.VehicleId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
+                entity.HasOne(e => e.CurrentOwner)
+                    .WithMany()
+                    .HasForeignKey(e => e.CurrentOwnerCustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.RequestedCustomer)
+                    .WithMany()
+                    .HasForeignKey(e => e.RequestedCustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ApprovedByAccount)
+                    .WithMany()
+                    .HasForeignKey(e => e.ApprovedBy)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<VehicleOwnershipHistory>(entity =>
+            {
+                entity.HasKey(e => e.HistoryId);
+
+                entity.HasOne(e => e.Vehicle)
+                    .WithMany(v => v.OwnershipHistories)
+                    .HasForeignKey(e => e.VehicleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Customer)
+                    .WithMany()
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.TransferRequest)
+                    .WithMany()
+                    .HasForeignKey(e => e.TransferRequestId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
 
             // Configure all tables and columns to be lowercase for Supabase PostgreSQL compatibility
             foreach (var entity in builder.Model.GetEntityTypes())

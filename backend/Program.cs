@@ -137,6 +137,14 @@ namespace Auto_Wash
             builder.Services.AddScoped<VehicleService>();
             builder.Services.AddScoped<OtpService>();
             builder.Services.AddScoped<WelcomeRewardService>();
+
+            // Vehicle Ownership Transfer registrations
+            // NOTE: MockOcrService is used here (net8.0 target).
+            // WindowsOcrService requires net8.0-windows and is only available in branch 56.
+            builder.Services.AddScoped<IOcrService, MockOcrService>();
+            builder.Services.AddScoped<OwnershipTransferService>();
+            builder.Services.AddHostedService<OwnershipTransferBackgroundService>();
+
             builder.Services.AddScoped<Auto_Wash.Services.BookingService>();
             builder.Services.AddScoped<AdminQueueService>();
             builder.Services.AddScoped<CustomerService>();
