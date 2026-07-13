@@ -129,36 +129,41 @@ export const CustomerBooking = () => {
     const fetchServices = async () => {
       try {
         const response = await customerService.getServices();
-        if (response.success && response.services && response.services.length > 0) {
-          const standard = response.services.find(s => s.id === "999" || s.name === "Standard Car Wash");
-          const standardMapped = standard ? {
-            id: standard.id,
-            name: standard.name,
-            desc: standard.desc,
-            price: standard.price,
-            time: standard.estimatedMinutes + ' phút',
-            icon: 'fa-soap'
-          } : {
-            id: "999",
-            name: "Standard Car Wash",
-            desc: "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.",
-            price: 250000,
-            time: "60 phút",
-            icon: 'fa-soap'
-          };
-          setMainServices([standardMapped]);
-          setSelectedMain(standardMapped);
-        } else {
-          const fallback = {
-            id: "999",
-            name: "Standard Car Wash",
-            desc: "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.",
-            price: 250000,
-            time: "60 phút",
-            icon: 'fa-soap'
-          };
-          setMainServices([fallback]);
-          setSelectedMain(fallback);
+        if (
+          response.success &&
+          response.services &&
+          response.services.length > 0
+        ) {
+          const allServices = response.services.map(s => ({
+            id: s.serviceId,
+            name: s.serviceName,
+            desc: s.description,
+            price: s.basePrice,
+            estimatedMinutes: s.estimatedMinutes,
+            time: `${s.estimatedMinutes} phút`,
+            isAddOn: s.isAddOn,
+              icon: s.serviceName.toLowerCase().includes("sấy")
+                  || s.serviceName.toLowerCase().includes("khô") ? "fa-wind" :
+                  s.serviceName.toLowerCase().includes("hút bụi")
+                      || s.serviceName.toLowerCase().includes("vệ sinh") ? "fa-broom" :
+                      s.serviceName.toLowerCase().includes("phủ")
+                          || s.serviceName.toLowerCase().includes("ceramic") ? "fa-gem" :
+                          s.serviceName.toLowerCase().includes("premium")
+                              || s.serviceName.toLowerCase().includes("cao cấp") ? "fa-sparkles" :
+                              s.serviceName.toLowerCase().includes("đặc biệt")
+                                  || s.serviceName.toLowerCase().includes("deluxe") ? "fa-crown" :
+                  "fa-soap"
+          }));
+
+          const mains = allServices.filter(s => !s.isAddOn);
+          const addons = allServices.filter(s => s.isAddOn);
+
+          setMainServices(mains);
+          setAddonServices(addons);
+
+          if (mains.length > 0) {
+            setSelectedMain( mains[0]);
+          }
         }
       } catch (err) {
         console.error(err);
