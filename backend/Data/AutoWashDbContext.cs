@@ -432,6 +432,69 @@ namespace Auto_Wash.Data
                 }
             );
 
+            builder.Entity<Reward>().HasData(
+                new Reward
+                {
+                    RewardId = 1001,
+                    RewardName = "Giảm giá 5%",
+                    Description = "Voucher giảm giá 5% cho hóa đơn dịch vụ",
+                    PointCost = 200,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 5,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1002,
+                    RewardName = "Giảm giá 10%",
+                    Description = "Voucher giảm giá 10% cho hóa đơn dịch vụ",
+                    PointCost = 400,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 10,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1003,
+                    RewardName = "Giảm giá 15%",
+                    Description = "Voucher giảm giá 15% cho hóa đơn dịch vụ",
+                    PointCost = 600,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 15,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1004,
+                    RewardName = "Giảm giá 20%",
+                    Description = "Voucher giảm giá 20% cho hóa đơn dịch vụ",
+                    PointCost = 800,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 20,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1005,
+                    RewardName = "Rửa xe miễn phí",
+                    Description = "Voucher miễn phí dịch vụ Rửa xe tiêu chuẩn",
+                    PointCost = 1000,
+                    RewardType = "Free_Wash",
+                    ServiceId = 999,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                }
+            );
+
 
 
             // Configure all tables and columns to be lowercase for Supabase PostgreSQL compatibility

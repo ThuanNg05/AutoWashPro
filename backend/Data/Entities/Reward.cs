@@ -41,6 +41,8 @@ namespace Auto_Wash.Data.Entities
 
         public bool IsActive { get; set; } = true;
 
+        public bool IsAutomaticReward { get; set; } = false;
+
         // Navigation properties
         [ForeignKey("ServiceId")]
         public virtual Service? Service { get; set; }

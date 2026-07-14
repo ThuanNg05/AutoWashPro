@@ -10,8 +10,9 @@ const TIER_DATA = {
     cardClass: "tier-member",
     dbName: "Member",
     multiplier: "x1.0",
-    queuePerk: "Xếp hàng theo thứ tự thông thường.",
-    birthday: "Không có ưu đãi sinh nhật.",
+    benefits: [
+      "Xếp hàng theo thứ tự thông thường."
+    ],
     nextTier: "Silver",
     neededPts: 500,
   },
@@ -20,8 +21,10 @@ const TIER_DATA = {
     cardClass: "tier-silver",
     dbName: "Silver",
     multiplier: "x1.2",
-    queuePerk: "Ưu tiên hàng đợi trước khách thường.",
-    birthday: "Tặng 01 lần rửa xe phổ thông miễn phí.",
+    benefits: [
+      "Ưu tiên hàng đợi trước khách thường.",
+      "Voucher nâng hạng Bạc giảm 5%."
+    ],
     nextTier: "Gold",
     neededPts: 1000,
   },
@@ -30,9 +33,10 @@ const TIER_DATA = {
     cardClass: "tier-gold",
     dbName: "Gold",
     multiplier: "x1.5",
-    queuePerk: "Bypass hàng rửa xe thường. Vào thẳng ô rửa VIP.",
-    birthday:
-      "Tặng 01 combo cao cấp rửa xe + hút bụi nội thất miễn phí vào tháng sinh nhật.",
+    benefits: [
+      "Bypass hàng rửa xe thường. Vào thẳng ô rửa VIP.",
+      "Voucher nâng hạng Vàng giảm 10%."
+    ],
     nextTier: "Platinum",
     neededPts: 2000,
   },
@@ -41,8 +45,10 @@ const TIER_DATA = {
     cardClass: "tier-platinum",
     dbName: "Platinum",
     multiplier: "x2.0",
-    queuePerk: "Ưu tiên TUYỆT ĐỐI. Phục vụ ngay không chờ đợi.",
-    birthday: "Tặng gói chăm sóc xe toàn diện + bộ quà VIP tháng sinh nhật.",
+    benefits: [
+      "Ưu tiên TUYỆT ĐỐI. Phục vụ ngay không chờ đợi.",
+      "Voucher nâng hạng Bạch kim giảm 50%."
+    ],
     nextTier: "Diamond Ultimate",
     neededPts: null,
   },
@@ -123,10 +129,11 @@ export const CustomerLoyalty = () => {
       );
     if (activeFilter === "Quà tặng" || activeFilter === "Combo đặc biệt")
       return rewards.filter(
-        (r) => r.rewardType === "Free_Wash" || r.rewardType === "Free_AddOn",
+        (r) =>
+          r.rewardType === "Free_Wash" ||
+          r.rewardType === "FreeWash" ||
+          r.rewardType === "Free_AddOn",
       );
-    if (activeFilter === "Ưu đãi sinh nhật")
-      return rewards.filter((r) => r.pointsRequired === 0);
     return rewards;
   };
 
@@ -395,23 +402,17 @@ export const CustomerLoyalty = () => {
             >
               <div className="d-flex align-items-start gap-2.5">
                 <i className="fas fa-check-circle text-cyan mt-1 me-2"></i>
-                <span id="perk-queue">
-                  <strong>Ưu tiên hàng đợi:</strong> {nextTierDetails.queuePerk}
-                </span>
-              </div>
-              <div className="d-flex align-items-start gap-2.5">
-                <i className="fas fa-check-circle text-cyan mt-1 me-2"></i>
                 <span id="perk-multiplier">
                   <strong>Hệ số tích điểm:</strong> Nhân hệ số{" "}
                   {nextTierDetails.multiplier} điểm thưởng.
                 </span>
               </div>
-              <div className="d-flex align-items-start gap-2.5">
-                <i className="fas fa-check-circle text-cyan mt-1 me-2"></i>
-                <span id="perk-birthday">
-                  <strong>Quà sinh nhật:</strong> {nextTierDetails.birthday}
-                </span>
-              </div>
+              {(nextTierDetails.benefits || []).map((benefit, idx) => (
+                <div key={idx} className="d-flex align-items-start gap-2.5">
+                  <i className="fas fa-check-circle text-cyan mt-1 me-2"></i>
+                  <span>{benefit}</span>
+                </div>
+              ))}
             </div>
             <button
               className="btn btn-outline-cyan w-100 mt-4 py-2.5 fw-bold"

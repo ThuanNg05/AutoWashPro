@@ -41,7 +41,8 @@ namespace Auto_Wash.Services
                         RewardType = "DiscountPercent",
                         DiscountValue = 10,
                         IsActive = true,
-                        ValidDays = 30
+                        ValidDays = 30,
+                        IsAutomaticReward = true
                     };
                     _context.Rewards.Add(reward);
                     await _context.SaveChangesAsync();
