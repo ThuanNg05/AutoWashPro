@@ -15,8 +15,7 @@ namespace Auto_Wash.Data.Entities
         public int Points { get; set; }
 
         [Required]
-        [MaxLength(20)]
-        public string TransactionType { get; set; } = string.Empty;
+        public LoyaltyTransactionType TransactionType { get; set; }
 
         public int? BookingId { get; set; }
 

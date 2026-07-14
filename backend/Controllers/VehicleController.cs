@@ -20,8 +20,15 @@ namespace Auto_Wash.Controllers
             _otpService = otpService;
         }
 
+        /// <summary>
+        /// Lấy danh sách toàn bộ phương tiện của khách hàng đang đăng nhập.
+        /// </summary>
+        /// <response code="200">Lấy danh sách thành công.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpGet]
         [Route("Customer/GetVehicles")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetVehicles()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -41,8 +48,20 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Gửi mã OTP xác nhận đăng ký phương tiện đến email khách hàng.
+        /// </summary>
+        /// <param name="request">Thông tin phương tiện đăng ký (biển số xe, phân khúc, hãng, dòng xe).</param>
+        /// <response code="200">Gửi mã OTP thành công.</response>
+        /// <response code="400">Dữ liệu đầu vào không hợp lệ hoặc thiếu thông tin.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
+        /// <response code="409">Biển số xe đã tồn tại trên hệ thống.</response>
         [HttpPost]
         [Route("api/vehicle/send-otp")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<IActionResult> SendVehicleOtp([FromBody] CreateVehicleDto request)
         {
             var account = await _authContextService.GetCurrentAccountAsync();
@@ -112,8 +131,20 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Xác thực mã OTP và lưu thông tin đăng ký phương tiện mới.
+        /// </summary>
+        /// <param name="request">Thông tin phương tiện và mã OTP xác thực.</param>
+        /// <response code="200">Đăng ký phương tiện thành công.</response>
+        /// <response code="400">Sai mã OTP hoặc dữ liệu biển số xe không hợp lệ.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
+        /// <response code="409">Biển số xe đã được đăng ký trước đó.</response>
         [HttpPost]
         [Route("api/vehicle/verify-otp")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
         public async Task<IActionResult> VerifyVehicleOtpAndSave([FromBody] VerifyVehicleOtpDto request)
         {
             var account = await _authContextService.GetCurrentAccountAsync();
@@ -175,8 +206,19 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Cập nhật thông tin phương tiện (hãng xe, dòng xe, phân khúc).
+        /// </summary>
+        /// <param name="id">ID phương tiện cần cập nhật.</param>
+        /// <param name="request">Dữ liệu hãng xe, dòng xe, phân khúc cập nhật.</param>
+        /// <response code="200">Cập nhật thông tin thành công.</response>
+        /// <response code="400">Dữ liệu cập nhật không hợp lệ.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpPut]
         [Route("api/vehicle/{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> UpdateVehicle(int id, [FromBody] UpdateVehicleDto request)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -206,8 +248,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Xóa phương tiện của khách hàng (chỉ thực hiện được khi không có lịch đặt hoạt động).
+        /// </summary>
+        /// <param name="id">ID phương tiện cần xóa.</param>
+        /// <response code="200">Xóa phương tiện thành công.</response>
+        /// <response code="400">Không thể xóa xe do đang có lịch đặt hoạt động.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpDelete]
         [Route("api/vehicle/{id}")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> DeleteVehicle(int id)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();

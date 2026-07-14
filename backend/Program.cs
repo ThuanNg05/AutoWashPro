@@ -98,9 +98,15 @@ namespace Auto_Wash
             builder.Services.AddScoped<AdminService>();
             builder.Services.AddScoped<AdminBookingService>();
             builder.Services.AddScoped<BookingNotificationService>();
+            builder.Services.AddScoped<LoyaltyTierService>();
             builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddSingleton<IBookingRealtimeNotifier, BookingRealtimeNotifier>();
             builder.Services.AddHostedService<BookingWorkflowBackgroundService>();
+
+            // Vehicle Ownership Transfer registrations
+            builder.Services.AddScoped<IOcrService, WindowsOcrService>();
+            builder.Services.AddScoped<OwnershipTransferService>();
+            builder.Services.AddHostedService<OwnershipTransferBackgroundService>();
 
 
             // Session support

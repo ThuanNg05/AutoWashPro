@@ -30,6 +30,11 @@ namespace Auto_Wash.Services
             return true;
         }
 
+        public async Task<bool> EmailExistsAsync(string email)
+        {
+            return await _context.Accounts.AnyAsync(a => a.Email == email.Trim());
+        }
+
         public async Task<(bool success, string message)> VerifyEmailAndChangePasswordAsync(string email, string otpCode, string currentPassword, string newPassword, OtpService otpService)
         {
             bool otpValid = await otpService.VerifyOtpAsync(email, otpCode, "ForgotPassword");
@@ -54,13 +59,34 @@ namespace Auto_Wash.Services
 
         public async Task<List<object>> GetVouchersAsync(int customerId)
         {
+            var now = DateTime.Now;
             var redemptions = await _context.RewardRedemptions
                 .Include(r => r.Reward)
                 .Where(r => r.CustomerId == customerId)
-                .OrderByDescending(r => r.RedeemedAt)
                 .ToListAsync();
 
-            return redemptions.Select(r => new
+            bool changed = false;
+            foreach (var r in redemptions)
+            {
+                if (r.Status == RedemptionStatus.Active && r.ExpiresAt < now)
+                {
+                    r.Status = RedemptionStatus.Expired;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            // Return only Active and Used vouchers
+            var filtered = redemptions
+                .Where(r => r.Status != RedemptionStatus.Expired)
+                .OrderByDescending(r => r.RedeemedAt)
+                .ToList();
+
+            return filtered.Select(r => new
             {
                 redemptionId = r.RedemptionId,
                 title = r.Reward.RewardName,
@@ -149,7 +175,7 @@ namespace Auto_Wash.Services
             {
                 CustomerId = customerId,
                 Points = -reward.PointCost,
-                TransactionType = "REDEEM",
+                TransactionType = LoyaltyTransactionType.Redeem,
                 RedemptionId = redemption.RedemptionId,
                 Note = $"Đổi điểm nhận quà: {reward.RewardName}",
                 CreatedAt = now
@@ -171,7 +197,7 @@ namespace Auto_Wash.Services
 
         public async Task<List<object>> GetRewardsAsync()
         {
-            var list = await _context.Rewards.Where(r => r.IsActive).ToListAsync();
+            var list = await _context.Rewards.Where(r => r.IsActive && !r.IsAutomaticReward).ToListAsync();
             return list.Select(r => new
             {
                 rewardId = r.RewardId,
@@ -181,14 +207,14 @@ namespace Auto_Wash.Services
                 rewardType = r.RewardType,
                 rewardValue = r.DiscountValue,
                 isActive = r.IsActive ? 1 : 0,
-                icon = r.RewardType == "DiscountPercent" ? "fa-percent" : r.RewardType == "Free_Wash" ? "fa-soap" : "fa-gift"
+                icon = (r.RewardType == "DiscountPercent" || r.RewardType == "UpgradeReward") ? "fa-percent" : r.RewardType == "Free_Wash" ? "fa-soap" : "fa-gift"
             }).Cast<object>().ToList();
         }
 
         /// <summary>
-        /// Loyalty status for the member card: redemption points plus rolling
-        /// ranking-window spend and progress toward the next tier. Lazily
-        /// re-evaluates the customer's tier from their windowed spend.
+        /// Loyalty status for the member card: redemption points plus current-period
+        /// spending and progress toward the next tier. Strictly read-only — never
+        /// triggers tier upgrades or any write actions.
         /// </summary>
         public async Task<object?> GetLoyaltyStatusAsync(int customerId)
         {
@@ -196,8 +222,16 @@ namespace Auto_Wash.Services
             var customer = await _context.Customers.FirstOrDefaultAsync(c => c.CustomerId == customerId);
             if (customer == null) return null;
 
-            int windowedSpend = await TierHelper.EvaluateUpgradeAsync(_context, customer, now);
-            await _context.SaveChangesAsync();
+            // Read-only: compute current-period spend without modifying any state.
+            var (periodStart, periodEnd) = LoyaltyTierService.GetCurrentReviewPeriod(now);
+            int periodSpend = await _context.Bookings
+                .Where(b => b.CustomerId == customerId
+                         && b.Status == BookingStatus.Completed
+                         && b.CompletedAt >= periodStart
+                         && b.CompletedAt <= now
+                         && b.Payment != null
+                         && b.Payment.Status == (int)PaymentStatus.Paid)
+                .SumAsync(b => (int?)b.FinalPrice) ?? 0;
 
             var tiers = await _context.Tiers.OrderBy(t => t.MinRankingBalance).ToListAsync();
             var current = tiers.FirstOrDefault(t => t.TierId == customer.TierId) ?? tiers.First();
@@ -215,12 +249,13 @@ namespace Auto_Wash.Services
                 bookingWindowDays = current.BookingWindowDays,
                 multiplier = current.PointMultiplier,
                 discountPercent = current.DiscountPercent,
-                windowMonths = TierHelper.RankingWindowMonths,
-                windowedSpend = windowedSpend,
+                periodStart = periodStart.ToString("yyyy-MM-dd"),
+                periodEnd = periodEnd.ToString("yyyy-MM-dd"),
+                periodSpend = periodSpend,
                 currentTierMin = current.MinRankingBalance,
                 nextTierName = next?.TierName,
                 nextTierMin = next?.MinRankingBalance,
-                amountToNextTier = next != null ? Math.Max(0, next.MinRankingBalance - windowedSpend) : 0,
+                amountToNextTier = next != null ? Math.Max(0, next.MinRankingBalance - periodSpend) : 0,
                 // Full tier ladder so the UI can compute the spend-to-rank-up gap
                 // for any tier the user previews (ascending by threshold).
                 tiers = tiers.Select(t => new

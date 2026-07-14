@@ -1,0 +1,6 @@
+id
+customerid
+oldtierid
+newtierid
+reason
+createdat

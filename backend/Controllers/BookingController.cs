@@ -47,7 +47,8 @@ namespace Auto_Wash.Controllers
                         price = s.BasePrice,
                         estimatedMinutes = s.EstimatedMinutes,
                         isActive = s.IsActive,
-                        isFeatured = s.IsFeatured
+                        isFeatured = s.IsFeatured,
+                        isAddOn = s.IsAddOn
                     })
                     .ToList();
 
@@ -278,6 +279,9 @@ namespace Auto_Wash.Controllers
         [Route("Customer/RescheduleBooking/{id}")]
         public async Task<IActionResult> RescheduleBooking(int id, [FromBody] RescheduleBookingDto request)
         {
+            return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = "Tự đổi lịch hẹn hiện tại đã tạm ngưng. Vui lòng liên hệ tiệm để được hỗ trợ." });
+
+#pragma warning disable CS0162 // Unreachable code detected
             if (request == null)
             {
                 return BadRequest(new { success = false, message = "Không nhận được dữ liệu đổi lịch." });
@@ -315,6 +319,7 @@ namespace Auto_Wash.Controllers
             {
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
+#pragma warning restore CS0162
         }
 
         [HttpGet]
@@ -369,8 +374,8 @@ namespace Auto_Wash.Controllers
                 }
 
                 var bookings = await _context.Bookings
-                    .Where(b => b.Status != BookingStatus.Completed && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow
-                                && b.ScheduledAt.Date == parsedDate.Date)
+                    .WhereSlotOccupied()
+                    .Where(b => b.ScheduledAt.Date == parsedDate.Date)
                     .Select(b => b.ScheduledAt.Hour)
                     .ToListAsync();
 
@@ -416,8 +421,8 @@ namespace Auto_Wash.Controllers
 
                 var endPoint = startParsed.AddDays(windowDays);
                 var bookings = await _context.Bookings
-                    .Where(b => b.Status != BookingStatus.Completed && b.Status != BookingStatus.Cancelled && b.Status != BookingStatus.NoShow
-                                && b.ScheduledAt.Date >= startParsed.Date && b.ScheduledAt.Date <= endPoint.Date)
+                    .WhereSlotOccupied()
+                    .Where(b => b.ScheduledAt.Date >= startParsed.Date && b.ScheduledAt.Date <= endPoint.Date)
                     .Select(b => new { b.ScheduledAt.Date, b.ScheduledAt.Hour })
                     .ToListAsync();
 

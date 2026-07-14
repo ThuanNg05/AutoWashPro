@@ -16,18 +16,17 @@ export const customerService = {
     return response.data;
   },
 
-  verifyEmailAndChangePassword: async (email, otpCode, currentPassword, newPassword) => {
+  verifyEmailAndChangePassword: async (email, otpCode, newPassword) => {
     const response = await api.post('/Customer/VerifyEmailAndChangePassword', {
       Email: email,
       OtpCode: otpCode,
-      CurrentPassword: currentPassword,
       NewPassword: newPassword
     });
     return response.data;
   },
 
-  getVehicles: async () => {
-    const response = await api.get('/Customer/GetVehicles');
+  getVehicles: async (config = {}) => {
+    const response = await api.get('/Customer/GetVehicles', config);
     return response.data;
   },
 
@@ -132,6 +131,11 @@ export const customerService = {
 
   getWashHistory: async (config = {}) => {
     const response = await api.get('/Customer/GetWashHistory', config);
+    return response.data;
+  },
+
+  getMyTransactions: async (config = {}) => {
+    const response = await api.get('/api/payment/history/me', config);
     return response.data;
   },
 

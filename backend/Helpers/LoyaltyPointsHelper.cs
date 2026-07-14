@@ -3,20 +3,15 @@ using System;
 namespace Auto_Wash.Helpers
 {
     /// <summary>
-    /// Single source of truth for the loyalty earn-point formula (doc §3.2).
-    ///   BasePoint   = floor(FinalPrice / 10,000)
-    ///   EarnedPoint = floor(BasePoint * TierMultiplier)
-    /// Floor is applied at both steps to avoid fractional points.
+    /// Single source of truth for the loyalty earn-point formula.
+    ///   EarnedPoint = (FinalPrice / 1000) × PointsPerThousandVND × TierMultiplier
     /// </summary>
     public static class LoyaltyPointsHelper
     {
-        /// <summary>VNĐ that converts to one base point. Business rule: 10.000 VNĐ = 1 base point.</summary>
-        public const int VndPerBasePoint = 10_000;
-
-        public static int ComputeEarnedPoints(int finalPrice, decimal tierMultiplier)
+        public static int ComputeEarnedPoints(int finalPrice, int pointsPerThousandVnd, decimal tierMultiplier)
         {
             if (finalPrice <= 0) return 0;
-            int basePoints = finalPrice / VndPerBasePoint;
+            int basePoints = (finalPrice / 1000) * pointsPerThousandVnd;
             return (int)Math.Floor(basePoints * tierMultiplier);
         }
     }

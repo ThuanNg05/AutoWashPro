@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Auto_Wash.Data.Entities;
 
 namespace Auto_Wash.Data
@@ -28,6 +29,9 @@ namespace Auto_Wash.Data
         public DbSet<BookingAuditLog> BookingAuditLogs { get; set; } = null!;
         public DbSet<BookingRescheduleHistory> BookingRescheduleHistories { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
+        public DbSet<TierChangeLog> TierChangeLogs { get; set; } = null!;
+        public DbSet<OwnershipTransferRequest> OwnershipTransferRequests { get; set; } = null!;
+        public DbSet<VehicleOwnershipHistory> VehicleOwnershipHistories { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -56,6 +60,21 @@ namespace Auto_Wash.Data
             builder.Entity<RewardRedemption>()
                 .Property(r => r.Status)
                 .HasConversion<string>()
+                .HasMaxLength(20);
+
+            builder.Entity<OwnershipTransferRequest>()
+                .Property(r => r.Status)
+                .HasConversion<string>()
+                .HasMaxLength(30);
+
+            // LoyaltyTransactionType: string-backed enum with legacy value resolution
+            var loyaltyTxTypeConverter = new ValueConverter<LoyaltyTransactionType, string>(
+                v => v.ToString(),
+                v => ParseLegacyTransactionType(v));
+
+            builder.Entity<LoyaltyTransaction>()
+                .Property(lt => lt.TransactionType)
+                .HasConversion(loyaltyTxTypeConverter)
                 .HasMaxLength(20);
 
             // 1. OtpVerifications
@@ -264,6 +283,13 @@ namespace Auto_Wash.Data
                 .HasIndex(lt => new { lt.ExpiryDate, lt.IsExpired })
                 .HasDatabaseName("idx_lt_expiry");
 
+            // Filtered unique index: only one 'Earn' transaction per booking
+            builder.Entity<LoyaltyTransaction>()
+                .HasIndex(lt => lt.BookingId)
+                .IsUnique()
+                .HasFilter("transactiontype = 'Earn'")
+                .HasDatabaseName("uq_loyaltytransactions_bookingid_earn");
+
             builder.Entity<LoyaltyTransaction>()
                 .HasOne(lt => lt.Customer)
                 .WithMany(c => c.LoyaltyTransactions)
@@ -389,6 +415,8 @@ namespace Auto_Wash.Data
                 .IsUnique()
                 .HasDatabaseName("uq_payments_txnref");
 
+            // 21. TierChangeLogs (configured at the end of OnModelCreating to override lowercase convention)
+
             builder.Entity<Service>().HasData(
                 new Service
                 {
@@ -403,6 +431,71 @@ namespace Auto_Wash.Data
                     IsFeatured = true
                 }
             );
+
+            builder.Entity<Reward>().HasData(
+                new Reward
+                {
+                    RewardId = 1001,
+                    RewardName = "Giảm giá 5%",
+                    Description = "Voucher giảm giá 5% cho hóa đơn dịch vụ",
+                    PointCost = 200,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 5,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1002,
+                    RewardName = "Giảm giá 10%",
+                    Description = "Voucher giảm giá 10% cho hóa đơn dịch vụ",
+                    PointCost = 400,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 10,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1003,
+                    RewardName = "Giảm giá 15%",
+                    Description = "Voucher giảm giá 15% cho hóa đơn dịch vụ",
+                    PointCost = 600,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 15,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1004,
+                    RewardName = "Giảm giá 20%",
+                    Description = "Voucher giảm giá 20% cho hóa đơn dịch vụ",
+                    PointCost = 800,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 20,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1005,
+                    RewardName = "Rửa xe miễn phí",
+                    Description = "Voucher miễn phí dịch vụ Rửa xe tiêu chuẩn",
+                    PointCost = 1000,
+                    RewardType = "Free_Wash",
+                    ServiceId = 999,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                }
+            );
+
+
 
             // Configure all tables and columns to be lowercase for Supabase PostgreSQL compatibility
             foreach (var entity in builder.Model.GetEntityTypes())
@@ -445,6 +538,98 @@ namespace Auto_Wash.Data
                     }
                 }
             }
+
+            // Consolidated TierChangeLog mapping to override lowercase convention and match existing DB schema (id, oldtierid, newtierid, no changetype)
+            builder.Entity<TierChangeLog>(entity =>
+            {
+                entity.HasKey(t => t.LogId);
+                entity.Property(t => t.LogId).HasColumnName("id");
+                entity.Property(t => t.FromTierId).HasColumnName("oldtierid");
+                entity.Property(t => t.ToTierId).HasColumnName("newtierid");
+                entity.Ignore(t => t.ChangeType);
+
+                entity.HasOne(tcl => tcl.Customer)
+                    .WithMany()
+                    .HasForeignKey(tcl => tcl.CustomerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(tcl => tcl.FromTier)
+                    .WithMany()
+                    .HasForeignKey(tcl => tcl.FromTierId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(tcl => tcl.ToTier)
+                    .WithMany()
+                    .HasForeignKey(tcl => tcl.ToTierId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<OwnershipTransferRequest>(entity =>
+            {
+                entity.HasKey(e => e.TransferRequestId);
+
+                entity.HasOne(e => e.Vehicle)
+                    .WithMany(v => v.OwnershipTransferRequests)
+                    .HasForeignKey(e => e.VehicleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.CurrentOwner)
+                    .WithMany()
+                    .HasForeignKey(e => e.CurrentOwnerCustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.RequestedCustomer)
+                    .WithMany()
+                    .HasForeignKey(e => e.RequestedCustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ApprovedByAccount)
+                    .WithMany()
+                    .HasForeignKey(e => e.ApprovedBy)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<VehicleOwnershipHistory>(entity =>
+            {
+                entity.HasKey(e => e.HistoryId);
+
+                entity.HasOne(e => e.Vehicle)
+                    .WithMany(v => v.OwnershipHistories)
+                    .HasForeignKey(e => e.VehicleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Customer)
+                    .WithMany()
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.TransferRequest)
+                    .WithMany()
+                    .HasForeignKey(e => e.TransferRequestId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+        }
+
+        /// <summary>
+        /// Resolves legacy string values ("EARN", "TIER_UPGRADE", "ADJUST", etc.)
+        /// to the strongly-typed LoyaltyTransactionType enum.
+        /// </summary>
+        private static LoyaltyTransactionType ParseLegacyTransactionType(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return LoyaltyTransactionType.Earn;
+
+            return value.ToUpperInvariant() switch
+            {
+                "EARN" or "EARNED" or "ADJUST" => LoyaltyTransactionType.Earn,
+                "REDEEM" => LoyaltyTransactionType.Redeem,
+                "EXPIRE" or "EXPIRED" => LoyaltyTransactionType.Expire,
+                "UPGRADE" or "TIER_UPGRADE" => LoyaltyTransactionType.Upgrade,
+                "DOWNGRADE" or "TIER_DOWNGRADE" => LoyaltyTransactionType.Downgrade,
+                _ => Enum.TryParse<LoyaltyTransactionType>(value, true, out var result)
+                     ? result
+                     : LoyaltyTransactionType.Earn
+            };
         }
     }
 }

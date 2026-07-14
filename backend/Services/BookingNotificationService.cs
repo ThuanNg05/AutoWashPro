@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Auto_Wash.DTOs.Booking;
@@ -458,6 +459,21 @@ namespace Auto_Wash.Services
             var priceStr = model.FinalPrice.ToString("#,##0");
 
             var subject = "[AutoWash Pro] Xe của bạn đã hoàn tất dịch vụ";
+
+            // Section ảnh xe (nhúng inline qua CID) — chỉ hiện khi staff đã chụp ảnh
+            var photoSection = "";
+            if (model.Photos != null && model.Photos.Count > 0)
+            {
+                var imgTags = string.Join("\n", model.Photos.Select((_, i) =>
+                    $@"      <img src=""cid:carphoto{i}"" alt=""Ảnh xe đã rửa"" style=""width: 100%; max-width: 552px; border-radius: 8px; margin: 8px 0; display: block;"" />"));
+                photoSection = $@"
+    <div style=""margin: 20px 0;"">
+      <h3 style=""color: #1e293b; font-size: 16px; margin: 0 0 8px 0;"">Hình ảnh xe sau khi hoàn tất dịch vụ</h3>
+{imgTags}
+    </div>
+";
+            }
+
             var body = $@"
 <div style=""font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);"">
   <div style=""background-color: #0f172a; padding: 24px; text-align: center;"">
@@ -489,6 +505,7 @@ namespace Auto_Wash.Services
       </table>
     </div>
 
+{photoSection}
     <p style=""font-size: 14px; color: #334155;"">Vui lòng đến cửa hàng để:</p>
     <ul style=""list-style: none; padding: 0; margin: 12px 0;"">
       <li style=""padding: 4px 0; font-size: 14px; color: #10b981;"">✓ Nhận xe</li>
@@ -508,20 +525,110 @@ namespace Auto_Wash.Services
   </div>
 </div>
 ";
-            await _otpService.SendEmailAsync(model.Email, subject, body);
+            if (model.Photos != null && model.Photos.Count > 0)
+            {
+                var inlineImages = model.Photos
+                    .Select((p, i) => ($"carphoto{i}", p.FileName, p.ContentType, p.Data))
+                    .ToList();
+                await _otpService.SendEmailAsync(model.Email, subject, body, inlineImages);
+            }
+            else
+            {
+                await _otpService.SendEmailAsync(model.Email, subject, body);
+            }
         }
 
-        public void SendWaitingCheckoutEmailInBackground(BookingEmailModel model)
+        // ── Tier Upgrade / Downgrade Emails ────────────────────────────
+
+        public async Task SendTierUpgradeEmailAsync(string email, string customerName, string fromTier, string toTier)
+        {
+            var subject = "[AutoWash Pro] Chúc mừng nâng hạng thành viên!";
+            var body = $@"
+<div style=""font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);"">
+  <div style=""background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%); padding: 24px; text-align: center;"">
+    <h1 style=""color: #f59e0b; margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 0.5px;"">AutoWash Pro</h1>
+  </div>
+  <div style=""padding: 24px; background-color: #ffffff; color: #334155;"">
+    <h2 style=""color: #16a34a; margin-top: 0; font-size: 20px; font-weight: bold;"">🎉 Chúc mừng nâng hạng thành viên!</h2>
+    <p>Xin chào <strong>{customerName}</strong>,</p>
+    <p>Chúng tôi vui mừng thông báo bạn đã được <strong>nâng hạng thành viên</strong> tại AutoWash Pro!</p>
+
+    <div style=""background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border-radius: 8px; padding: 16px; margin: 20px 0; border: 1px solid #bbf7d0; text-align: center;"">
+      <p style=""margin: 0 0 8px 0; color: #64748b; font-size: 14px;"">Hạng cũ</p>
+      <p style=""margin: 0 0 12px 0; color: #0f172a; font-size: 18px; font-weight: bold;"">{fromTier}</p>
+      <p style=""margin: 0 0 8px 0; color: #16a34a; font-size: 20px;"">⬇️</p>
+      <p style=""margin: 0 0 8px 0; color: #64748b; font-size: 14px;"">Hạng mới</p>
+      <p style=""margin: 0; color: #f59e0b; font-size: 22px; font-weight: bold;"">{toTier}</p>
+    </div>
+
+    <p>Với hạng mới, bạn sẽ được hưởng nhiều ưu đãi hấp dẫn hơn. Hãy kiểm tra voucher nâng hạng trong tài khoản của bạn!</p>
+    <p style=""color: #0284c7; font-weight: bold; text-align: center; margin-top: 24px;"">Cảm ơn bạn đã luôn đồng hành cùng AutoWash Pro!</p>
+  </div>
+  <div style=""background-color: #f1f5f9; padding: 16px; text-align: center; color: #64748b; font-size: 12px; border-top: 1px solid #e2e8f0;"">
+    Cảm ơn bạn đã lựa chọn AutoWash Pro!
+  </div>
+</div>
+";
+            await _otpService.SendEmailAsync(email, subject, body);
+        }
+
+        public void SendTierUpgradeEmailInBackground(string email, string customerName, string fromTier, string toTier)
         {
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await SendWaitingCheckoutEmailAsync(model);
+                    await SendTierUpgradeEmailAsync(email, customerName, fromTier, toTier);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send waiting-checkout email for BookingId BK-{BookingId} to {Email}", model.BookingId, model.Email);
+                    _logger.LogError(ex, "Failed to send tier upgrade email to {Email}", email);
+                }
+            });
+        }
+
+        public async Task SendTierDowngradeEmailAsync(string email, string customerName, string fromTier, string toTier)
+        {
+            var subject = "[AutoWash Pro] Thông báo điều chỉnh hạng thành viên";
+            var body = $@"
+<div style=""font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);"">
+  <div style=""background-color: #0f172a; padding: 24px; text-align: center;"">
+    <h1 style=""color: #0ea5e9; margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 0.5px;"">AutoWash Pro</h1>
+  </div>
+  <div style=""padding: 24px; background-color: #ffffff; color: #334155;"">
+    <h2 style=""color: #1e293b; margin-top: 0; font-size: 20px; font-weight: bold;"">Thông báo điều chỉnh hạng thành viên</h2>
+    <p>Xin chào <strong>{customerName}</strong>,</p>
+    <p>Chúng tôi xin thông báo hạng thành viên của bạn đã được điều chỉnh theo kết quả đánh giá chi tiêu định kỳ.</p>
+
+    <div style=""background-color: #fef2f2; border-radius: 8px; padding: 16px; margin: 20px 0; border: 1px solid #fecaca; text-align: center;"">
+      <p style=""margin: 0 0 8px 0; color: #64748b; font-size: 14px;"">Hạng cũ</p>
+      <p style=""margin: 0 0 12px 0; color: #0f172a; font-size: 18px; font-weight: bold;"">{fromTier}</p>
+      <p style=""margin: 0 0 8px 0; color: #ef4444; font-size: 20px;"">⬇️</p>
+      <p style=""margin: 0 0 8px 0; color: #64748b; font-size: 14px;"">Hạng mới</p>
+      <p style=""margin: 0; color: #0f172a; font-size: 22px; font-weight: bold;"">{toTier}</p>
+    </div>
+
+    <p>Hãy tiếp tục sử dụng dịch vụ tại AutoWash Pro để nâng hạng trở lại và nhận được nhiều ưu đãi hấp dẫn hơn!</p>
+  </div>
+  <div style=""background-color: #f1f5f9; padding: 16px; text-align: center; color: #64748b; font-size: 12px; border-top: 1px solid #e2e8f0;"">
+    Cảm ơn bạn đã lựa chọn AutoWash Pro!
+  </div>
+</div>
+";
+            await _otpService.SendEmailAsync(email, subject, body);
+        }
+
+        public void SendTierDowngradeEmailInBackground(string email, string customerName, string fromTier, string toTier)
+        {
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await SendTierDowngradeEmailAsync(email, customerName, fromTier, toTier);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send tier downgrade email to {Email}", email);
                 }
             });
         }

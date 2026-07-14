@@ -13,10 +13,12 @@ namespace Auto_Wash.Services
     public class AdminService
     {
         private readonly AutoWashDbContext _context;
+        private readonly LoyaltyTierService _loyaltyTierService;
 
-        public AdminService(AutoWashDbContext context)
+        public AdminService(AutoWashDbContext context, LoyaltyTierService loyaltyTierService)
         {
             _context = context;
+            _loyaltyTierService = loyaltyTierService;
         }
 
         public async Task<object> GetDashboardStatsAsync()
@@ -237,21 +239,20 @@ namespace Auto_Wash.Services
                 .Include(c => c.Account)
                 .ToListAsync();
 
-            int upgrades = 0, downgrades = 0;
+            int downgrades = 0;
             var now = DateTime.Now;
 
-            // Manual admin trigger of the monthly maintenance review (doc §5, §9):
+            // Manual admin trigger of the semi-annual retention review (doc §5, §9):
             // each customer is kept or demoted based on their tier's MaintainBalance.
             // Upgrades happen in real time at checkout, not here.
             foreach (var c in customers)
             {
-                int oldTierId = c.TierId;
-                await TierHelper.RunMaintenanceAsync(_context, c, now);
-                if (c.TierId < oldTierId) downgrades++;
+                if (await _loyaltyTierService.ReviewTierRetentionAsync(c, now))
+                    downgrades++;
             }
 
             await _context.SaveChangesAsync();
-            return (upgrades, downgrades);
+            return (0, downgrades);
         }
 
         // ── Service Management API ─────────────────────────────────────
@@ -452,7 +453,7 @@ namespace Auto_Wash.Services
             {
                 CustomerId = customerId,
                 Points = pointsChange,
-                TransactionType = "ADJUST",
+                TransactionType = pointsChange >= 0 ? LoyaltyTransactionType.Earn : LoyaltyTransactionType.Redeem,
                 Note = reason.Trim(),
                 CreatedAt = DateTime.Now
             });

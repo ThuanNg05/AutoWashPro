@@ -104,7 +104,7 @@ namespace Auto_Wash.Helpers
             {
                 CustomerId = customer.CustomerId,
                 Points = 0,
-                TransactionType = isUpgrade ? "TIER_UPGRADE" : "TIER_DOWNGRADE",
+                TransactionType = isUpgrade ? LoyaltyTransactionType.Upgrade : LoyaltyTransactionType.Downgrade,
                 FromTierId = customer.TierId,
                 ToTierId = newTier.TierId,
                 SpendingWindow = WindowLabel(now),

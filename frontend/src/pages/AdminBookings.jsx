@@ -99,7 +99,7 @@ export const AdminBookings = () => {
   useEffect(() => {
     loadBookings();
     const interval = setInterval(() => {
-      adminService.getBookings().then(res => {
+      adminService.getBookings({ skipGlobalLoader: true }).then(res => {
         if (res && res.success) {
           setBookings(res.bookings);
         }
@@ -1005,20 +1005,22 @@ export const AdminBookings = () => {
                               )}
                             </span>
                           </div>
-                          <div className="text-end">
-                            <small
-                              className="text-muted d-block"
-                              style={{ fontSize: "0.65rem" }}
-                            >
-                              Quota 30 ngày (Khách)
-                            </small>
-                            <span
-                              className={`badge ${bookingDetail.quotaUsed >= 3 ? "bg-danger" : "bg-secondary"} px-2 py-1 mt-0.5`}
-                              style={{ fontSize: "0.7rem" }}
-                            >
-                              Used: {bookingDetail.quotaUsed ?? 0} / 3
-                            </span>
-                          </div>
+                          {false && (
+                            <div className="text-end">
+                              <small
+                                className="text-muted d-block"
+                                style={{ fontSize: "0.65rem" }}
+                              >
+                                Quota 30 ngày (Khách)
+                              </small>
+                              <span
+                                className={`badge ${bookingDetail.quotaUsed >= 3 ? "bg-danger" : "bg-secondary"} px-2 py-1 mt-0.5`}
+                                style={{ fontSize: "0.7rem" }}
+                              >
+                                Used: {bookingDetail.quotaUsed ?? 0} / 3
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

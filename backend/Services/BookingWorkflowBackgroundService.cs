@@ -48,8 +48,10 @@ namespace Auto_Wash.Services
         {
             using var scope = _serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<AutoWashDbContext>();
+            var loyaltyTierService = scope.ServiceProvider.GetRequiredService<LoyaltyTierService>();
             var now = DateTime.Now;
             var today = DateTime.Today;
+            var awardedCustomerIds = new HashSet<int>();
 
             // 1. Fetch active queue items for today that are not completed, cancelled, or archived
             var activeQueues = await context.Queues
@@ -154,33 +156,22 @@ namespace Auto_Wash.Services
                                 CreatedAt = now
                             });
 
-                            // Send WaitingCheckout email notification
+                            // Không tự gửi email — báo staff ra chụp ảnh rồi mới gửi kèm ảnh
                             if (!q.Booking.WaitingCheckoutEmailSent)
                             {
-                                q.Booking.WaitingCheckoutEmailSent = true;
-
-                                var mainService = await context.BookingServices
-                                    .Include(bs => bs.Service)
-                                    .Where(bs => bs.BookingId == q.BookingId.Value && !bs.Service.IsAddOn)
-                                    .Select(bs => bs.Service.ServiceName)
-                                    .FirstOrDefaultAsync() ?? "Dịch vụ rửa xe";
-
-                                var emailModel = new BookingEmailModel
+                                try
                                 {
-                                    BookingId = q.BookingId.Value,
-                                    CustomerName = q.Booking.Customer?.Account?.FullName ?? "Khách hàng",
-                                    Email = q.Booking.Customer?.Account?.Email ?? "",
-                                    LicensePlate = q.LicensePlate ?? "",
-                                    ScheduledAt = q.Booking.ScheduledAt,
-                                    FinalPrice = q.Booking.FinalPrice,
-                                    ServiceName = mainService
-                                };
-
-                                if (!string.IsNullOrWhiteSpace(emailModel.Email))
+                                    var realtimeNotifier = scope.ServiceProvider.GetRequiredService<IBookingRealtimeNotifier>();
+                                    await realtimeNotifier.NotifyWashCompletedAsync(new WashCompletedEvent(
+                                        q.QueueId,
+                                        q.BookingId,
+                                        q.LicensePlate ?? "",
+                                        q.Booking.Customer?.Account?.FullName ?? "Khách hàng"));
+                                    _logger.LogInformation("[REALTIME] WashCompleted notified to staff: QueueId={QueueId}, BookingId={BookingId}", q.QueueId, q.BookingId);
+                                }
+                                catch (Exception notifyEx)
                                 {
-                                    var notificationService = scope.ServiceProvider.GetRequiredService<BookingNotificationService>();
-                                    notificationService.SendWaitingCheckoutEmailInBackground(emailModel);
-                                    _logger.LogInformation("[EMAIL] WaitingCheckout email sent: BookingId={BookingId}, Email={Email}", q.BookingId, emailModel.Email);
+                                    _logger.LogError(notifyEx, "Failed to push WashCompleted event for QueueId={QueueId}", q.QueueId);
                                 }
                             }
                         }
@@ -357,25 +348,48 @@ namespace Auto_Wash.Services
                 await context.SaveChangesAsync();
             }
 
-            // 4. Monthly tier maintenance / downgrade review (doc §5, §9).
-            await ProcessMonthlyTierReviewAsync(context, now);
+            // Real-time UPGRADE re-check for just-completed customers. Runs after the
+            // save above so the new Completed booking counts in the 6-month window (doc §4).
+            if (awardedCustomerIds.Count > 0)
+            {
+                bool tierChanged = false;
+                foreach (var custId in awardedCustomerIds)
+                {
+                    var cust = await context.Customers.FirstOrDefaultAsync(c => c.CustomerId == custId);
+                    if (cust != null)
+                    {
+                        await loyaltyTierService.EvaluateUpgradeAsync(cust, now);
+                        tierChanged = true;
+                    }
+                }
+                if (tierChanged) await context.SaveChangesAsync();
+            }
+
+            // 4. Semi-annual tier retention / downgrade review (doc §5, §9).
+            await ProcessSemiAnnualTierReviewAsync(context, loyaltyTierService, now);
         }
 
         /// <summary>
-        /// Monthly maintenance job (doc §9). On/after the configured review day, scans
-        /// customers not yet reviewed this month and demotes any whose 6-month spend is
-        /// below their tier's MaintainBalance. LastTierReviewAt makes it idempotent and
-        /// lets it catch up if the server was down on the 1st. Batched to stay light.
+        /// Semi-annual retention review (doc §9). Runs on/after Jan 1 and Jul 1.
+        /// Scans customers not yet reviewed for the current half-year period and
+        /// demotes any whose previous-period spend is below their tier's MaintainBalance.
+        /// LastTierReviewAt makes it idempotent and lets it catch up if the server
+        /// was down on review days. Batched to stay light.
         /// </summary>
-        private async Task ProcessMonthlyTierReviewAsync(AutoWashDbContext context, DateTime now)
+        private async Task ProcessSemiAnnualTierReviewAsync(AutoWashDbContext context, LoyaltyTierService loyaltyTierService, DateTime now)
         {
-            var config = await context.LoyaltyConfigs.FirstOrDefaultAsync();
-            int reviewDay = config?.TierReviewDayOfMonth ?? 1;
-            if (now.Day < reviewDay) return;
+            // Only run on Jan 1+ (reviews H2 of previous year) or Jul 1+ (reviews H1 of current year)
+            bool isReviewWindow = (now.Month == 1 && now.Day >= 1) || (now.Month == 7 && now.Day >= 1);
+            if (!isReviewWindow) return;
 
-            var firstOfMonth = new DateTime(now.Year, now.Month, 1);
+            // The current half-year start is the idempotency boundary.
+            var halfYearStart = now.Month <= 6
+                ? new DateTime(now.Year, 1, 1)
+                : new DateTime(now.Year, 7, 1);
+
             var due = await context.Customers
-                .Where(c => c.LastTierReviewAt == null || c.LastTierReviewAt < firstOfMonth)
+                .Include(c => c.Account)
+                .Where(c => c.LastTierReviewAt == null || c.LastTierReviewAt < halfYearStart)
                 .OrderBy(c => c.CustomerId)
                 .Take(25)
                 .ToListAsync();
@@ -384,7 +398,8 @@ namespace Auto_Wash.Services
             int downgrades = 0;
             foreach (var c in due)
             {
-                if (await TierHelper.RunMaintenanceAsync(context, c, now)) downgrades++;
+                if (await loyaltyTierService.ReviewTierRetentionAsync(c, now))
+                    downgrades++;
             }
             await context.SaveChangesAsync();
 

@@ -26,8 +26,8 @@ export const adminService = {
     return response.data;
   },
 
-  getQueue: async () => {
-    const response = await api.get('/Admin/GetQueue');
+  getQueue: async (config = {}) => {
+    const response = await api.get('/Admin/GetQueue', config);
     return response.data;
   },
 
@@ -46,6 +46,16 @@ export const adminService = {
 
   checkoutQueue: async (id) => {
     const response = await api.post(`/Admin/CheckoutQueue?id=${id}`);
+    return response.data;
+  },
+
+  // Gửi ảnh xe rửa xong cho khách qua email
+  sendCompletionPhotos: async (id, files) => {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('photos', file));
+    const response = await api.post(`/Admin/SendCompletionPhotos?id=${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   },
 
@@ -114,8 +124,8 @@ export const adminService = {
     return response.data;
   },
 
-  getBookings: async () => {
-    const response = await api.get('/api/admin/bookings');
+  getBookings: async (config = {}) => {
+    const response = await api.get('/api/admin/bookings', config);
     return response.data;
   },
 
@@ -170,6 +180,25 @@ export const adminService = {
 
   createPayment: async (bookingId) => {
     const response = await api.post('/api/payment/create', { BookingId: bookingId });
+    return response.data;
+  },
+
+  getTransactions: async (filters = {}) => {
+    const params = {};
+    if (filters.status != null && filters.status !== '') params.status = filters.status;
+    if (filters.method != null && filters.method !== '') params.method = filters.method;
+    if (filters.fromDate) params.fromDate = filters.fromDate;
+    if (filters.toDate) params.toDate = filters.toDate;
+    const response = await api.get('/api/payment/history', { params });
+    return response.data;
+  },
+
+  // Revenue statistics with discounts / vouchers / free washes broken out (issue #51)
+  getRevenueStats: async (filters = {}) => {
+    const params = {};
+    if (filters.fromDate) params.fromDate = filters.fromDate;
+    if (filters.toDate) params.toDate = filters.toDate;
+    const response = await api.get('/api/payment/revenue-stats', { params });
     return response.data;
   }
 };
