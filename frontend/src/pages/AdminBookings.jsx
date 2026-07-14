@@ -99,7 +99,7 @@ export const AdminBookings = () => {
   useEffect(() => {
     loadBookings();
     const interval = setInterval(() => {
-      adminService.getBookings().then(res => {
+      adminService.getBookings({ skipGlobalLoader: true }).then(res => {
         if (res && res.success) {
           setBookings(res.bookings);
         }

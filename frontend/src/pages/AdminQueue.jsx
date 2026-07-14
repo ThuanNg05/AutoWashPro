@@ -131,7 +131,7 @@ export const AdminQueue = () => {
         if (document.hidden) return;
 
         adminService
-          .getQueue()
+          .getQueue({ skipGlobalLoader: true })
           .then((res) => {
             if (res) {
               setQueue({

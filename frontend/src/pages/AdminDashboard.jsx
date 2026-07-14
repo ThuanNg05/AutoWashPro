@@ -73,18 +73,18 @@ export const AdminDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
-    calculateRealtimeStats();
+    calculateRealtimeStats(true);
 
     const intervalId = setInterval(() => {
-      calculateRealtimeStats();
+      calculateRealtimeStats(true);
     }, 10000);
 
     return () => clearInterval(intervalId);
   }, []);
 
-  const calculateRealtimeStats = async () => {
+  const calculateRealtimeStats = async (background = false) => {
     try {
-      const response = await adminService.getQueue();
+      const response = await adminService.getQueue(background ? { skipGlobalLoader: true } : {});
       if (response) {
         const waiting = response.filter(
           (item) => item.status === "Waiting",

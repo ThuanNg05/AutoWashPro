@@ -256,9 +256,9 @@ vui lòng gửi yêu cầu chuyển quyền sở hữu.`);
     }, 100);
   };
 
-  const fetchVehicles = async () => {
+  const fetchVehicles = async (background = false) => {
     try {
-      const response = await customerService.getVehicles();
+      const response = await customerService.getVehicles(background ? { skipGlobalLoader: true } : {});
       if (response.success) {
         setVehicles(response.vehicles);
       }
@@ -268,18 +268,18 @@ vui lòng gửi yêu cầu chuyển quyền sở hữu.`);
     }
   };
 
-  const fetchTransfers = async () => {
-    setTransfersLoading(true);
+  const fetchTransfers = async (background = false) => {
+    if (!background) setTransfersLoading(true);
     try {
-      const resSent = await api.get('/api/ownership-transfer/customer/sent');
-      const resRecv = await api.get('/api/ownership-transfer/customer/received');
+      const resSent = await api.get('/api/ownership-transfer/customer/sent', background ? { skipGlobalLoader: true } : {});
+      const resRecv = await api.get('/api/ownership-transfer/customer/received', background ? { skipGlobalLoader: true } : {});
       
       if (resSent.data.success) setSentRequests(resSent.data.requests);
       if (resRecv.data.success) setReceivedRequests(resRecv.data.requests);
     } catch (err) {
       console.error(err);
     } finally {
-      setTransfersLoading(false);
+      if (!background) setTransfersLoading(false);
     }
   };
 
@@ -289,8 +289,8 @@ vui lòng gửi yêu cầu chuyển quyền sở hữu.`);
 
     // Auto-refresh every 5 seconds to keep lists in sync without manual refresh
     const interval = setInterval(() => {
-      fetchVehicles();
-      fetchTransfers();
+      fetchVehicles(true);
+      fetchTransfers(true);
     }, 5000);
 
     return () => clearInterval(interval);

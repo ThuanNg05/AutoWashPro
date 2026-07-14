@@ -26,8 +26,8 @@ export const adminService = {
     return response.data;
   },
 
-  getQueue: async () => {
-    const response = await api.get('/Admin/GetQueue');
+  getQueue: async (config = {}) => {
+    const response = await api.get('/Admin/GetQueue', config);
     return response.data;
   },
 
@@ -124,8 +124,8 @@ export const adminService = {
     return response.data;
   },
 
-  getBookings: async () => {
-    const response = await api.get('/api/admin/bookings');
+  getBookings: async (config = {}) => {
+    const response = await api.get('/api/admin/bookings', config);
     return response.data;
   },
 

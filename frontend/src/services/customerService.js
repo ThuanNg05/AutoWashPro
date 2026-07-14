@@ -25,8 +25,8 @@ export const customerService = {
     return response.data;
   },
 
-  getVehicles: async () => {
-    const response = await api.get('/Customer/GetVehicles');
+  getVehicles: async (config = {}) => {
+    const response = await api.get('/Customer/GetVehicles', config);
     return response.data;
   },
 
