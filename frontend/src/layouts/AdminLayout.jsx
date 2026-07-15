@@ -12,6 +12,7 @@ export const AdminLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const activeNav = location.pathname.startsWith('/admin/dashboard') ? 'dashboard' :
+                    location.pathname.startsWith('/admin/loyalty') ? 'loyalty' :
                     location.pathname.startsWith('/admin/queue') ? 'queue' :
                     location.pathname.startsWith('/admin/bookings') ? 'bookings' :
                     location.pathname.startsWith('/admin/customers') ? 'customers' :
@@ -63,6 +64,9 @@ export const AdminLayout = () => {
           </Link>
           <Link to="/admin/customers" className={`sidebar-link ${activeNav === 'customers' ? 'active' : ''}`}>
             <i className="fas fa-users"></i> <span>Khách hàng</span>
+          </Link>
+          <Link to="/admin/loyalty" className={`sidebar-link ${activeNav === 'loyalty' ? 'active' : ''}`}>
+            <i className="fas fa-crown"></i> <span>Quản lý Loyalty</span>
           </Link>
           <Link to="/admin/services" className={`sidebar-link ${activeNav === 'services' ? 'active' : ''}`}>
             <i className="fas fa-box"></i> <span>Dịch vụ</span>

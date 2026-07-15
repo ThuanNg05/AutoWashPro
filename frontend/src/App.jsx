@@ -19,6 +19,7 @@ const CustomerBookings = lazy(() => import('./pages/CustomerBookings'));
 const CustomerProfile = lazy(() => import('./pages/CustomerProfile'));
 const CustomerVehicles = lazy(() => import('./pages/CustomerVehicles'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminLoyalty = lazy(() => import('./pages/AdminLoyalty'));
 const AdminQueue = lazy(() => import('./pages/AdminQueue'));
 const AdminCustomers = lazy(() => import('./pages/AdminCustomers'));
 const AdminServices = lazy(() => import('./pages/AdminServices'));
@@ -80,6 +81,7 @@ function App() {
           >
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="loyalty" element={<AdminLoyalty />} />
             <Route path="queue" element={<AdminQueue />} />
             <Route path="bookings" element={<AdminBookings />} />
             <Route path="customers" element={<AdminCustomers />} />

@@ -112,7 +112,7 @@ export const AdminTransactions = () => {
       {/* Summary (issue #51): gross → deductions → net */}
       <div className="row g-3 mb-4 animate-up">
         <div className="col-6 col-md-3">
-          <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4 d-flex align-items-center gap-3">
+          <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4 h-100 d-flex align-items-center gap-3">
             <div
               className="rounded-circle d-flex align-items-center justify-content-center bg-light text-cyan"
               style={{ width: "46px", height: "46px", flexShrink: 0 }}
@@ -131,7 +131,7 @@ export const AdminTransactions = () => {
           </div>
         </div>
         <div className="col-6 col-md-3">
-          <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4 d-flex align-items-center gap-3">
+          <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4 h-100 d-flex align-items-center gap-3">
             <div
               className="rounded-circle d-flex align-items-center justify-content-center bg-light text-secondary"
               style={{ width: "46px", height: "46px", flexShrink: 0 }}
@@ -147,7 +147,7 @@ export const AdminTransactions = () => {
           </div>
         </div>
         <div className="col-6 col-md-3">
-          <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4 d-flex align-items-center gap-3">
+          <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4 h-100 d-flex align-items-center gap-3">
             <div
               className="rounded-circle d-flex align-items-center justify-content-center bg-light text-danger"
               style={{ width: "46px", height: "46px", flexShrink: 0 }}
@@ -168,7 +168,7 @@ export const AdminTransactions = () => {
           </div>
         </div>
         <div className="col-6 col-md-3">
-          <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4 d-flex align-items-center gap-3">
+          <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4 h-100 d-flex align-items-center gap-3">
             <div
               className="rounded-circle d-flex align-items-center justify-content-center bg-light text-warning"
               style={{ width: "46px", height: "46px", flexShrink: 0 }}
@@ -223,6 +223,7 @@ export const AdminTransactions = () => {
           <label className="form-label small fw-bold text-muted">TỪ NGÀY</label>
           <input
             type="date"
+            lang="en-GB"
             className="form-control bg-white border-0 py-2.5 shadow-sm fw-semibold text-dark"
             style={{ borderRadius: "10px", boxShadow: "none" }}
             value={fromDate}
@@ -233,6 +234,7 @@ export const AdminTransactions = () => {
           <label className="form-label small fw-bold text-muted">ĐẾN NGÀY</label>
           <input
             type="date"
+            lang="en-GB"
             className="form-control bg-white border-0 py-2.5 shadow-sm fw-semibold text-dark"
             style={{ borderRadius: "10px", boxShadow: "none" }}
             value={toDate}

@@ -321,6 +321,7 @@ export const AdminServices = () => {
             { label: "Trạng thái" },
             { label: "Hành động", className: "text-end pe-4" },
           ]}
+          className="table-bordered"
           emptyMessage="Không tìm thấy dịch vụ nào"
         >
           {filteredServices.map((s) => {

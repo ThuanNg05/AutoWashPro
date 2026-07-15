@@ -592,6 +592,7 @@ export const AdminBookings = () => {
             </label>
             <input
               type="date"
+              lang="en-GB"
               className="form-control bg-light border-0 py-2 text-dark fw-bold"
               style={{ fontSize: "0.85rem" }}
               value={dateFilter}

@@ -6,7 +6,7 @@ export const Table = ({ headers, children, emptyMessage = "Không tìm thấy k�
       <div className="table-responsive">
         <table className={`table table-hover align-middle mb-0 ${className}`.trim()}>
           <thead className="bg-light">
-            <tr className="small text-uppercase text-muted" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+            <tr className="small text-uppercase text-muted align-middle" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
               {headers.map((h, i) => (
                 <th key={i} className={h.className || ''} style={h.style || {}}>
                   {h.label}
