@@ -123,8 +123,7 @@ namespace Auto_Wash.Services
             // Lock Check: block locked vehicles from booking
             bool isLocked = await _context.OwnershipTransferRequests
                 .AnyAsync(r => r.VehicleId == vehicle.VehicleId && 
-                               (r.Status == OwnershipTransferStatus.PendingAdminApproval || 
-                                r.Status == OwnershipTransferStatus.PendingAdminReview));
+                               r.Status == OwnershipTransferStatus.Pending);
             if (isLocked)
             {
                 return (false, "Không thể đặt lịch hẹn cho phương tiện đang trong quá trình chuyển nhượng sở hữu.", 0);

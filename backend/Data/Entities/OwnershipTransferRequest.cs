@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -20,32 +21,19 @@ namespace Auto_Wash.Data.Entities
         public int RequestedCustomerId { get; set; }
 
         [Required]
-        [MaxLength(500)]
-        public string RegistrationImageUrl { get; set; } = string.Empty;
-
-        [Required]
-        [MaxLength(20)]
-        public string OcrPlate { get; set; } = string.Empty;
-
-        [Required]
-        public OwnershipTransferStatus Status { get; set; } = OwnershipTransferStatus.PendingOwnerConfirmation;
-
-        [Required]
-        [MaxLength(20)]
-        public string OwnerDecision { get; set; } = "Pending"; // Pending, Approved, Rejected, Timeout
-
-        public DateTime? OwnerConfirmedAt { get; set; }
-
-        public int? ApprovedBy { get; set; } // AccountId of Admin/Staff
-
-        public DateTime? ApprovedAt { get; set; }
-
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
-
-        public DateTime UpdatedAt { get; set; } = DateTime.Now;
+        public OwnershipTransferStatus Status { get; set; } = OwnershipTransferStatus.Pending;
 
         [MaxLength(500)]
-        public string? Reason { get; set; }
+        public string? Description { get; set; }
+
+        public DateTime SubmittedAt { get; set; } = DateTime.Now;
+
+        public DateTime? ReviewedAt { get; set; }
+
+        public int? ReviewedBy { get; set; } // AccountId of Admin/Staff
+
+        [MaxLength(500)]
+        public string? RejectReason { get; set; }
 
         // Navigation properties
         [ForeignKey("VehicleId")]
@@ -57,7 +45,9 @@ namespace Auto_Wash.Data.Entities
         [ForeignKey("RequestedCustomerId")]
         public virtual Customer RequestedCustomer { get; set; } = null!;
 
-        [ForeignKey("ApprovedBy")]
-        public virtual Account? ApprovedByAccount { get; set; }
+        [ForeignKey("ReviewedBy")]
+        public virtual Account? ReviewedByAccount { get; set; }
+
+        public virtual ICollection<OwnershipTransferDocument> Documents { get; set; } = new List<OwnershipTransferDocument>();
     }
 }

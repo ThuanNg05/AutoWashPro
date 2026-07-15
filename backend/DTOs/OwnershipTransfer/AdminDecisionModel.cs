@@ -1,8 +1,10 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Auto_Wash.DTOs.OwnershipTransfer
 {
-    public class AdminDecisionModel
+    public class AdminRejectDto
     {
-        public bool Approve { get; set; }
-        public string? Reason { get; set; }
+        [Required]
+        public string RejectReason { get; set; } = string.Empty;
     }
 }
