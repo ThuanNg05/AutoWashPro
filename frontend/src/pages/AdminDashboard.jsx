@@ -1,41 +1,78 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { adminService } from "../services/adminService";
 import "../styles/shared.css";
 import "../styles/admin/dashboard.css";
 
+// ── Local date helpers (yyyy-mm-dd in local time, never UTC) ──
+const toLocalYmd = (d) => {
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+const todayStr = () => toLocalYmd(new Date());
+const daysAgoStr = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return toLocalYmd(d);
+};
+
+const DEFAULT_STATS = {
+  avgStars: 0,
+  tierDistribution: { Platinum: 0, Gold: 0, Silver: 0, Member: 0 },
+  period: {
+    netRevenue: 0,
+    grossRevenue: 0,
+    totalDiscount: 0,
+    paidCount: 0,
+    bookingCount: 0,
+    completedCount: 0,
+    pointsGranted: 0,
+    voucherUsedCount: 0,
+    avgStars: 0,
+    dailyRevenue: [],
+  },
+};
+
 export const AdminDashboard = () => {
-  const [stats, setStats] = useState({
-    revenue7Days: [432000, 216000, 108000, 756000, 540000, 130000, 85000],
-    totalRevenue: 2267000,
-    prevTotalRevenue: 1950000,
-    activeQueue: 0,
-    avgMinutes: 22,
-    avgStars: 4.8,
-    tierDistribution: { Platinum: 1, Gold: 2, Silver: 3, Member: 5 },
-    dayLabels: ["T2", "T3", "T4", "T5", "T6", "T7", "CN"],
-  });
+  const [stats, setStats] = useState(DEFAULT_STATS);
+  const [loading, setLoading] = useState(true); // first paint only
+  const [rangeLoading, setRangeLoading] = useState(false);
 
-  const [loading, setLoading] = useState(true);
+  // ── Date range filter (drives the period statistics + chart) ──
+  const [fromDate, setFromDate] = useState(daysAgoStr(6)); // last 7 days incl. today
+  const [toDate, setToDate] = useState(todayStr());
 
-  // Realtime counters from localStorage
+  // Realtime counters from the live queue (today only, not filtered)
   const [realtimeCounters, setRealtimeCounters] = useState({
     todayRevenue: 0,
     todayBookingsCount: 0,
     waitingCount: 0,
     washingCount: 0,
     completedCount: 0,
-    voucherUsedCount: 3,
     loyaltyPointsGrantedToday: 0,
   });
 
+  // Dashboard stats scoped to the selected date range (backend does the work).
+  const fetchDashboardData = useCallback(async () => {
+    setRangeLoading(true);
+    try {
+      const res = await adminService.getDashboardStats({ fromDate, toDate });
+      if (res) setStats(res);
+    } catch (err) {
+      console.error("Lỗi khi tải dữ liệu Admin:", err);
+    } finally {
+      setRangeLoading(false);
+      setLoading(false);
+    }
+  }, [fromDate, toDate]);
+
   useEffect(() => {
     fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  useEffect(() => {
     calculateRealtimeStats(true);
-
-    const intervalId = setInterval(() => {
-      calculateRealtimeStats(true);
-    }, 10000);
-
+    const intervalId = setInterval(() => calculateRealtimeStats(true), 10000);
     return () => clearInterval(intervalId);
   }, []);
 
@@ -43,17 +80,12 @@ export const AdminDashboard = () => {
     try {
       const response = await adminService.getQueue(background ? { skipGlobalLoader: true } : {});
       if (response) {
-        const waiting = response.filter(
-          (item) => item.status === "Waiting",
-        ).length;
+        const waiting = response.filter((item) => item.status === "Waiting").length;
         const washing = response.filter(
           (item) => item.status === "Washing" || item.status === "Drying",
         ).length;
-        const completed = response.filter(
-          (item) => item.status === "Completed",
-        ).length;
+        const completed = response.filter((item) => item.status === "Completed").length;
 
-        // Calculate revenue from completed orders today
         const completedRevenue = response
           .filter((item) => item.status === "Completed")
           .reduce((sum, item) => sum + (item.finalPrice || 0), 0);
@@ -68,7 +100,6 @@ export const AdminDashboard = () => {
           waitingCount: waiting,
           washingCount: washing,
           completedCount: completed,
-          voucherUsedCount: 0,
           loyaltyPointsGrantedToday: pointsGranted,
         });
       }
@@ -80,38 +111,22 @@ export const AdminDashboard = () => {
         waitingCount: 0,
         washingCount: 0,
         completedCount: 0,
-        voucherUsedCount: 0,
         loyaltyPointsGrantedToday: 0,
       });
     }
   };
 
-  const fetchDashboardData = async () => {
-    setLoading(true);
-    try {
-      // Fetch data using service endpoints or mock fallback
-      let statsRes = null;
-      try {
-        statsRes = await adminService.getDashboardStats();
-      } catch {
-        statsRes = {
-          revenue7Days: [432000, 216000, 108000, 756000, 540000, 130000, 85000],
-          totalRevenue: 2267000,
-          prevTotalRevenue: 1950000,
-          activeQueue: 0,
-          avgMinutes: 22,
-          avgStars: 4.8,
-          tierDistribution: { Platinum: 1, Gold: 2, Silver: 3, Member: 5 },
-          dayLabels: ["T2", "T3", "T4", "T5", "T6", "T7", "CN"],
-        };
-      }
-      setStats(statsRes);
-    } catch (err) {
-      console.error("Lỗi khi tải dữ liệu Admin:", err);
-    } finally {
-      setLoading(false);
-    }
+  const maxDate = todayStr();
+  const clampToday = (value) => (value && value > maxDate ? maxDate : value);
+  const resetRange = () => {
+    setFromDate(daysAgoStr(6));
+    setToDate(todayStr());
   };
+
+  // ── Period figures from the backend ──
+  const p = stats.period || DEFAULT_STATS.period;
+  const dailyRevenue = p.dailyRevenue || [];
+  const maxDaily = Math.max(...dailyRevenue.map((x) => Number(x.total) || 0), 1);
 
   if (loading) {
     return (
@@ -128,10 +143,7 @@ export const AdminDashboard = () => {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center flex-wrap mb-4 gap-3 border-bottom pb-3">
         <div>
-          <h4
-            className="fw-bold mb-1 text-dark"
-            style={{ letterSpacing: "-0.5px" }}
-          >
+          <h4 className="fw-bold mb-1 text-dark" style={{ letterSpacing: "-0.5px" }}>
             BẢNG ĐIỀU KHIỂN HỆ THỐNG
           </h4>
           <p className="text-secondary small mb-0">
@@ -140,23 +152,206 @@ export const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* 8 KPI Cards Grid */}
+      {/* ── Date range filter (drives period statistics + chart) ── */}
+      <div className="app-card border-0 shadow-sm p-3 bg-white rounded-4 mb-4">
+        <div className="row g-3 align-items-end">
+          <div className="col-md-4 col-sm-6">
+            <label className="form-label small fw-bold text-muted">TỪ NGÀY</label>
+            <input
+              type="date"
+              lang="en-GB"
+              max={maxDate}
+              className="form-control bg-light border-0 py-2.5 fw-semibold text-dark"
+              style={{ borderRadius: "10px" }}
+              value={fromDate}
+              onChange={(e) => setFromDate(clampToday(e.target.value))}
+            />
+          </div>
+          <div className="col-md-4 col-sm-6">
+            <label className="form-label small fw-bold text-muted">ĐẾN NGÀY</label>
+            <input
+              type="date"
+              lang="en-GB"
+              max={maxDate}
+              className="form-control bg-light border-0 py-2.5 fw-semibold text-dark"
+              style={{ borderRadius: "10px" }}
+              value={toDate}
+              onChange={(e) => setToDate(clampToday(e.target.value))}
+            />
+          </div>
+          <div className="col-md-4 col-sm-12 d-flex align-items-center gap-2">
+            <button
+              className="btn py-2.5 px-3 fw-bold text-white"
+              style={{ borderRadius: "10px", background: "var(--cyan-electric)", border: "none" }}
+              onClick={resetRange}
+              disabled={rangeLoading}
+              title="Đặt lại 7 ngày gần nhất"
+            >
+              <i className="fas fa-eraser me-1"></i> 7 ngày gần nhất
+            </button>
+            {rangeLoading && (
+              <span className="text-muted small">
+                <span className="spinner-border spinner-border-sm me-1" role="status"></span>
+                Đang cập nhật...
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Period statistics (depend on the filter) ── */}
+      <h6 className="fw-bold text-secondary mb-3" style={{ fontSize: "0.8rem", letterSpacing: "0.5px" }}>
+        <i className="fas fa-calendar-day text-cyan me-2"></i>THỐNG KÊ THEO KHOẢNG ĐÃ CHỌN
+      </h6>
+      <div className="row g-3 mb-4">
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              DOANH THU THỰC (NET)
+            </small>
+            <h4 className="fw-bold text-cyan mt-1 mb-1">{(p.netRevenue || 0).toLocaleString()}đ</h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              Sau giảm trừ voucher / miễn phí
+            </small>
+          </div>
+        </div>
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              TỔNG GIÁ GỐC
+            </small>
+            <h4 className="fw-bold text-dark mt-1 mb-1">{(p.grossRevenue || 0).toLocaleString()}đ</h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              Trước khi áp dụng ưu đãi
+            </small>
+          </div>
+        </div>
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              GIẢM TRỪ (VOUCHER / MIỄN PHÍ)
+            </small>
+            <h4 className="fw-bold text-danger mt-1 mb-1">−{(p.totalDiscount || 0).toLocaleString()}đ</h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              {p.voucherUsedCount || 0} voucher đã dùng
+            </small>
+          </div>
+        </div>
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              GIAO DỊCH ĐÃ THANH TOÁN
+            </small>
+            <h4 className="fw-bold text-dark mt-1 mb-1">{p.paidCount || 0}</h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              {p.bookingCount || 0} lịch đặt trong kỳ
+            </small>
+          </div>
+        </div>
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              LƯỢT RỬA HOÀN THÀNH
+            </small>
+            <h4 className="fw-bold text-success mt-1 mb-1">{p.completedCount || 0} xe</h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              Đã qua quy trình rửa
+            </small>
+          </div>
+        </div>
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              LOYALTY POINTS ĐÃ CỘNG
+            </small>
+            <h4 className="fw-bold text-warning mt-1 mb-1">+{p.pointsGranted || 0} PTS</h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              Tích điểm cho khách hàng
+            </small>
+          </div>
+        </div>
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              ĐÁNH GIÁ TRUNG BÌNH
+            </small>
+            <h4 className="fw-bold text-warning mt-1 mb-1">
+              {p.avgStars || 0}{" "}
+              <i className="fas fa-star" style={{ color: "#ffcf33", fontSize: "1.1rem" }}></i>
+            </h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              Phản hồi trong khoảng đã chọn
+            </small>
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Chart — built from the selected range */}
+      <div className="row g-4 mb-4">
+        <div className="col-12">
+          <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4" style={{ minHeight: "380px" }}>
+            <h5 className="fw-bold mb-4" style={{ color: "var(--navy-dark)", fontSize: "0.95rem" }}>
+              <i className="fas fa-chart-bar text-cyan me-2"></i>BIỂU ĐỒ DOANH THU THEO KHOẢNG ĐÃ CHỌN
+            </h5>
+            {dailyRevenue.length === 0 ? (
+              <div className="text-center text-muted py-5">
+                <i className="fas fa-chart-bar fa-2x mb-2" style={{ opacity: 0.25 }}></i>
+                <div className="small">Không có doanh thu trong khoảng thời gian này.</div>
+              </div>
+            ) : (
+              <div
+                className="d-flex align-items-end justify-content-between px-3 mt-5"
+                style={{ height: "220px", borderBottom: "1.5px solid #f1f5f9", overflowX: "auto" }}
+              >
+                {dailyRevenue.map((bar, idx) => {
+                  const val = Number(bar.total) || 0;
+                  const pct = val > 0 ? Math.max(6, Math.round((val / maxDaily) * 100)) : 2;
+                  const [, mm, dd] = String(bar.date).split("-");
+                  return (
+                    <div
+                      key={idx}
+                      className="text-center d-flex flex-column align-items-center"
+                      style={{ flex: "1 0 34px", minWidth: "34px" }}
+                    >
+                      <small className="text-cyan fw-bold mb-2" style={{ fontSize: "0.66rem" }}>
+                        {val > 0 ? `${Math.round(val / 1000)}k` : "0"}
+                      </small>
+                      <div
+                        className="rounded-top"
+                        style={{
+                          width: "60%",
+                          height: `${pct * 1.5}px`,
+                          background: "linear-gradient(180deg, #0ea5e9 0%, rgba(14,165,233,0.2) 100%)",
+                          boxShadow: "0 4px 12px rgba(14,165,233,0.1)",
+                          transition: "height 0.8s ease",
+                        }}
+                      ></div>
+                      <small className="text-muted fw-semibold mt-2" style={{ fontSize: "0.68rem" }}>
+                        {dd}/{mm}
+                      </small>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Realtime queue (today only — NOT affected by the filter) ── */}
+      <h6 className="fw-bold text-secondary mb-3" style={{ fontSize: "0.8rem", letterSpacing: "0.5px" }}>
+        <i className="fas fa-bolt text-warning me-2"></i>THỜI GIAN THỰC · HÀNG ĐỢI HÔM NAY
+      </h6>
       <div className="row g-3 mb-4">
         <div className="col-lg-3 col-sm-6">
           <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
-            <small
-              className="text-muted d-block fw-bold"
-              style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}
-            >
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
               DOANH THU HÔM NAY
             </small>
             <h4 className="fw-bold text-cyan mt-1 mb-1">
               {realtimeCounters.todayRevenue.toLocaleString()}đ
             </h4>
-            <small
-              className="text-success fw-bold"
-              style={{ fontSize: "0.68rem" }}
-            >
+            <small className="text-success fw-bold" style={{ fontSize: "0.68rem" }}>
               <i className="fas fa-trending-up me-1"></i>Đã thanh toán thực tế
             </small>
           </div>
@@ -164,10 +359,7 @@ export const AdminDashboard = () => {
 
         <div className="col-lg-3 col-sm-6">
           <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
-            <small
-              className="text-muted d-block fw-bold"
-              style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}
-            >
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
               LỊCH ĐẶT HÔM NAY
             </small>
             <h4 className="fw-bold text-dark mt-1 mb-1">
@@ -181,10 +373,7 @@ export const AdminDashboard = () => {
 
         <div className="col-lg-3 col-sm-6">
           <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
-            <small
-              className="text-muted d-block fw-bold"
-              style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}
-            >
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
               XE ĐANG CHỜ RỬA
             </small>
             <h4 className="fw-bold text-warning mt-1 mb-1">
@@ -198,10 +387,7 @@ export const AdminDashboard = () => {
 
         <div className="col-lg-3 col-sm-6">
           <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
-            <small
-              className="text-muted d-block fw-bold"
-              style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}
-            >
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
               XE ĐANG RỬA & SẤY
             </small>
             <h4 className="fw-bold text-primary mt-1 mb-1">
@@ -215,10 +401,7 @@ export const AdminDashboard = () => {
 
         <div className="col-lg-3 col-sm-6">
           <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
-            <small
-              className="text-muted d-block fw-bold"
-              style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}
-            >
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
               HOÀN THÀNH HÔM NAY
             </small>
             <h4 className="fw-bold text-success mt-1 mb-1">
@@ -232,116 +415,15 @@ export const AdminDashboard = () => {
 
         <div className="col-lg-3 col-sm-6">
           <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
-            <small
-              className="text-muted d-block fw-bold"
-              style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}
-            >
-              VOUCHER ĐÃ DÙNG
-            </small>
-            <h4 className="fw-bold text-danger mt-1 mb-1">
-              {realtimeCounters.voucherUsedCount} voucher
-            </h4>
-            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
-              Áp dụng ưu đãi giảm giá
-            </small>
-          </div>
-        </div>
-
-        <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
-            <small
-              className="text-muted d-block fw-bold"
-              style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}
-            >
-              LOYALTY POINTS ĐÃ CỘNG
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              LOYALTY POINTS HÔM NAY
             </small>
             <h4 className="fw-bold text-warning mt-1 mb-1">
               +{realtimeCounters.loyaltyPointsGrantedToday} PTS
             </h4>
             <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
-              Tích điểm cho khách hàng
+              Tích điểm hôm nay
             </small>
-          </div>
-        </div>
-
-        <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
-            <small
-              className="text-muted d-block fw-bold"
-              style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}
-            >
-              ĐÁNH GIÁ TRUNG BÌNH
-            </small>
-            <h4 className="fw-bold text-warning mt-1 mb-1">
-              {stats.avgStars}{" "}
-              <i
-                className="fas fa-star"
-                style={{ color: "#ffcf33", fontSize: "1.1rem" }}
-              ></i>
-            </h4>
-            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
-              Lượt phản hồi từ khách hàng
-            </small>
-          </div>
-        </div>
-      </div>
-
-      <div className="row g-4">
-        {/* Revenue Chart */}
-        <div className="col-12">
-          <div
-            className="app-card border-0 shadow-sm p-4 bg-white rounded-4"
-            style={{ minHeight: "380px" }}
-          >
-            <h5
-              className="fw-bold mb-4"
-              style={{ color: "var(--navy-dark)", fontSize: "0.95rem" }}
-            >
-              <i className="fas fa-chart-bar text-cyan me-2"></i>BIỂU ĐỒ DOANH
-              THU CHI TIẾT 7 NGÀY GẦN NHẤT
-            </h5>
-            <div
-              className="d-flex align-items-end justify-content-between px-3 mt-5"
-              style={{
-                height: "220px",
-                borderBottom: "1.5px solid #f1f5f9",
-              }}
-            >
-              {stats.revenue7Days.map((val, idx) => {
-                const max = Math.max(...stats.revenue7Days) || 1;
-                const pct = Math.max(10, Math.round((val / max) * 100));
-                return (
-                  <div
-                    key={idx}
-                    className="text-center d-flex flex-column align-items-center"
-                    style={{ flex: 1 }}
-                  >
-                    <small
-                      className="text-cyan fw-bold mb-2"
-                      style={{ fontSize: "0.68rem" }}
-                    >
-                      {val > 0 ? `${Math.round(val / 1000)}k` : "0"}
-                    </small>
-                    <div
-                      className="w-50 rounded-top animate-pulse"
-                      style={{
-                        height: `${pct * 1.5}px`,
-                        background:
-                          "linear-gradient(180deg, #0ea5e9 0%, rgba(14,165,233,0.2) 100%)",
-                        boxShadow: "0 4px 12px rgba(14,165,233,0.1)",
-                        transition: "height 0.8s ease",
-                      }}
-                    ></div>
-                    <small
-                      className="text-muted fw-semibold mt-2"
-                      style={{ fontSize: "0.72rem" }}
-                    >
-                      {stats.dayLabels[idx]}
-                    </small>
-                  </div>
-                );
-              })}
-            </div>
           </div>
         </div>
       </div>

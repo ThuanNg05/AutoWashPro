@@ -172,7 +172,7 @@
 
 /* ── Admin Buttons (light default → dark on hover) ─────────── */
 .admin-wrapper .app-btn-primary {
-  background: var(--navy-dark);
+  background: var(--cyan-electric);
   color: #fff;
   border: 1px solid var(--navy-dark);
   transition: all 0.25s ease;

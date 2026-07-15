@@ -26,7 +26,9 @@ export const AdminOwnershipTransfers = () => {
         }
       });
       if (response.data.success) {
-        setRequests(response.data.requests);
+        // Sort by request ID ascending
+        const sorted = [...response.data.requests].sort((a, b) => a.requestId - b.requestId);
+        setRequests(sorted);
       }
     } catch (err) {
       console.error(err);
@@ -189,13 +191,13 @@ export const AdminOwnershipTransfers = () => {
       {/* Filter and Search Bar */}
       <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4 mb-4">
         <form onSubmit={handleSearchSubmit} className="row g-3">
-          <div className="col-md-5">
+          <div className="col-md-8">
             <div className="input-group">
               <span className="input-group-text bg-light border-0"><i className="fas fa-search text-muted"></i></span>
               <input
                 type="text"
                 className="form-control bg-light border-0 py-2.5"
-                placeholder="Tìm theo biển số, khách hàng..."
+                placeholder="Tìm theo biển số, khách hàng... (nhấn Enter để tìm)"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -209,17 +211,12 @@ export const AdminOwnershipTransfers = () => {
             >
               <option value="">-- Tất cả trạng thái --</option>
               <option value="PendingOwnerConfirmation">Chờ chủ xe duyệt</option>
-              <option value="PendingAdminApproval">Chờ Admin duyệt (Chủ xe đồng ý)</option>
-              <option value="PendingAdminReview">Chờ Admin duyệt (Hết hạn)</option>
-              <option value="Approved">Đã hoàn tất</option>
+              <option value="PendingAdminApproval">Chờ duyệt (Chủ xe đồng ý)</option>
+              <option value="PendingAdminReview">Chờ duyệt (Hết hạn)</option>
+              <option value="Approved">Hoàn tất</option>
               <option value="Rejected">Đã từ chối</option>
-              <option value="Cancelled">Đã hủy bỏ</option>
+              <option value="Cancelled">Đã hủy</option>
             </select>
-          </div>
-          <div className="col-md-3">
-            <button type="submit" className="app-btn-primary w-100 py-2.5 text-dark fw-bold border-0" style={{ borderRadius: '10px' }}>
-              <i className="fas fa-filter me-2"></i> LỌC TÌM KIẾM
-            </button>
           </div>
         </form>
       </div>
@@ -245,9 +242,8 @@ export const AdminOwnershipTransfers = () => {
                   <th className="py-3">Phương tiện</th>
                   <th className="py-3">Chủ sở hữu hiện tại</th>
                   <th className="py-3">Khách hàng yêu cầu</th>
-                  <th className="py-3">Xác minh OCR</th>
                   <th className="py-3">Trạng thái</th>
-                  <th className="py-3">Ngày gửi</th>
+                  <th className="py-3 text-end" style={{ whiteSpace: 'nowrap' }}>Ngày gửi</th>
                   <th className="py-3 pe-4 text-end" style={{ width: '300px' }}>Thao tác</th>
                 </tr>
               </thead>
@@ -257,9 +253,8 @@ export const AdminOwnershipTransfers = () => {
                     <td className="ps-4 fw-bold text-secondary">#{r.requestId}</td>
                     <td>
                       <div>
-                        <span className="badge bg-dark text-white font-monospace py-1.5 px-2 mb-1 rounded">{r.vehiclePlate}</span>
+                        <span className="badge bg-dark text-white font-monospace py-1.5 px-2 rounded">{r.vehiclePlate}</span>
                       </div>
-                      <small className="text-muted d-block">{r.brand} {r.model}</small>
                     </td>
                     <td>
                       <div className="fw-semibold text-dark">{r.currentOwnerName}</div>
@@ -270,28 +265,11 @@ export const AdminOwnershipTransfers = () => {
                       <small className="text-muted" style={{ fontSize: '11px' }}>{r.requestedOwnerEmail}</small>
                     </td>
                     <td>
-                      <div className="d-flex flex-column gap-1">
-                        <div>
-                          <button
-                            type="button"
-                            className="btn btn-xs btn-outline-secondary py-0.5 px-2 rounded small"
-                            style={{ fontSize: '0.72rem' }}
-                            onClick={() => setPreviewImage(r.registrationImageUrl)}
-                          >
-                            <i className="fas fa-image me-1"></i> Xem ảnh
-                          </button>
-                        </div>
-                        <small className="text-secondary font-monospace" style={{ fontSize: '0.72rem' }}>
-                          OCR: <strong className={r.ocrPlate === r.vehiclePlate ? 'text-success' : 'text-danger'}>{r.ocrPlate}</strong>
-                        </small>
-                      </div>
-                    </td>
-                    <td>
                       <span className={`badge px-2.5 py-1.5 rounded-pill text-xs fw-semibold ${getStatusBadgeClass(r.status)}`}>
                         {getStatusText(r.status)}
                       </span>
                     </td>
-                    <td>
+                    <td className="text-end" style={{ whiteSpace: 'nowrap' }}>
                       <small className="text-secondary">{formatDate(r.createdAt)}</small>
                     </td>
                     <td className="pe-4 text-end">

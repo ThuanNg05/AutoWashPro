@@ -24,6 +24,14 @@ const formatDateTime = (value) => {
   return new Date(value).toLocaleString("vi-VN");
 };
 
+// Today's date as yyyy-mm-dd in local time (used to cap the date filters).
+const todayStr = () => {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${m}-${day}`;
+};
+
 export const AdminTransactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [stats, setStats] = useState(null);
@@ -66,10 +74,11 @@ export const AdminTransactions = () => {
     }
   }, [statusFilter, methodFilter, fromDate, toDate]);
 
+  // Auto-run the filter whenever any field changes (loadTransactions is
+  // memoized on the filter values).
   useEffect(() => {
     loadTransactions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadTransactions]);
 
   const resetFilters = () => {
     setStatusFilter("");
@@ -77,6 +86,10 @@ export const AdminTransactions = () => {
     setFromDate("");
     setToDate("");
   };
+
+  // Date filters cannot exceed today (no future transactions exist).
+  const maxDate = todayStr();
+  const clampToday = (value) => (value && value > maxDate ? maxDate : value);
 
   // Summary — server-side stats when available, otherwise computed from the
   // loaded rows so the cards still render if the stats call fails (issue #51).
@@ -224,10 +237,11 @@ export const AdminTransactions = () => {
           <input
             type="date"
             lang="en-GB"
+            max={maxDate}
             className="form-control bg-white border-0 py-2.5 shadow-sm fw-semibold text-dark"
             style={{ borderRadius: "10px", boxShadow: "none" }}
             value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
+            onChange={(e) => setFromDate(clampToday(e.target.value))}
           />
         </div>
         <div className="col-md-2 col-sm-6">
@@ -235,28 +249,22 @@ export const AdminTransactions = () => {
           <input
             type="date"
             lang="en-GB"
+            max={maxDate}
             className="form-control bg-white border-0 py-2.5 shadow-sm fw-semibold text-dark"
             style={{ borderRadius: "10px", boxShadow: "none" }}
             value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
+            onChange={(e) => setToDate(clampToday(e.target.value))}
           />
         </div>
         <div className="col-md-2 col-sm-12 d-flex gap-2">
           <button
-            className="btn btn-cyan flex-grow-1 py-2.5 fw-bold text-white"
+            className="btn flex-grow-1 py-2.5 fw-bold text-white"
             style={{ borderRadius: "10px", background: "var(--cyan-electric)", border: "none" }}
-            onClick={loadTransactions}
-            disabled={loading}
-          >
-            Áp dụng
-          </button>
-          <button
-            className="btn btn-outline-secondary py-2.5 fw-bold"
-            style={{ borderRadius: "10px" }}
             onClick={resetFilters}
+            disabled={loading}
             title="Xóa bộ lọc"
           >
-            <i className="fas fa-eraser"></i>
+            <i className="fas fa-eraser me-1"></i> Xóa lọc
           </button>
         </div>
       </div>
@@ -284,6 +292,8 @@ export const AdminTransactions = () => {
         </div>
       ) : (
         <Table
+          stickyHeader
+          className="table-bordered"
           headers={[
             { label: "Mã hóa đơn", className: "ps-4 py-3" },
             { label: "Khách hàng" },
@@ -347,12 +357,7 @@ export const AdminTransactions = () => {
                 <td className="text-end pe-4">
                   <span className="text-dark d-block" style={{ fontSize: "0.78rem" }}>
                     {formatDateTime(t.paidAt || t.createdAt)}
-                  </span>
-                  {t.transactionNo && (
-                    <small className="text-muted font-monospace" style={{ fontSize: "0.68rem" }}>
-                      {t.transactionNo}
-                    </small>
-                  )}
+                  </span>                  
                 </td>
               </tr>
             );
