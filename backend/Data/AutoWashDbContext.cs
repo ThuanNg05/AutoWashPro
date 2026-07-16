@@ -31,6 +31,7 @@ namespace Auto_Wash.Data
         public DbSet<Payment> Payments { get; set; } = null!;
         public DbSet<TierChangeLog> TierChangeLogs { get; set; } = null!;
         public DbSet<OwnershipTransferRequest> OwnershipTransferRequests { get; set; } = null!;
+        public DbSet<OwnershipTransferDocument> OwnershipTransferDocuments { get; set; } = null!;
         public DbSet<VehicleOwnershipHistory> VehicleOwnershipHistories { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -62,9 +63,13 @@ namespace Auto_Wash.Data
                 .HasConversion<string>()
                 .HasMaxLength(20);
 
+            var transferStatusConverter = new ValueConverter<OwnershipTransferStatus, string>(
+                v => v.ToString(),
+                v => ParseLegacyTransferStatus(v));
+
             builder.Entity<OwnershipTransferRequest>()
                 .Property(r => r.Status)
-                .HasConversion<string>()
+                .HasConversion(transferStatusConverter)
                 .HasMaxLength(30);
 
             // LoyaltyTransactionType: string-backed enum with legacy value resolution
@@ -583,10 +588,23 @@ namespace Auto_Wash.Data
                     .HasForeignKey(e => e.RequestedCustomerId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasOne(e => e.ApprovedByAccount)
+                entity.HasOne(e => e.ReviewedByAccount)
                     .WithMany()
-                    .HasForeignKey(e => e.ApprovedBy)
+                    .HasForeignKey(e => e.ReviewedBy)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(e => e.Documents)
+                    .WithOne(d => d.TransferRequest)
+                    .HasForeignKey(d => d.TransferRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<OwnershipTransferDocument>(entity =>
+            {
+                entity.HasKey(e => e.DocumentId);
+
+                entity.HasIndex(e => e.TransferRequestId)
+                    .HasDatabaseName("idx_transferdocs_requestid");
             });
 
             builder.Entity<VehicleOwnershipHistory>(entity =>
@@ -606,6 +624,16 @@ namespace Auto_Wash.Data
                 entity.HasOne(e => e.TransferRequest)
                     .WithMany()
                     .HasForeignKey(e => e.TransferRequestId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.OldOwner)
+                    .WithMany()
+                    .HasForeignKey(e => e.OldOwnerId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.NewOwner)
+                    .WithMany()
+                    .HasForeignKey(e => e.NewOwnerId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
         }
@@ -629,6 +657,23 @@ namespace Auto_Wash.Data
                 _ => Enum.TryParse<LoyaltyTransactionType>(value, true, out var result)
                      ? result
                      : LoyaltyTransactionType.Earn
+            };
+        }
+
+        private static OwnershipTransferStatus ParseLegacyTransferStatus(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return OwnershipTransferStatus.Pending;
+
+            return value.ToUpperInvariant() switch
+            {
+                "PENDING" or "PENDINGADMINAPPROVAL" => OwnershipTransferStatus.Pending,
+                "APPROVED" => OwnershipTransferStatus.Approved,
+                "REJECTED" => OwnershipTransferStatus.Rejected,
+                "CANCELLED" => OwnershipTransferStatus.Cancelled,
+                _ => Enum.TryParse<OwnershipTransferStatus>(value, true, out var result)
+                     ? result
+                     : OwnershipTransferStatus.Pending
             };
         }
     }

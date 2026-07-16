@@ -30,9 +30,6 @@ namespace Auto_Wash.Data.Entities
         [MaxLength(50)]
         public string VehicleClass { get; set; } = string.Empty;
 
-        [MaxLength(500)]
-        public string? RegistrationImageUrl { get; set; }
-
         public DateTime RegisteredAt { get; set; } = DateTime.Now;
 
         // Navigation properties

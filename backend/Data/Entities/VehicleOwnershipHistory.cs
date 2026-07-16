@@ -27,6 +27,15 @@ namespace Auto_Wash.Data.Entities
         [MaxLength(30)]
         public string TransferType { get; set; } = string.Empty; // InitialRegistration, OwnershipTransfer
 
+        // New fields for ownership transfer tracking
+        public int? OldOwnerId { get; set; }
+
+        public int? NewOwnerId { get; set; }
+
+        public int? ApprovedBy { get; set; } // AccountId
+
+        public DateTime? ApprovedAt { get; set; }
+
         // Navigation properties
         [ForeignKey("VehicleId")]
         public virtual Vehicle Vehicle { get; set; } = null!;
@@ -36,5 +45,11 @@ namespace Auto_Wash.Data.Entities
 
         [ForeignKey("TransferRequestId")]
         public virtual OwnershipTransferRequest? TransferRequest { get; set; }
+
+        [ForeignKey("OldOwnerId")]
+        public virtual Customer? OldOwner { get; set; }
+
+        [ForeignKey("NewOwnerId")]
+        public virtual Customer? NewOwner { get; set; }
     }
 }

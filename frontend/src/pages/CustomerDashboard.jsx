@@ -298,6 +298,41 @@ export const CustomerDashboard = () => {
   // Map notifications to Activity Timeline with icons/colors
   const getActivityMeta = (title) => {
     const t = title.toLowerCase();
+    
+    // Ownership transfer cases
+    if (t.includes("chuyển quyền") || t.includes("chuyển nhượng")) {
+      if (t.includes("gửi")) {
+        return {
+          icon: "fa-exchange-alt text-info",
+          bg: "rgba(13, 202, 240, 0.08)",
+        };
+      } else if (t.includes("từ chối")) {
+        return {
+          icon: "fa-ban text-danger",
+          bg: "rgba(220, 53, 69, 0.08)",
+        };
+      } else if (t.includes("hủy")) {
+        return {
+          icon: "fa-times-circle text-secondary",
+          bg: "rgba(108, 117, 125, 0.08)",
+        };
+      }
+    }
+    
+    if (t.includes("chủ sở hữu")) {
+      return {
+        icon: "fa-car-side text-success",
+        bg: "rgba(40, 167, 69, 0.08)",
+      };
+    }
+    
+    if (t.includes("chuyển khỏi tài khoản")) {
+      return {
+        icon: "fa-minus-circle text-warning",
+        bg: "rgba(255, 193, 7, 0.08)",
+      };
+    }
+
     if (t.includes("đặt lịch") || t.includes("tạo")) {
       return {
         icon: "fa-calendar-plus text-success",

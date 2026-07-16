@@ -70,11 +70,21 @@ export const GlobalToastAndConfirm = () => {
 
     // 2. Confirm Modal System
     window.showConfirm = (title, message, onConfirm) => {
+      let finalTitle = title;
+      let finalMessage = message;
+      let finalOnConfirm = onConfirm;
+
+      if (typeof message === 'function' && onConfirm === undefined) {
+        finalOnConfirm = message;
+        finalMessage = title;
+        finalTitle = 'Xác nhận';
+      }
+
       setConfirm({
-        title,
-        message,
+        title: finalTitle,
+        message: finalMessage,
         onConfirm: () => {
-          if (onConfirm) onConfirm();
+          if (finalOnConfirm) finalOnConfirm();
           setConfirm(null);
         },
         onCancel: () => {

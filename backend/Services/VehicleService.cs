@@ -122,8 +122,7 @@ namespace Auto_Wash.Services
 
             bool isLocked = await _context.OwnershipTransferRequests
                 .AnyAsync(r => r.VehicleId == vehicleId && 
-                               (r.Status == OwnershipTransferStatus.PendingAdminApproval || 
-                                r.Status == OwnershipTransferStatus.PendingAdminReview));
+                               r.Status == OwnershipTransferStatus.Pending);
             if (isLocked)
             {
                 return (false, "Không thể sửa phương tiện khi đang trong quá trình chuyển nhượng sở hữu.");
@@ -154,8 +153,7 @@ namespace Auto_Wash.Services
 
             bool isLocked = await _context.OwnershipTransferRequests
                 .AnyAsync(r => r.VehicleId == vehicleId && 
-                               (r.Status == OwnershipTransferStatus.PendingAdminApproval || 
-                                r.Status == OwnershipTransferStatus.PendingAdminReview));
+                               r.Status == OwnershipTransferStatus.Pending);
             if (isLocked)
             {
                 return (false, "Không thể xóa phương tiện khi đang trong quá trình chuyển nhượng sở hữu.");

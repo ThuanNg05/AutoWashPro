@@ -203,5 +203,29 @@ export const adminService = {
     if (filters.toDate) params.toDate = filters.toDate;
     const response = await api.get('/api/payment/revenue-stats', { params });
     return response.data;
+  },
+
+  // Ownership Transfer Admin APIs
+  getOwnershipTransfers: async (status, search, config = {}) => {
+    const params = {};
+    if (status) params.status = status;
+    if (search) params.search = search;
+    const response = await api.get('/api/admin/ownership-transfers', { params, ...config });
+    return response.data;
+  },
+
+  getOwnershipTransferDetail: async (id) => {
+    const response = await api.get(`/api/admin/ownership-transfers/${id}`);
+    return response.data;
+  },
+
+  approveTransfer: async (id) => {
+    const response = await api.put(`/api/admin/ownership-transfers/${id}/approve`);
+    return response.data;
+  },
+
+  rejectTransfer: async (id, reason) => {
+    const response = await api.put(`/api/admin/ownership-transfers/${id}/reject`, { RejectReason: reason });
+    return response.data;
   }
 };

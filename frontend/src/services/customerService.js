@@ -176,5 +176,45 @@ export const customerService = {
       RewardId: rewardId
     });
     return response.data;
+  },
+
+  // Ownership Transfer APIs
+  checkLicensePlate: async (plate) => {
+    const response = await api.get(`/api/ownership-transfer/check-plate?licensePlate=${encodeURIComponent(plate)}`);
+    return response.data;
+  },
+
+  submitTransferRequest: async (formData, config = {}) => {
+    const response = await api.post('/api/ownership-transfers', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      ...config
+    });
+    return response.data;
+  },
+
+  getMyTransferRequests: async (config = {}) => {
+    const response = await api.get('/api/ownership-transfers/my-requests', config);
+    return response.data;
+  },
+
+  cancelTransferRequest: async (id) => {
+    const response = await api.post(`/api/ownership-transfers/${id}/cancel`);
+    return response.data;
+  },
+
+  uploadAdditionalDocuments: async (id, formData, config = {}) => {
+    const response = await api.post(`/api/ownership-transfers/${id}/documents`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      ...config
+    });
+    return response.data;
+  },
+
+  getOwnershipTransferDetail: async (id) => {
+    const response = await api.get(`/api/admin/ownership-transfers/${id}`);
+    return response.data;
   }
 };
+
+
+
