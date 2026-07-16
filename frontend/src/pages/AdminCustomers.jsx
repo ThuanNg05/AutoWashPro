@@ -229,6 +229,7 @@ export const AdminCustomers = () => {
 
       {/* Customer Directory Table */}
       <Table
+        stickyHeader
         className="customer-table-vbordered"
         headers={[
           { label: "Khách hàng", className: "ps-4 py-3" },
