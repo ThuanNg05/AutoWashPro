@@ -583,7 +583,9 @@ namespace Auto_Wash.Migrations
                         .HasName("pk_loyaltytransactions");
 
                     b.HasIndex("BookingId")
-                        .HasDatabaseName("ix_loyaltytransactions_bookingid");
+                        .IsUnique()
+                        .HasDatabaseName("uq_loyaltytransactions_bookingid_earn")
+                        .HasFilter("transactiontype = 'Earn'");
 
                     b.HasIndex("CustomerId")
                         .HasDatabaseName("idx_lt_customerid");
@@ -710,6 +712,127 @@ namespace Auto_Wash.Migrations
                         .HasDatabaseName("idx_otp_platenumber");
 
                     b.ToTable("otpverifications", (string)null);
+                });
+
+            modelBuilder.Entity("Auto_Wash.Data.Entities.OwnershipTransferDocument", b =>
+                {
+                    b.Property<int>("DocumentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("documentid");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("DocumentId"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("contenttype");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("filename");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("filepath");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint")
+                        .HasColumnName("filesize");
+
+                    b.Property<string>("StoredFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("storedfilename");
+
+                    b.Property<int>("TransferRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("transferrequestid");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("uploadedat");
+
+                    b.HasKey("DocumentId")
+                        .HasName("pk_ownershiptransferdocuments");
+
+                    b.HasIndex("TransferRequestId")
+                        .HasDatabaseName("idx_transferdocs_requestid");
+
+                    b.ToTable("ownershiptransferdocuments", (string)null);
+                });
+
+            modelBuilder.Entity("Auto_Wash.Data.Entities.OwnershipTransferRequest", b =>
+                {
+                    b.Property<int>("TransferRequestId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("transferrequestid");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TransferRequestId"));
+
+                    b.Property<int>("CurrentOwnerCustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("currentownercustomerid");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("RejectReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("rejectreason");
+
+                    b.Property<int>("RequestedCustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("requestedcustomerid");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("reviewedat");
+
+                    b.Property<int?>("ReviewedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("reviewedby");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("submittedat");
+
+                    b.Property<int>("VehicleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vehicleid");
+
+                    b.HasKey("TransferRequestId")
+                        .HasName("pk_ownershiptransferrequests");
+
+                    b.HasIndex("CurrentOwnerCustomerId")
+                        .HasDatabaseName("ix_ownershiptransferrequests_currentownercustomerid");
+
+                    b.HasIndex("RequestedCustomerId")
+                        .HasDatabaseName("ix_ownershiptransferrequests_requestedcustomerid");
+
+                    b.HasIndex("ReviewedBy")
+                        .HasDatabaseName("ix_ownershiptransferrequests_reviewedby");
+
+                    b.HasIndex("VehicleId")
+                        .HasDatabaseName("ix_ownershiptransferrequests_vehicleid");
+
+                    b.ToTable("ownershiptransferrequests", (string)null);
                 });
 
             modelBuilder.Entity("Auto_Wash.Data.Entities.Payment", b =>
@@ -931,6 +1054,10 @@ namespace Auto_Wash.Migrations
                         .HasColumnType("boolean")
                         .HasColumnName("isactive");
 
+                    b.Property<bool>("IsAutomaticReward")
+                        .HasColumnType("boolean")
+                        .HasColumnName("isautomaticreward");
+
                     b.Property<int?>("MaxRedemptionsPerCustomer")
                         .HasColumnType("integer")
                         .HasColumnName("maxredemptionspercustomer");
@@ -981,6 +1108,73 @@ namespace Auto_Wash.Migrations
                         .HasDatabaseName("ix_rewards_serviceid");
 
                     b.ToTable("rewards", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            RewardId = 1001,
+                            Description = "Voucher giảm giá 5% cho hóa đơn dịch vụ",
+                            DiscountValue = 5m,
+                            IsActive = true,
+                            IsAutomaticReward = false,
+                            PointCost = 200,
+                            RedeemedCount = 0,
+                            RewardName = "Giảm giá 5%",
+                            RewardType = "DiscountPercent",
+                            ValidDays = 30
+                        },
+                        new
+                        {
+                            RewardId = 1002,
+                            Description = "Voucher giảm giá 10% cho hóa đơn dịch vụ",
+                            DiscountValue = 10m,
+                            IsActive = true,
+                            IsAutomaticReward = false,
+                            PointCost = 400,
+                            RedeemedCount = 0,
+                            RewardName = "Giảm giá 10%",
+                            RewardType = "DiscountPercent",
+                            ValidDays = 30
+                        },
+                        new
+                        {
+                            RewardId = 1003,
+                            Description = "Voucher giảm giá 15% cho hóa đơn dịch vụ",
+                            DiscountValue = 15m,
+                            IsActive = true,
+                            IsAutomaticReward = false,
+                            PointCost = 600,
+                            RedeemedCount = 0,
+                            RewardName = "Giảm giá 15%",
+                            RewardType = "DiscountPercent",
+                            ValidDays = 30
+                        },
+                        new
+                        {
+                            RewardId = 1004,
+                            Description = "Voucher giảm giá 20% cho hóa đơn dịch vụ",
+                            DiscountValue = 20m,
+                            IsActive = true,
+                            IsAutomaticReward = false,
+                            PointCost = 800,
+                            RedeemedCount = 0,
+                            RewardName = "Giảm giá 20%",
+                            RewardType = "DiscountPercent",
+                            ValidDays = 30
+                        },
+                        new
+                        {
+                            RewardId = 1005,
+                            Description = "Voucher miễn phí dịch vụ Rửa xe tiêu chuẩn",
+                            IsActive = true,
+                            IsAutomaticReward = false,
+                            PointCost = 1000,
+                            RedeemedCount = 0,
+                            RewardName = "Rửa xe miễn phí",
+                            RewardType = "Free_Wash",
+                            ServiceId = 999,
+                            ValidDays = 30
+                        });
                 });
 
             modelBuilder.Entity("Auto_Wash.Data.Entities.RewardRedemption", b =>
@@ -1166,6 +1360,51 @@ namespace Auto_Wash.Migrations
                     b.ToTable("tiers", (string)null);
                 });
 
+            modelBuilder.Entity("Auto_Wash.Data.Entities.TierChangeLog", b =>
+                {
+                    b.Property<int>("LogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("LogId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("createdat");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("customerid");
+
+                    b.Property<int?>("FromTierId")
+                        .HasColumnType("integer")
+                        .HasColumnName("oldtierid");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("reason");
+
+                    b.Property<int>("ToTierId")
+                        .HasColumnType("integer")
+                        .HasColumnName("newtierid");
+
+                    b.HasKey("LogId")
+                        .HasName("pk_tier_change_logs");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_tier_change_logs_customerid");
+
+                    b.HasIndex("FromTierId")
+                        .HasDatabaseName("ix_tier_change_logs_fromtierid");
+
+                    b.HasIndex("ToTierId")
+                        .HasDatabaseName("ix_tier_change_logs_totierid");
+
+                    b.ToTable("tier_change_logs", (string)null);
+                });
+
             modelBuilder.Entity("Auto_Wash.Data.Entities.TierPerk", b =>
                 {
                     b.Property<int>("PerkId")
@@ -1267,6 +1506,78 @@ namespace Auto_Wash.Migrations
                         .HasDatabaseName("uq_vehicles_licenseplate");
 
                     b.ToTable("vehicles", (string)null);
+                });
+
+            modelBuilder.Entity("Auto_Wash.Data.Entities.VehicleOwnershipHistory", b =>
+                {
+                    b.Property<int>("HistoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("historyid");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("HistoryId"));
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("approvedat");
+
+                    b.Property<int?>("ApprovedBy")
+                        .HasColumnType("integer")
+                        .HasColumnName("approvedby");
+
+                    b.Property<int>("CustomerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("customerid");
+
+                    b.Property<DateTime>("FromDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("fromdate");
+
+                    b.Property<int?>("NewOwnerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("newownerid");
+
+                    b.Property<int?>("OldOwnerId")
+                        .HasColumnType("integer")
+                        .HasColumnName("oldownerid");
+
+                    b.Property<DateTime?>("ToDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("todate");
+
+                    b.Property<int?>("TransferRequestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("transferrequestid");
+
+                    b.Property<string>("TransferType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("transfertype");
+
+                    b.Property<int>("VehicleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("vehicleid");
+
+                    b.HasKey("HistoryId")
+                        .HasName("pk_vehicleownershiphistory");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_vehicleownershiphistory_customerid");
+
+                    b.HasIndex("NewOwnerId")
+                        .HasDatabaseName("ix_vehicleownershiphistory_newownerid");
+
+                    b.HasIndex("OldOwnerId")
+                        .HasDatabaseName("ix_vehicleownershiphistory_oldownerid");
+
+                    b.HasIndex("TransferRequestId")
+                        .HasDatabaseName("ix_vehicleownershiphistory_transferrequestid");
+
+                    b.HasIndex("VehicleId")
+                        .HasDatabaseName("ix_vehicleownershiphistory_vehicleid");
+
+                    b.ToTable("vehicleownershiphistory", (string)null);
                 });
 
             modelBuilder.Entity("Auto_Wash.Data.Entities.Booking", b =>
@@ -1437,6 +1748,56 @@ namespace Auto_Wash.Migrations
                     b.Navigation("Customer");
                 });
 
+            modelBuilder.Entity("Auto_Wash.Data.Entities.OwnershipTransferDocument", b =>
+                {
+                    b.HasOne("Auto_Wash.Data.Entities.OwnershipTransferRequest", "TransferRequest")
+                        .WithMany("Documents")
+                        .HasForeignKey("TransferRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_ownershiptransferdocuments_ownershiptransferrequests_transf~");
+
+                    b.Navigation("TransferRequest");
+                });
+
+            modelBuilder.Entity("Auto_Wash.Data.Entities.OwnershipTransferRequest", b =>
+                {
+                    b.HasOne("Auto_Wash.Data.Entities.Customer", "CurrentOwner")
+                        .WithMany()
+                        .HasForeignKey("CurrentOwnerCustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_ownershiptransferrequests_customers_currentownercustomerid");
+
+                    b.HasOne("Auto_Wash.Data.Entities.Customer", "RequestedCustomer")
+                        .WithMany()
+                        .HasForeignKey("RequestedCustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_ownershiptransferrequests_customers_requestedcustomerid");
+
+                    b.HasOne("Auto_Wash.Data.Entities.Account", "ReviewedByAccount")
+                        .WithMany()
+                        .HasForeignKey("ReviewedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_ownershiptransferrequests_accounts_reviewedby");
+
+                    b.HasOne("Auto_Wash.Data.Entities.Vehicle", "Vehicle")
+                        .WithMany("OwnershipTransferRequests")
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_ownershiptransferrequests_vehicles_vehicleid");
+
+                    b.Navigation("CurrentOwner");
+
+                    b.Navigation("RequestedCustomer");
+
+                    b.Navigation("ReviewedByAccount");
+
+                    b.Navigation("Vehicle");
+                });
+
             modelBuilder.Entity("Auto_Wash.Data.Entities.Payment", b =>
                 {
                     b.HasOne("Auto_Wash.Data.Entities.Booking", "Booking")
@@ -1553,6 +1914,35 @@ namespace Auto_Wash.Migrations
                     b.Navigation("Reward");
                 });
 
+            modelBuilder.Entity("Auto_Wash.Data.Entities.TierChangeLog", b =>
+                {
+                    b.HasOne("Auto_Wash.Data.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tier_change_logs_customers_customerid");
+
+                    b.HasOne("Auto_Wash.Data.Entities.Tier", "FromTier")
+                        .WithMany()
+                        .HasForeignKey("FromTierId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_tier_change_logs_tiers_fromtierid");
+
+                    b.HasOne("Auto_Wash.Data.Entities.Tier", "ToTier")
+                        .WithMany()
+                        .HasForeignKey("ToTierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tier_change_logs_tiers_totierid");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("FromTier");
+
+                    b.Navigation("ToTier");
+                });
+
             modelBuilder.Entity("Auto_Wash.Data.Entities.TierPerk", b =>
                 {
                     b.HasOne("Auto_Wash.Data.Entities.Service", "Service")
@@ -1583,6 +1973,51 @@ namespace Auto_Wash.Migrations
                         .HasConstraintName("fk_vehicles_customers_customerid");
 
                     b.Navigation("Customer");
+                });
+
+            modelBuilder.Entity("Auto_Wash.Data.Entities.VehicleOwnershipHistory", b =>
+                {
+                    b.HasOne("Auto_Wash.Data.Entities.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_vehicleownershiphistory_customers_customerid");
+
+                    b.HasOne("Auto_Wash.Data.Entities.Customer", "NewOwner")
+                        .WithMany()
+                        .HasForeignKey("NewOwnerId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_vehicleownershiphistory_customers_newownerid");
+
+                    b.HasOne("Auto_Wash.Data.Entities.Customer", "OldOwner")
+                        .WithMany()
+                        .HasForeignKey("OldOwnerId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_vehicleownershiphistory_customers_oldownerid");
+
+                    b.HasOne("Auto_Wash.Data.Entities.OwnershipTransferRequest", "TransferRequest")
+                        .WithMany()
+                        .HasForeignKey("TransferRequestId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_vehicleownershiphistory_ownershiptransferrequests_transferr~");
+
+                    b.HasOne("Auto_Wash.Data.Entities.Vehicle", "Vehicle")
+                        .WithMany("OwnershipHistories")
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_vehicleownershiphistory_vehicles_vehicleid");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("NewOwner");
+
+                    b.Navigation("OldOwner");
+
+                    b.Navigation("TransferRequest");
+
+                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("Auto_Wash.Data.Entities.Account", b =>
@@ -1620,6 +2055,11 @@ namespace Auto_Wash.Migrations
                     b.Navigation("Vehicles");
                 });
 
+            modelBuilder.Entity("Auto_Wash.Data.Entities.OwnershipTransferRequest", b =>
+                {
+                    b.Navigation("Documents");
+                });
+
             modelBuilder.Entity("Auto_Wash.Data.Entities.Reward", b =>
                 {
                     b.Navigation("RewardRedemptions");
@@ -1651,6 +2091,10 @@ namespace Auto_Wash.Migrations
             modelBuilder.Entity("Auto_Wash.Data.Entities.Vehicle", b =>
                 {
                     b.Navigation("Bookings");
+
+                    b.Navigation("OwnershipHistories");
+
+                    b.Navigation("OwnershipTransferRequests");
 
                     b.Navigation("Queues");
                 });

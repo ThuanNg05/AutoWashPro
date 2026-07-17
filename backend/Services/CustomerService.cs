@@ -59,13 +59,34 @@ namespace Auto_Wash.Services
 
         public async Task<List<object>> GetVouchersAsync(int customerId)
         {
+            var now = DateTime.Now;
             var redemptions = await _context.RewardRedemptions
                 .Include(r => r.Reward)
                 .Where(r => r.CustomerId == customerId)
-                .OrderByDescending(r => r.RedeemedAt)
                 .ToListAsync();
 
-            return redemptions.Select(r => new
+            bool changed = false;
+            foreach (var r in redemptions)
+            {
+                if (r.Status == RedemptionStatus.Active && r.ExpiresAt < now)
+                {
+                    r.Status = RedemptionStatus.Expired;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            // Return only Active and Used vouchers
+            var filtered = redemptions
+                .Where(r => r.Status != RedemptionStatus.Expired)
+                .OrderByDescending(r => r.RedeemedAt)
+                .ToList();
+
+            return filtered.Select(r => new
             {
                 redemptionId = r.RedemptionId,
                 title = r.Reward.RewardName,
@@ -176,7 +197,7 @@ namespace Auto_Wash.Services
 
         public async Task<List<object>> GetRewardsAsync()
         {
-            var list = await _context.Rewards.Where(r => r.IsActive).ToListAsync();
+            var list = await _context.Rewards.Where(r => r.IsActive && !r.IsAutomaticReward).ToListAsync();
             return list.Select(r => new
             {
                 rewardId = r.RewardId,

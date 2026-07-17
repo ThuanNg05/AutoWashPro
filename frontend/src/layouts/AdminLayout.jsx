@@ -12,11 +12,13 @@ export const AdminLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const activeNav = location.pathname.startsWith('/admin/dashboard') ? 'dashboard' :
+                    location.pathname.startsWith('/admin/loyalty') ? 'loyalty' :
                     location.pathname.startsWith('/admin/queue') ? 'queue' :
                     location.pathname.startsWith('/admin/bookings') ? 'bookings' :
                     location.pathname.startsWith('/admin/customers') ? 'customers' :
                     location.pathname.startsWith('/admin/services') ? 'services' :
-                    location.pathname.startsWith('/admin/transactions') ? 'transactions' : 'dashboard';
+                    location.pathname.startsWith('/admin/transactions') ? 'transactions' :
+                    location.pathname.startsWith('/admin/ownership-transfers') ? 'ownership-transfers' : 'dashboard';
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
@@ -63,11 +65,17 @@ export const AdminLayout = () => {
           <Link to="/admin/customers" className={`sidebar-link ${activeNav === 'customers' ? 'active' : ''}`}>
             <i className="fas fa-users"></i> <span>Khách hàng</span>
           </Link>
+          <Link to="/admin/loyalty" className={`sidebar-link ${activeNav === 'loyalty' ? 'active' : ''}`}>
+            <i className="fas fa-crown"></i> <span>Quản lý Loyalty</span>
+          </Link>
           <Link to="/admin/services" className={`sidebar-link ${activeNav === 'services' ? 'active' : ''}`}>
             <i className="fas fa-box"></i> <span>Dịch vụ</span>
           </Link>
           <Link to="/admin/transactions" className={`sidebar-link ${activeNav === 'transactions' ? 'active' : ''}`}>
             <i className="fas fa-receipt"></i> <span>Lịch sử giao dịch</span>
+          </Link>
+          <Link to="/admin/ownership-transfers" className={`sidebar-link ${activeNav === 'ownership-transfers' ? 'active' : ''}`}>
+            <i className="fas fa-exchange-alt"></i> <span>Chuyển nhượng xe</span>
           </Link>
           <button type="button" className="sidebar-link text-danger opacity-75 border-0 bg-transparent w-100 text-start" onClick={handleLogout}>
             <i className="fas fa-sign-out-alt"></i> <span>Đăng xuất</span>

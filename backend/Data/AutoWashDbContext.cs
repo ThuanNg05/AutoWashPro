@@ -30,6 +30,9 @@ namespace Auto_Wash.Data
         public DbSet<BookingRescheduleHistory> BookingRescheduleHistories { get; set; } = null!;
         public DbSet<Payment> Payments { get; set; } = null!;
         public DbSet<TierChangeLog> TierChangeLogs { get; set; } = null!;
+        public DbSet<OwnershipTransferRequest> OwnershipTransferRequests { get; set; } = null!;
+        public DbSet<OwnershipTransferDocument> OwnershipTransferDocuments { get; set; } = null!;
+        public DbSet<VehicleOwnershipHistory> VehicleOwnershipHistories { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -59,6 +62,15 @@ namespace Auto_Wash.Data
                 .Property(r => r.Status)
                 .HasConversion<string>()
                 .HasMaxLength(20);
+
+            var transferStatusConverter = new ValueConverter<OwnershipTransferStatus, string>(
+                v => v.ToString(),
+                v => ParseLegacyTransferStatus(v));
+
+            builder.Entity<OwnershipTransferRequest>()
+                .Property(r => r.Status)
+                .HasConversion(transferStatusConverter)
+                .HasMaxLength(30);
 
             // LoyaltyTransactionType: string-backed enum with legacy value resolution
             var loyaltyTxTypeConverter = new ValueConverter<LoyaltyTransactionType, string>(
@@ -425,6 +437,69 @@ namespace Auto_Wash.Data
                 }
             );
 
+            builder.Entity<Reward>().HasData(
+                new Reward
+                {
+                    RewardId = 1001,
+                    RewardName = "Giảm giá 5%",
+                    Description = "Voucher giảm giá 5% cho hóa đơn dịch vụ",
+                    PointCost = 200,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 5,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1002,
+                    RewardName = "Giảm giá 10%",
+                    Description = "Voucher giảm giá 10% cho hóa đơn dịch vụ",
+                    PointCost = 400,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 10,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1003,
+                    RewardName = "Giảm giá 15%",
+                    Description = "Voucher giảm giá 15% cho hóa đơn dịch vụ",
+                    PointCost = 600,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 15,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1004,
+                    RewardName = "Giảm giá 20%",
+                    Description = "Voucher giảm giá 20% cho hóa đơn dịch vụ",
+                    PointCost = 800,
+                    RewardType = "DiscountPercent",
+                    DiscountValue = 20,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1005,
+                    RewardName = "Rửa xe miễn phí",
+                    Description = "Voucher miễn phí dịch vụ Rửa xe tiêu chuẩn",
+                    PointCost = 1000,
+                    RewardType = "Free_Wash",
+                    ServiceId = 999,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                }
+            );
+
 
 
             // Configure all tables and columns to be lowercase for Supabase PostgreSQL compatibility
@@ -493,6 +568,74 @@ namespace Auto_Wash.Data
                     .HasForeignKey(tcl => tcl.ToTierId)
                     .OnDelete(DeleteBehavior.Restrict);
             });
+
+            builder.Entity<OwnershipTransferRequest>(entity =>
+            {
+                entity.HasKey(e => e.TransferRequestId);
+
+                entity.HasOne(e => e.Vehicle)
+                    .WithMany(v => v.OwnershipTransferRequests)
+                    .HasForeignKey(e => e.VehicleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.CurrentOwner)
+                    .WithMany()
+                    .HasForeignKey(e => e.CurrentOwnerCustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.RequestedCustomer)
+                    .WithMany()
+                    .HasForeignKey(e => e.RequestedCustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.ReviewedByAccount)
+                    .WithMany()
+                    .HasForeignKey(e => e.ReviewedBy)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(e => e.Documents)
+                    .WithOne(d => d.TransferRequest)
+                    .HasForeignKey(d => d.TransferRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<OwnershipTransferDocument>(entity =>
+            {
+                entity.HasKey(e => e.DocumentId);
+
+                entity.HasIndex(e => e.TransferRequestId)
+                    .HasDatabaseName("idx_transferdocs_requestid");
+            });
+
+            builder.Entity<VehicleOwnershipHistory>(entity =>
+            {
+                entity.HasKey(e => e.HistoryId);
+
+                entity.HasOne(e => e.Vehicle)
+                    .WithMany(v => v.OwnershipHistories)
+                    .HasForeignKey(e => e.VehicleId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Customer)
+                    .WithMany()
+                    .HasForeignKey(e => e.CustomerId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.TransferRequest)
+                    .WithMany()
+                    .HasForeignKey(e => e.TransferRequestId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.OldOwner)
+                    .WithMany()
+                    .HasForeignKey(e => e.OldOwnerId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(e => e.NewOwner)
+                    .WithMany()
+                    .HasForeignKey(e => e.NewOwnerId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
         }
 
         /// <summary>
@@ -514,6 +657,23 @@ namespace Auto_Wash.Data
                 _ => Enum.TryParse<LoyaltyTransactionType>(value, true, out var result)
                      ? result
                      : LoyaltyTransactionType.Earn
+            };
+        }
+
+        private static OwnershipTransferStatus ParseLegacyTransferStatus(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return OwnershipTransferStatus.Pending;
+
+            return value.ToUpperInvariant() switch
+            {
+                "PENDING" or "PENDINGADMINAPPROVAL" => OwnershipTransferStatus.Pending,
+                "APPROVED" => OwnershipTransferStatus.Approved,
+                "REJECTED" => OwnershipTransferStatus.Rejected,
+                "CANCELLED" => OwnershipTransferStatus.Cancelled,
+                _ => Enum.TryParse<OwnershipTransferStatus>(value, true, out var result)
+                     ? result
+                     : OwnershipTransferStatus.Pending
             };
         }
     }

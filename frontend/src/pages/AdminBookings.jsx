@@ -99,7 +99,7 @@ export const AdminBookings = () => {
   useEffect(() => {
     loadBookings();
     const interval = setInterval(() => {
-      adminService.getBookings().then(res => {
+      adminService.getBookings({ skipGlobalLoader: true }).then(res => {
         if (res && res.success) {
           setBookings(res.bookings);
         }
@@ -574,15 +574,15 @@ export const AdminBookings = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="ALL">Tất cả trạng thái</option>
-              <option value="Pending">Chờ xác nhận (Pending)</option>
-              <option value="Confirmed">Đã xác nhận (Confirmed)</option>
-              <option value="CheckedIn">Đã check-in (CheckedIn)</option>
-              <option value="Washing">Đang rửa xe (Washing)</option>
-              <option value="Completed">Hoàn thành (Completed)</option>
-              <option value="Cancelled">Đã hủy (Cancelled)</option>
-              <option value="NoShow">Khách không đến (NoShow)</option>
-              <option value="WAITING_CHECKIN">Chờ check-in (Tổng hợp)</option>
-              <option value="PROCESSING">Đang xử lý (Tổng hợp)</option>
+              <option value="Pending">Chờ xác nhận</option>
+              <option value="Confirmed">Đã xác nhận</option>
+              <option value="CheckedIn">Đã check-in</option>
+              <option value="Washing">Đang rửa xe</option>
+              <option value="Completed">Hoàn thành</option>
+              <option value="Cancelled">Đã hủy</option>
+              <option value="NoShow">Khách không đến</option>
+              <option value="WAITING_CHECKIN">Chờ check-in</option>
+              <option value="PROCESSING">Đang xử lý</option>
             </select>
           </div>
 
@@ -592,6 +592,7 @@ export const AdminBookings = () => {
             </label>
             <input
               type="date"
+              lang="en-GB"
               className="form-control bg-light border-0 py-2 text-dark fw-bold"
               style={{ fontSize: "0.85rem" }}
               value={dateFilter}

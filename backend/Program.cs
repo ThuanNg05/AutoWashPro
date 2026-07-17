@@ -103,6 +103,9 @@ namespace Auto_Wash
             builder.Services.AddSingleton<IBookingRealtimeNotifier, BookingRealtimeNotifier>();
             builder.Services.AddHostedService<BookingWorkflowBackgroundService>();
 
+            // Vehicle Ownership Transfer registrations
+            builder.Services.AddScoped<OwnershipTransferService>();
+
 
             // Session support
             builder.Services.AddDistributedMemoryCache();

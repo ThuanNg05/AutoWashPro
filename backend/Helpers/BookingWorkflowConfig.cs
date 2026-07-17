@@ -18,6 +18,8 @@ namespace Auto_Wash.Helpers
             ("CheckIn", "Đã check-in"),
             ("Washing", "Đang rửa"),
             ("Drying", "Đã sấy khô"),
+            ("AutoCapture", "Tự động chụp ảnh"),
+            ("AutoSendMail", "Tự động gửi mail"),
             ("WaitingCheckout", "Chờ thanh toán"),
             ("Completed", "Hoàn tất")
         };
@@ -38,6 +40,8 @@ namespace Auto_Wash.Helpers
                 "CheckIn" => 20,
                 "Washing" => 50,
                 "Drying" => 80,
+                "AutoCapture" => 90,
+                "AutoSendMail" => 93,
                 "WaitingCheckout" => 95,
                 "Completed" => 100,
                 _ => 0
@@ -62,8 +66,12 @@ namespace Auto_Wash.Helpers
             }
             else if (booking != null && booking.Status == BookingStatus.WaitingCheckout)
             {
-                dto.CurrentStage = "WaitingCheckout";
-                dto.Progress = 95;
+                // Xe rửa xong nhưng chưa gửi ảnh báo khách => vẫn đang ở bước chụp ảnh.
+                // Gửi mail xong thì cả AutoCapture lẫn AutoSendMail đều được đánh dấu
+                // hoàn thành (bước gửi chạy dưới 1 giây nên không có trạng thái riêng).
+                var captured = booking.WaitingCheckoutEmailSent;
+                dto.CurrentStage = captured ? "WaitingCheckout" : "AutoCapture";
+                dto.Progress = captured ? 95 : 90;
                 dto.RemainingSeconds = 0;
             }
             else if (booking != null && booking.Status == BookingStatus.Completed)
@@ -128,10 +136,6 @@ namespace Auto_Wash.Helpers
             if (dto.CurrentStage == "Completed")
             {
                 activeIndex = OfficialStages.Length;
-            }
-            else if (dto.CurrentStage == "WaitingCheckout")
-            {
-                activeIndex = 3;
             }
             else
             {

@@ -21,11 +21,18 @@ namespace Auto_Wash.Services
             _loyaltyTierService = loyaltyTierService;
         }
 
-        public async Task<object> GetDashboardStatsAsync()
+        public async Task<object> GetDashboardStatsAsync(DateTime? fromDate = null, DateTime? toDate = null)
         {
             var today = DateTime.Today;
             var startDate = today.AddDays(-6);
             var prevStart = today.AddDays(-13);
+
+            // ── Period range (drives the date-filtered statistics below) ──
+            // Defaults to the last 7 days when the caller supplies no range.
+            var periodTo = (toDate?.Date) ?? today;
+            var periodFrom = (fromDate?.Date) ?? periodTo.AddDays(-6);
+            if (periodFrom > periodTo) periodFrom = periodTo;
+            var periodEndEx = periodTo.AddDays(1); // end-of-day inclusive
 
             // 1. Total Customers
             var totalCustomers = await _context.Customers.CountAsync();
@@ -116,6 +123,90 @@ namespace Auto_Wash.Services
                 .Select(i => startDate.AddDays(i).ToString("ddd", new System.Globalization.CultureInfo("vi-VN")))
                 .ToArray();
 
+            // ══ Period statistics (scoped to the [periodFrom, periodTo] filter) ══
+
+            // Money — Paid payments bucketed by PaidAt (mirrors revenue-stats).
+            var periodPayRows = await _context.Payments
+                .Where(p => p.Status == (int)PaymentStatus.Paid && p.PaidAt != null
+                         && p.PaidAt >= periodFrom && p.PaidAt < periodEndEx)
+                .Select(p => new { p.Amount, p.PaidAt, p.Booking.BasePrice, p.Booking.PromoDiscount })
+                .ToListAsync();
+
+            long periodNet = periodPayRows.Sum(r => (long)r.Amount);
+            long periodGross = periodPayRows.Sum(r => (long)r.BasePrice);
+            long periodDiscount = Math.Max(0, periodGross - periodNet);
+            int periodPaidCount = periodPayRows.Count;
+            int periodVoucherUsed = periodPayRows.Count(r => r.PromoDiscount > 0);
+
+            // Bookings placed within the range (by creation time).
+            int periodBookingCount = await _context.Bookings
+                .CountAsync(b => b.CreatedAt >= periodFrom && b.CreatedAt < periodEndEx);
+
+            // Washes completed within the range (by CompletedAt).
+            int periodCompletedCount = await _context.Bookings
+                .CountAsync(b => b.Status == BookingStatus.Completed
+                              && b.CompletedAt != null
+                              && b.CompletedAt >= periodFrom && b.CompletedAt < periodEndEx);
+
+            // Loyalty points granted on washes completed within the range.
+            long periodPointsGranted = await _context.Bookings
+                .Where(b => b.Status == BookingStatus.Completed
+                         && b.CompletedAt != null
+                         && b.CompletedAt >= periodFrom && b.CompletedAt < periodEndEx)
+                .SumAsync(b => (long)b.PointsEarned);
+
+            // Average rating for bookings completed within the range.
+            var periodAvgStarsNullable = await _context.Bookings
+                .Where(b => b.Stars.HasValue && b.CompletedAt != null
+                         && b.CompletedAt >= periodFrom && b.CompletedAt < periodEndEx)
+                .AverageAsync(b => (double?)b.Stars);
+            var periodAvgStars = periodAvgStarsNullable.HasValue ? Math.Round(periodAvgStarsNullable.Value, 1) : 0.0;
+
+            // Daily revenue for the chart. Zero-filled for short spans so the
+            // chart shows continuous days; falls back to present days otherwise.
+            var revenueByDay = periodPayRows
+                .Where(r => r.PaidAt.HasValue)
+                .GroupBy(r => r.PaidAt!.Value.Date)
+                .ToDictionary(g => g.Key, g => g.Sum(x => (long)x.Amount));
+
+            var spanDays = (periodEndEx - periodFrom).Days; // inclusive day count
+            var dailyRevenue = new List<object>();
+            if (spanDays > 0 && spanDays <= 62)
+            {
+                for (int i = 0; i < spanDays; i++)
+                {
+                    var d = periodFrom.AddDays(i);
+                    dailyRevenue.Add(new
+                    {
+                        date = d.ToString("yyyy-MM-dd"),
+                        total = revenueByDay.TryGetValue(d, out var v) ? v : 0L
+                    });
+                }
+            }
+            else
+            {
+                dailyRevenue = revenueByDay
+                    .OrderBy(kv => kv.Key)
+                    .Select(kv => (object)new { date = kv.Key.ToString("yyyy-MM-dd"), total = kv.Value })
+                    .ToList();
+            }
+
+            var period = new
+            {
+                fromDate = periodFrom.ToString("yyyy-MM-dd"),
+                toDate = periodTo.ToString("yyyy-MM-dd"),
+                netRevenue = periodNet,
+                grossRevenue = periodGross,
+                totalDiscount = periodDiscount,
+                paidCount = periodPaidCount,
+                bookingCount = periodBookingCount,
+                completedCount = periodCompletedCount,
+                pointsGranted = periodPointsGranted,
+                voucherUsedCount = periodVoucherUsed,
+                avgStars = periodAvgStars,
+                dailyRevenue
+            };
+
             return new
             {
                 totalCustomers,
@@ -130,7 +221,8 @@ namespace Auto_Wash.Services
                 tierDistribution = tierDist,
                 bookingStatusCount,
                 serviceUsageStats,
-                dayLabels
+                dayLabels,
+                period
             };
         }
 

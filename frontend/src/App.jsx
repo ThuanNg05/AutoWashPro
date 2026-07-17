@@ -19,6 +19,7 @@ const CustomerBookings = lazy(() => import('./pages/CustomerBookings'));
 const CustomerProfile = lazy(() => import('./pages/CustomerProfile'));
 const CustomerVehicles = lazy(() => import('./pages/CustomerVehicles'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminLoyalty = lazy(() => import('./pages/AdminLoyalty'));
 const AdminQueue = lazy(() => import('./pages/AdminQueue'));
 const AdminCustomers = lazy(() => import('./pages/AdminCustomers'));
 const AdminServices = lazy(() => import('./pages/AdminServices'));
@@ -26,6 +27,7 @@ const AdminBookings = lazy(() => import('./pages/AdminBookings'));
 const AdminTransactions = lazy(() => import('./pages/AdminTransactions'));
 const AdminDemoTools = lazy(() => import('./pages/AdminDemoTools'));
 const PaymentResult = lazy(() => import('./pages/PaymentResult'));
+const AdminOwnershipTransfers = lazy(() => import('./pages/AdminOwnershipTransfers'));
 
 const PageLoader = () => (
   <div className="d-flex align-items-center justify-content-center vh-100 bg-light">
@@ -79,12 +81,14 @@ function App() {
           >
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="loyalty" element={<AdminLoyalty />} />
             <Route path="queue" element={<AdminQueue />} />
             <Route path="bookings" element={<AdminBookings />} />
             <Route path="customers" element={<AdminCustomers />} />
             <Route path="services" element={<AdminServices />} />
             <Route path="transactions" element={<AdminTransactions />} />
             <Route path="demo-tools" element={<AdminDemoTools />} />
+            <Route path="ownership-transfers" element={<AdminOwnershipTransfers />} />
           </Route>
 
           {/* Payment Result (accessible by all authenticated users) */}

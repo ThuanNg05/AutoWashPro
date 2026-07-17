@@ -1,8 +1,11 @@
 import api from './api';
 
 export const adminService = {
-  getDashboardStats: async () => {
-    const response = await api.get('/Admin/DashboardStats');
+  getDashboardStats: async (filters = {}) => {
+    const params = {};
+    if (filters.fromDate) params.fromDate = filters.fromDate;
+    if (filters.toDate) params.toDate = filters.toDate;
+    const response = await api.get('/Admin/DashboardStats', { params });
     return response.data;
   },
 
@@ -26,8 +29,8 @@ export const adminService = {
     return response.data;
   },
 
-  getQueue: async () => {
-    const response = await api.get('/Admin/GetQueue');
+  getQueue: async (config = {}) => {
+    const response = await api.get('/Admin/GetQueue', config);
     return response.data;
   },
 
@@ -124,8 +127,8 @@ export const adminService = {
     return response.data;
   },
 
-  getBookings: async () => {
-    const response = await api.get('/api/admin/bookings');
+  getBookings: async (config = {}) => {
+    const response = await api.get('/api/admin/bookings', config);
     return response.data;
   },
 
@@ -199,6 +202,30 @@ export const adminService = {
     if (filters.fromDate) params.fromDate = filters.fromDate;
     if (filters.toDate) params.toDate = filters.toDate;
     const response = await api.get('/api/payment/revenue-stats', { params });
+    return response.data;
+  },
+
+  // Ownership Transfer Admin APIs
+  getOwnershipTransfers: async (status, search, config = {}) => {
+    const params = {};
+    if (status) params.status = status;
+    if (search) params.search = search;
+    const response = await api.get('/api/admin/ownership-transfers', { params, ...config });
+    return response.data;
+  },
+
+  getOwnershipTransferDetail: async (id) => {
+    const response = await api.get(`/api/admin/ownership-transfers/${id}`);
+    return response.data;
+  },
+
+  approveTransfer: async (id) => {
+    const response = await api.put(`/api/admin/ownership-transfers/${id}/approve`);
+    return response.data;
+  },
+
+  rejectTransfer: async (id, reason) => {
+    const response = await api.put(`/api/admin/ownership-transfers/${id}/reject`, { RejectReason: reason });
     return response.data;
   }
 };

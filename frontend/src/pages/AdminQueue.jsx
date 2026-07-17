@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { adminService } from "../services/adminService";
 import { useBookingHub } from "../hooks/useBookingHub";
+import WebcamCaptureModal from "../components/admin/WebcamCaptureModal";
 import "../styles/shared.css";
 import "../styles/admin/bookings.css";
 import "../styles/admin/queue.css";
@@ -45,6 +46,8 @@ export const AdminQueue = () => {
   const photoInputRef = useRef(null);
   const photoTargetRef = useRef(null);
   const [sendingPhotoId, setSendingPhotoId] = useState(null);
+  // Bước "Tự động chụp ảnh": item đang mở webcam (null = đóng modal)
+  const [captureTarget, setCaptureTarget] = useState(null);
 
   const fetchQueue = async () => {
     setLoading(true);
@@ -131,7 +134,7 @@ export const AdminQueue = () => {
         if (document.hidden) return;
 
         adminService
-          .getQueue()
+          .getQueue({ skipGlobalLoader: true })
           .then((res) => {
             if (res) {
               setQueue({
@@ -225,7 +228,7 @@ export const AdminQueue = () => {
     (payload) => {
       if (window.showToast)
         window.showToast(
-          `Xe ${payload.licensePlate} đã rửa xong — chụp ảnh và báo khách!`,
+          `Xe ${payload.licensePlate} đã rửa xong — đang chờ tự động chụp ảnh!`,
           "info",
         );
       fetchQueue();
@@ -270,6 +273,12 @@ export const AdminQueue = () => {
       }
     }
 
+    await sendPhotos(queueId, files);
+    photoTargetRef.current = null;
+  };
+
+  // Upload + gửi mail. Dùng chung cho webcam (bước auto capture) và file picker.
+  const sendPhotos = async (queueId, files) => {
     setSendingPhotoId(queueId);
     try {
       const response = await adminService.sendCompletionPhotos(queueId, files);
@@ -277,23 +286,31 @@ export const AdminQueue = () => {
         if (window.showToast)
           window.showToast("Đã gửi email kèm ảnh báo khách!", "success");
         fetchQueue();
-      } else {
-        if (window.showToast)
-          window.showToast(
-            response.message || "Lỗi khi gửi ảnh báo khách!",
-            "error",
-          );
+        return true;
       }
+      if (window.showToast)
+        window.showToast(
+          response.message || "Lỗi khi gửi ảnh báo khách!",
+          "error",
+        );
+      return false;
     } catch (err) {
       if (window.showToast)
         window.showToast(
           err.response?.data?.message || "Lỗi kết nối khi gửi ảnh báo khách!",
           "error",
         );
+      return false;
     } finally {
       setSendingPhotoId(null);
-      photoTargetRef.current = null;
     }
+  };
+
+  // Chụp xong là gửi luôn — lỗi thì giữ modal để chụp lại.
+  const handleWebcamCapture = async (file) => {
+    if (!captureTarget) return;
+    const ok = await sendPhotos(captureTarget.queueId, [file]);
+    if (ok) setCaptureTarget(null);
   };
 
   // Move vehicle to next stage
@@ -483,6 +500,7 @@ export const AdminQueue = () => {
       item.progressTracking.stages.length > 0
     ) {
       return item.progressTracking.stages.map((stage) => ({
+        stageKey: stage.stageKey,
         name: stage.displayName,
         isCompleted: stage.isCompleted,
         isActive: stage.isActive,
@@ -493,6 +511,7 @@ export const AdminQueue = () => {
     const stages = getServiceStages(item.mainService || "Standard Car Wash");
     const activeIndex = getActiveStageIndex(item, stages);
     return stages.map((stage, idx) => ({
+      stageKey: null,
       name: stage,
       isCompleted: idx < activeIndex,
       isActive: idx === activeIndex,
@@ -566,7 +585,7 @@ export const AdminQueue = () => {
 
   // Filtered sections
   const filteredWaiting = useMemo(() => {
-    if (statusFilter === "ALL" || statusFilter === "WAITING_CHECKIN")
+    if (statusFilter === "WAITING_CHECKIN")
       return waitingItems;
     return [];
   }, [waitingItems, statusFilter]);
@@ -797,6 +816,8 @@ export const AdminQueue = () => {
   // ── Completed Card (even more compact) ──
   const renderCompletedCard = (item) => {
     const isWaitingCheckout = item.bookingStatus === "WaitingCheckout";
+    // Rửa xong nhưng chưa gửi ảnh => đang ở bước "Tự động chụp ảnh" (90%).
+    const isCapturing = isWaitingCheckout && item.customerNotified === false;
     return (
       <div
         key={item.queueId}
@@ -841,7 +862,11 @@ export const AdminQueue = () => {
             className="stage-dot"
             style={{ background: isWaitingCheckout ? "#f59e0b" : "#22c55e" }}
           ></span>
-          {isWaitingCheckout ? "Chờ thanh toán" : "Hoàn tất"}
+          {isCapturing
+            ? "Tự động chụp ảnh"
+            : isWaitingCheckout
+              ? "Chờ thanh toán"
+              : "Hoàn tất"}
         </div>
 
         <div className="mt-2 mb-1">
@@ -856,7 +881,7 @@ export const AdminQueue = () => {
               className="small fw-bold text-dark"
               style={{ fontSize: "0.68rem" }}
             >
-              {isWaitingCheckout ? "95%" : "100%"}
+              {isCapturing ? "90%" : isWaitingCheckout ? "95%" : "100%"}
             </span>
           </div>
           <div
@@ -870,7 +895,7 @@ export const AdminQueue = () => {
             <div
               className="progress-bar"
               style={{
-                width: isWaitingCheckout ? "95%" : "100%",
+                width: isCapturing ? "90%" : isWaitingCheckout ? "95%" : "100%",
                 background: isWaitingCheckout ? "#f59e0b" : "#22c55e",
                 borderRadius: "10px",
               }}
@@ -890,35 +915,47 @@ export const AdminQueue = () => {
           </div>
         </div>
         <div className="queue-card-actions" style={{ flexDirection: "column", gap: "4px" }}>
-          {isWaitingCheckout && item.customerNotified === false && (
-            <button
-              className="queue-btn w-100"
-              style={{
-                padding: "4px 10px",
-                fontSize: "0.62rem",
-                background: "#f59e0b",
-                color: "#fff",
-                border: "none",
-                fontWeight: 700,
-              }}
-              disabled={sendingPhotoId === item.queueId}
-              onClick={() => handleOpenPhotoPicker(item)}
-            >
-              {sendingPhotoId === item.queueId ? (
-                <>
-                  <span
-                    className="spinner-border spinner-border-sm me-1"
-                    style={{ width: "10px", height: "10px" }}
-                  ></span>
-                  ĐANG GỬI...
-                </>
-              ) : (
-                <>
-                  <i className="bi bi-camera-fill me-1"></i>
-                  CHỤP ẢNH & BÁO KHÁCH
-                </>
-              )}
-            </button>
+          {isCapturing && (
+            <>
+              <button
+                className="queue-btn w-100"
+                style={{
+                  padding: "4px 10px",
+                  fontSize: "0.62rem",
+                  background: "#f59e0b",
+                  color: "#fff",
+                  border: "none",
+                  fontWeight: 700,
+                }}
+                disabled={sendingPhotoId === item.queueId}
+                onClick={() => setCaptureTarget(item)}
+              >
+                {sendingPhotoId === item.queueId ? (
+                  <>
+                    <span
+                      className="spinner-border spinner-border-sm me-1"
+                      style={{ width: "10px", height: "10px" }}
+                    ></span>
+                    ĐANG GỬI...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-camera-video-fill me-1"></i>
+                    DEMO: MỞ CAMERA
+                  </>
+                )}
+              </button>
+              {/* Dự phòng khi máy demo không có webcam hoặc bị từ chối quyền */}
+              <button
+                className="queue-btn queue-btn-detail w-100"
+                style={{ padding: "3px 10px", fontSize: "0.62rem" }}
+                disabled={sendingPhotoId === item.queueId}
+                onClick={() => handleOpenPhotoPicker(item)}
+              >
+                <i className="bi bi-upload me-1"></i>
+                TẢI ẢNH LÊN
+              </button>
+            </>
           )}
           {isWaitingCheckout && item.customerNotified === true && (
             <span
@@ -969,6 +1006,19 @@ export const AdminQueue = () => {
         style={{ display: "none" }}
         onChange={handlePhotosSelected}
       />
+
+      {/* Bước "Tự động chụp ảnh": webcam laptop thay cho camera phần cứng.
+          Wrapper nâng z-index để nổi trên modal "Chi tiết công đoạn" (1060),
+          vì component Modal dùng chung cố định z-index 1050. */}
+      <div style={{ position: "relative", zIndex: 1070 }}>
+        <WebcamCaptureModal
+          isOpen={!!captureTarget}
+          onClose={() => setCaptureTarget(null)}
+          onCapture={handleWebcamCapture}
+          licensePlate={captureTarget?.licensePlate}
+          busy={!!captureTarget && sendingPhotoId === captureTarget.queueId}
+        />
+      </div>
 
       {/* Page Header */}
       <div className="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
@@ -1283,6 +1333,14 @@ export const AdminQueue = () => {
                   </label>
                   <div className="d-flex flex-column gap-2 mb-3">
                     {getModalStages(selectedVehicle).map((step, idx) => {
+                      // Bước chụp ảnh chờ người demo bấm chụp, nên thay badge
+                      // "Đang chạy" bằng nút mở webcam ngay tại dòng này.
+                      const isCaptureAction =
+                        step.stageKey === "AutoCapture" &&
+                        step.isActive &&
+                        selectedVehicle.customerNotified === false;
+                      const isSending =
+                        sendingPhotoId === selectedVehicle.queueId;
                       return (
                         <div
                           key={idx}
@@ -1346,7 +1404,35 @@ export const AdminQueue = () => {
                               Xong
                             </span>
                           )}
-                          {step.isActive && (
+                          {isCaptureAction && (
+                            <button
+                              className="btn btn-sm fw-bold text-white"
+                              style={{
+                                fontSize: "0.62rem",
+                                background: "#f59e0b",
+                                border: "none",
+                                whiteSpace: "nowrap",
+                              }}
+                              disabled={isSending}
+                              onClick={() => setCaptureTarget(selectedVehicle)}
+                            >
+                              {isSending ? (
+                                <>
+                                  <span
+                                    className="spinner-border spinner-border-sm me-1"
+                                    style={{ width: "10px", height: "10px" }}
+                                  ></span>
+                                  ĐANG GỬI...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="bi bi-camera-video-fill me-1"></i>
+                                  MỞ CAMERA CHỤP
+                                </>
+                              )}
+                            </button>
+                          )}
+                          {step.isActive && !isCaptureAction && (
                             <span
                               className="badge bg-info bg-opacity-10 text-cyan animate-pulse"
                               style={{ fontSize: "0.6rem" }}

@@ -120,6 +120,15 @@ namespace Auto_Wash.Services
                 return (false, "Phương tiện không tồn tại hoặc không thuộc sở hữu của bạn. Vui lòng kiểm tra lại.", 0);
             }
 
+            // Lock Check: block locked vehicles from booking
+            bool isLocked = await _context.OwnershipTransferRequests
+                .AnyAsync(r => r.VehicleId == vehicle.VehicleId && 
+                               r.Status == OwnershipTransferStatus.Pending);
+            if (isLocked)
+            {
+                return (false, "Không thể đặt lịch hẹn cho phương tiện đang trong quá trình chuyển nhượng sở hữu.", 0);
+            }
+
             // 1b. Validate active booking check
             var hasActiveBooking = await _context.Bookings
                 .WhereActive()
@@ -254,24 +263,36 @@ namespace Auto_Wash.Services
                     if (!string.IsNullOrWhiteSpace(request.VoucherCode))
                     {
                         var normCode = request.VoucherCode.Trim().ToUpper();
-                        if (normCode.StartsWith("AW-RED-"))
+
+                        // 1. Try finding by stored VoucherCode directly (works for AW-UP-, AW-RED- stored in DB)
+                        redemption = await _context.RewardRedemptions
+                            .Include(r => r.Reward)
+                            .FirstOrDefaultAsync(r => r.VoucherCode != null && r.VoucherCode.ToUpper() == normCode
+                                                   && r.CustomerId == customer.CustomerId
+                                                   && r.Status == RedemptionStatus.Active);
+
+                        // 2. Legacy/dynamic code fallbacks (for cases where VoucherCode column is not populated yet or WELCOME10)
+                        if (redemption == null)
                         {
-                            if (int.TryParse(normCode.Substring(7), out int parsedRedemptionId))
+                            if (normCode.StartsWith("AW-RED-"))
+                            {
+                                if (int.TryParse(normCode.Substring(7), out int parsedRedemptionId))
+                                {
+                                    redemption = await _context.RewardRedemptions
+                                        .Include(r => r.Reward)
+                                        .FirstOrDefaultAsync(r => r.RedemptionId == parsedRedemptionId
+                                                               && r.CustomerId == customer.CustomerId
+                                                               && r.Status == RedemptionStatus.Active);
+                                }
+                            }
+                            else if (normCode == $"WELCOME10-{customer.CustomerId}".ToUpper())
                             {
                                 redemption = await _context.RewardRedemptions
                                     .Include(r => r.Reward)
-                                    .FirstOrDefaultAsync(r => r.RedemptionId == parsedRedemptionId
+                                    .FirstOrDefaultAsync(r => r.Reward.PointCost == 0
                                                            && r.CustomerId == customer.CustomerId
                                                            && r.Status == RedemptionStatus.Active);
                             }
-                        }
-                        else if (normCode == $"WELCOME10-{customer.CustomerId}".ToUpper())
-                        {
-                            redemption = await _context.RewardRedemptions
-                                .Include(r => r.Reward)
-                                .FirstOrDefaultAsync(r => r.Reward.PointCost == 0
-                                                       && r.CustomerId == customer.CustomerId
-                                                       && r.Status == RedemptionStatus.Active);
                         }
                     }
                     else if (request.AppliedRedemptionId.HasValue)
@@ -285,6 +306,11 @@ namespace Auto_Wash.Services
 
                     if (redemption != null)
                     {
+                        if (redemption.ExpiresAt < DateTime.Now)
+                        {
+                            return (false, "Voucher này đã hết hạn sử dụng.", 0);
+                        }
+
                         if (redemption.Reward.RewardType == "DiscountPercent" || redemption.Reward.RewardType == "UpgradeReward")
                         {
                             promoDiscount = (int)(calculatedBasePrice * (redemption.Reward.DiscountValue ?? 0) / 100);

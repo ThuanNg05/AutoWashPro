@@ -1,12 +1,13 @@
 import React from 'react';
 
-export const Table = ({ headers, children, emptyMessage = "Không tìm thấy kết quả", className = "" }) => {
+export const Table = ({ headers, children, emptyMessage = "Không tìm thấy kết quả", className = "", stickyHeader = false, maxHeight = '65vh' }) => {
+  const scrollStyle = stickyHeader ? { maxHeight, overflowY: 'auto' } : {};
   return (
     <div className="app-card p-0 overflow-hidden border-0 shadow-sm bg-white rounded-4">
-      <div className="table-responsive">
+      <div className="table-responsive" style={scrollStyle}>
         <table className={`table table-hover align-middle mb-0 ${className}`.trim()}>
-          <thead className="bg-light">
-            <tr className="small text-uppercase text-muted" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
+          <thead className={`bg-light${stickyHeader ? ' table-sticky-head' : ''}`}>
+            <tr className="small text-uppercase text-muted align-middle" style={{ fontSize: '0.72rem', letterSpacing: '0.5px' }}>
               {headers.map((h, i) => (
                 <th key={i} className={h.className || ''} style={h.style || {}}>
                   {h.label}
