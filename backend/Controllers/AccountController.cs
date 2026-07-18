@@ -9,6 +9,8 @@ using Auto_Wash.Data.Entities;
 
 namespace Auto_Wash.Controllers
 {
+    [ApiController]
+    [Route("api/[controller]")]
     public class AccountController : Controller
     {
         private readonly AccountService _accountService;
@@ -60,7 +62,7 @@ namespace Auto_Wash.Controllers
             };
         }
 
-        [HttpPost]
+        [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Identifier) || string.IsNullOrWhiteSpace(request.Password))
@@ -81,10 +83,10 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [HttpPost]
-        [Route("Account/Logout")]
-        [Route("api/account/logout")]
+        //[HttpGet]
+        [HttpPost("Logout")]
+        //[Route("Account/Logout")]
+        //[Route("api/account/logout")]
         public IActionResult Logout()
         {
             HttpContext.Session.Clear();
@@ -94,9 +96,9 @@ namespace Auto_Wash.Controllers
             return Ok(new { success = true });
         }
 
-        [HttpGet]
-        [Route("Account/Me")]
-        [Route("api/account/me")]
+        [HttpGet("Me")]
+        //[Route("Account/Me")]
+        //[Route("api/account/me")]
         public async Task<IActionResult> Me()
         {
             var accountId = HttpContext.Session.GetInt32("AccountId");
@@ -143,7 +145,7 @@ namespace Auto_Wash.Controllers
             });
         }
 
-        [HttpPost]
+        [HttpPost("GoogleLogin")]
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.GoogleId))
@@ -199,7 +201,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("CompleteGoogleSignup")]
         public async Task<IActionResult> CompleteGoogleSignup([FromBody] CompleteGoogleSignupRequestDto request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.GoogleId))
@@ -238,7 +240,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("SendRegisterOtp")]
         public async Task<IActionResult> SendRegisterOtp([FromBody] SendRegisterOtpRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email))
@@ -284,7 +286,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("Register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.FullName) || string.IsNullOrWhiteSpace(request.OtpCode))
