@@ -53,6 +53,7 @@ namespace Auto_Wash.Services
                 .Include(b => b.Customer)
                     .ThenInclude(c => c.Tier)
                 .Include(b => b.Vehicle)
+                .Include(b => b.Payment)
                 .Include(b => b.AppliedRedemption)
                     .ThenInclude(r => r!.Reward)
                 .FirstOrDefaultAsync(x => x.BookingId == bookingId);
@@ -167,6 +168,11 @@ namespace Auto_Wash.Services
                 pointsEarned = b.PointsEarned,
                 status = b.Status.ToString(),
                 cancelReason = b.CancelReason,
+                paidAt = b.Payment?.PaidAt,
+                paymentMethod = b.Payment != null ? ((PaymentMethod)b.Payment.PaymentMethod).ToString() : null,
+                transactionNo = b.Payment?.TransactionNo,
+                paymentStatus = b.Payment != null ? ((PaymentStatus)b.Payment.Status).ToString() : null,
+                invoice = b.Payment != null && b.Payment.Status == (int)PaymentStatus.Paid ? new { invoiceNumber = $"INV-{b.BookingId}-{b.Payment.PaymentId}", amount = b.Payment.Amount, createdAt = b.Payment.PaidAt ?? b.Payment.CreatedAt } : null,
                 createdAt = b.CreatedAt,
                 timeline = timeline,
                 reschedules = reschedules

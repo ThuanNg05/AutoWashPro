@@ -210,32 +210,34 @@ export const CustomerBookings = () => {
     return () => clearInterval(id);
   }, [showDetailModal, detailModalBooking]);
 
-  // Handle payment redirect query params from PayOS return URL
+  // Handle payment redirect notification toast from React Router state
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const paymentStatus = params.get('payment');
-    const bookingId = params.get('bookingId');
-
-    if (paymentStatus) {
-      if (paymentStatus === 'success') {
-        if (window.showToast) window.showToast(`Thanh toán thành công cho lịch đặt #${bookingId}!`, 'success');
-        // Sync loyalty points from backend
-        customerService.getLoyaltyStatus().then(res => {
-          if (res && res.success) {
-            const updates = {};
-            if (res.pointBalance != null) updates.points = res.pointBalance;
-            if (res.tierName) updates.tier = res.tierName;
-            if (Object.keys(updates).length > 0) updateUser(updates);
-          }
-        }).catch(err => console.error('Error syncing loyalty after payment:', err));
-      } else if (paymentStatus === 'cancel') {
-        if (window.showToast) window.showToast(`Giao dịch thanh toán #${bookingId} đã bị hủy.`, 'warning');
+    if (location.state?.paymentStatus) {
+      const status = location.state.paymentStatus;
+      
+      if (window.showToast) {
+        if (status === 'success') {
+          window.showToast(`Thanh toán thành công cho lịch đặt #${routeId}!`, 'success');
+        } else if (status === 'cancel') {
+          window.showToast(`Giao dịch thanh toán #${routeId} đã bị hủy.`, 'warning');
+        } else if (status === 'failed') {
+          window.showToast(`Xác nhận thanh toán cho lịch đặt #${routeId} thất bại.`, 'error');
+        } else if (status === 'timeout') {
+          window.showToast(`Hệ thống chưa nhận được xác nhận thanh toán cho lịch đặt #${routeId}. Vui lòng kiểm tra lại sau.`, 'warning');
+        } else if (status === 'error') {
+          window.showToast(`Đã xảy ra lỗi trong quá trình thanh toán lịch đặt #${routeId}.`, 'error');
+        }
       }
-      // Clean query params from URL
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
+
+      // Clear state to avoid toast triggering on reload
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.search, updateUser]);
+  }, [location.state, navigate, location.pathname, routeId]);
+
+  const handleCopy = (text, label) => {
+    navigator.clipboard.writeText(text);
+    if (window.showToast) window.showToast(`Đã sao chép ${label}!`, 'success');
+  };
 
   useEffect(() => {
     loadData();
@@ -1058,7 +1060,7 @@ export const CustomerBookings = () => {
                         <span className="fw-bold small" style={{ fontSize: '0.78rem' }}>TỔNG THANH TOÁN:</span>
                         <strong className="text-cyan fs-5">{Number(detailModalBooking.finalPrice).toLocaleString()}đ</strong>
                       </div>
-                      <div className="d-flex align-items-center justify-content-between border-top pt-1.5 mt-1.5" style={{ fontSize: '0.75rem' }}>
+                      <div className="d-flex align-items-center justify-content-between border-top pt-1.5 mt-1.5 mb-1.5" style={{ fontSize: '0.75rem' }}>
                         {detailModalBooking.status === 'Completed' ? (
                           <>
                             <div>
@@ -1077,19 +1079,71 @@ export const CustomerBookings = () => {
                           </div>
                         )}
                       </div>
-                      {detailModalBooking.status === 'Completed' && (
-                        <div className="border-top pt-1.5 mt-1.5" style={{ fontSize: '0.75rem' }}>
-                          <small className="text-secondary d-block mb-1">Thời gian thanh toán: <strong>{detailModalBooking.paidAt ? new Date(detailModalBooking.paidAt).toLocaleString('vi-VN') : 'Đã thanh toán'}</strong></small>
+
+                      {/* Payment Details Card */}
+                      {detailModalBooking.status === 'Completed' ? (
+                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem', borderStyle: 'dashed' }}>
+                          <div className="d-flex align-items-center justify-content-between mb-1.5">
+                            <span className="text-secondary">Trạng thái thanh toán:</span>
+                            <span className="badge bg-success bg-opacity-10 text-success fw-bold" style={{ fontSize: '0.65rem', padding: '3px 8px' }}>
+                              ĐÃ THANH TOÁN
+                            </span>
+                          </div>
+                          <div className="d-flex align-items-center justify-content-between mb-1.5">
+                            <span className="text-secondary">Thời gian thanh toán:</span>
+                            <strong className="text-dark">
+                              {detailModalBooking.paidAt ? new Date(detailModalBooking.paidAt).toLocaleString('vi-VN') : 'Đã thanh toán'}
+                            </strong>
+                          </div>
                           {detailModalBooking.paymentMethod && (
-                            <small className="text-secondary d-block mb-0.5">Phương thức: <strong>{detailModalBooking.paymentMethod === 'PayOS' ? 'Thanh toán trực tuyến (PayOS)' : detailModalBooking.paymentMethod}</strong></small>
+                            <div className="d-flex align-items-center justify-content-between mb-1.5">
+                              <span className="text-secondary">Phương thức:</span>
+                              <strong className="text-dark">
+                                {detailModalBooking.paymentMethod === 'PayOS' ? 'Thanh toán trực tuyến (PayOS)' : detailModalBooking.paymentMethod}
+                              </strong>
+                            </div>
                           )}
                           {detailModalBooking.transactionNo && (
-                            <small className="text-secondary d-block mb-0.5">Mã giao dịch: <strong className="font-monospace">{detailModalBooking.transactionNo}</strong></small>
+                            <div className="d-flex align-items-center justify-content-between mb-1.5">
+                              <span className="text-secondary">Mã giao dịch:</span>
+                              <div className="d-flex align-items-center gap-1.5">
+                                <strong className="font-monospace text-dark">{detailModalBooking.transactionNo}</strong>
+                                <button 
+                                  onClick={() => handleCopy(detailModalBooking.transactionNo, 'mã giao dịch')}
+                                  className="btn btn-link p-0 text-cyan text-decoration-none"
+                                  style={{ fontSize: '0.7rem' }}
+                                  title="Sao chép"
+                                >
+                                  <i className="far fa-copy"></i>
+                                </button>
+                              </div>
+                            </div>
                           )}
                           {detailModalBooking.invoice && (
-                            <small className="text-secondary d-block mb-0.5">Số hóa đơn: <strong className="font-monospace">{detailModalBooking.invoice.invoiceNumber}</strong></small>
+                            <div className="d-flex align-items-center justify-content-between mb-0">
+                              <span className="text-secondary">Số hóa đơn:</span>
+                              <div className="d-flex align-items-center gap-1.5">
+                                <strong className="font-monospace text-dark">{detailModalBooking.invoice.invoiceNumber}</strong>
+                                <button 
+                                  onClick={() => handleCopy(detailModalBooking.invoice.invoiceNumber, 'số hóa đơn')}
+                                  className="btn btn-link p-0 text-cyan text-decoration-none"
+                                  style={{ fontSize: '0.7rem' }}
+                                  title="Sao chép"
+                                >
+                                  <i className="far fa-copy"></i>
+                                </button>
+                              </div>
+                            </div>
                           )}
-                          <span className="badge bg-success bg-opacity-10 text-success fw-bold mt-1" style={{ fontSize: '0.62rem', padding: '4px 8px' }}>ĐH HOÀN TẤT & ĐÃ THANH TOÁN</span>
+                        </div>
+                      ) : (
+                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem', borderStyle: 'dashed' }}>
+                          <div className="d-flex align-items-center justify-content-between mb-0">
+                            <span className="text-secondary">Trạng thái thanh toán:</span>
+                            <span className="badge bg-warning bg-opacity-10 text-warning fw-bold" style={{ fontSize: '0.65rem', padding: '3px 8px' }}>
+                              CHƯA THANH TOÁN
+                            </span>
+                          </div>
                         </div>
                       )}
                     </div>

@@ -173,6 +173,9 @@ namespace Auto_Wash.Services
                                     .ThenInclude(c => c.Account)
                             .Include(p => p.Booking)
                                 .ThenInclude(b => b.Vehicle)
+                            .Include(p => p.Booking)
+                                .ThenInclude(b => b!.BookingServices)
+                                    .ThenInclude(bs => bs.Service)
                             .FirstOrDefaultAsync(p => p.TxnRef == txnRef);
 
                         if (payment == null)
@@ -308,6 +311,9 @@ namespace Auto_Wash.Services
         public async Task<PaymentDto?> GetPaymentByTxnRefAsync(string txnRef)
         {
             var payment = await _context.Payments
+                .Include(p => p.Booking)
+                    .ThenInclude(b => b!.BookingServices)
+                        .ThenInclude(bs => bs.Service)
                 .FirstOrDefaultAsync(p => p.TxnRef == txnRef);
 
             return payment == null ? null : MapToDto(payment);
@@ -316,6 +322,9 @@ namespace Auto_Wash.Services
         public async Task<PaymentDto?> GetPaymentByBookingIdAsync(int bookingId)
         {
             var payment = await _context.Payments
+                .Include(p => p.Booking)
+                    .ThenInclude(b => b!.BookingServices)
+                        .ThenInclude(bs => bs.Service)
                 .FirstOrDefaultAsync(p => p.BookingId == bookingId);
 
             return payment == null ? null : MapToDto(payment);
@@ -325,6 +334,9 @@ namespace Auto_Wash.Services
         public async Task<PaymentReconcileResult> ReconcilePaymentAsync(int bookingId)
         {
             var payment = await _context.Payments
+                .Include(p => p.Booking)
+                    .ThenInclude(b => b!.BookingServices)
+                        .ThenInclude(bs => bs.Service)
                 .FirstOrDefaultAsync(p => p.BookingId == bookingId);
 
             if (payment == null)
@@ -582,7 +594,10 @@ namespace Auto_Wash.Services
                 TransactionNo = payment.TransactionNo,
                 ResponseCode = payment.ResponseCode,
                 CreatedAt = payment.CreatedAt,
-                PaidAt = payment.PaidAt
+                PaidAt = payment.PaidAt,
+                ServiceName = payment.Booking?.BookingServices?.FirstOrDefault(bs => !bs.Service.IsAddOn)?.Service.ServiceName ?? "Standard Wash Service",
+                PointsEarned = payment.Booking?.PointsEarned,
+                PaymentMethodName = GetMethodName(payment.PaymentMethod)
             };
         }
     }

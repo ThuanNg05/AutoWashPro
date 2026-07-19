@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/shared.css';
 import '../styles/admin/admin.css';
 import '../styles/admin/bookings.css';
@@ -15,6 +15,7 @@ const DEFAULT_TIME_SLOTS = [
 
 export const AdminBookings = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -108,6 +109,34 @@ export const AdminBookings = () => {
     return () => clearInterval(interval);
   }, [loadBookings]);
 
+  useEffect(() => {
+    if (location.state?.selectedBookingId) {
+      const bId = location.state.selectedBookingId;
+      const status = location.state.paymentStatus;
+      
+      // Load detail
+      loadBookingDetail(bId);
+
+      // Show toast if needed
+      if (window.showToast) {
+        if (status === 'success') {
+          window.showToast(`Thanh toán thành công cho lịch đặt #${bId}!`, 'success');
+        } else if (status === 'cancel') {
+          window.showToast(`Giao dịch thanh toán #${bId} đã bị hủy.`, 'warning');
+        } else if (status === 'failed') {
+          window.showToast(`Xác nhận thanh toán cho lịch đặt #${bId} thất bại.`, 'error');
+        } else if (status === 'timeout') {
+          window.showToast(`Hệ thống chưa nhận được xác nhận thanh toán cho lịch đặt #${bId}. Vui lòng kiểm tra lại sau.`, 'warning');
+        } else if (status === 'error') {
+          window.showToast(`Đã xảy ra lỗi trong quá trình thanh toán lịch đặt #${bId}.`, 'error');
+        }
+      }
+
+      // Clean router state so reload doesn't trigger drawer again
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
+
   // Real-time: refresh instantly when a new booking is created (poll above is fallback).
   useBookingHub((payload) => {
     loadBookings();
@@ -147,6 +176,11 @@ export const AdminBookings = () => {
     setSelectedBookingId(null);
     setBookingDetail(null);
     setIsRescheduling(false);
+  };
+
+  const handleCopy = (text, label) => {
+    navigator.clipboard.writeText(text);
+    if (window.showToast) window.showToast(`Đã sao chép ${label}!`, 'success');
   };
 
   const submitReschedule = async () => {
@@ -1265,12 +1299,79 @@ export const AdminBookings = () => {
                           </span>
                         </div>
                         <div
-                          className="d-flex justify-content-between align-items-center mt-1.5 small text-success"
+                          className="d-flex justify-content-between align-items-center mt-1.5 mb-1.5 small text-success"
                           style={{ fontSize: "0.75rem" }}
                         >
                           <span>Tích lũy Loyalty:</span>
                           <span>+{bookingDetail.pointsEarned}đ</span>
                         </div>
+
+                        {/* Payment Details Card */}
+                        {(bookingDetail.status === 'Completed' || bookingDetail.paymentStatus === 'Paid') ? (
+                          <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem', borderStyle: 'dashed' }}>
+                            <div className="d-flex align-items-center justify-content-between mb-1.5">
+                              <span className="text-secondary">Trạng thái thanh toán:</span>
+                              <span className="badge bg-success bg-opacity-10 text-success fw-bold" style={{ fontSize: '0.65rem', padding: '3px 8px' }}>
+                                ĐÃ THANH TOÁN
+                              </span>
+                            </div>
+                            <div className="d-flex align-items-center justify-content-between mb-1.5">
+                              <span className="text-secondary">Thời gian thanh toán:</span>
+                              <strong className="text-dark">
+                                {bookingDetail.paidAt ? new Date(bookingDetail.paidAt).toLocaleString('vi-VN') : 'Đã thanh toán'}
+                              </strong>
+                            </div>
+                            {bookingDetail.paymentMethod && (
+                              <div className="d-flex align-items-center justify-content-between mb-1.5">
+                                <span className="text-secondary">Phương thức:</span>
+                                <strong className="text-dark">
+                                  {bookingDetail.paymentMethod === 'PayOS' ? 'Thanh toán trực tuyến (PayOS)' : bookingDetail.paymentMethod}
+                                </strong>
+                              </div>
+                            )}
+                            {bookingDetail.transactionNo && (
+                              <div className="d-flex align-items-center justify-content-between mb-1.5">
+                                <span className="text-secondary">Mã giao dịch:</span>
+                                <div className="d-flex align-items-center gap-1.5">
+                                  <strong className="font-monospace text-dark">{bookingDetail.transactionNo}</strong>
+                                  <button 
+                                    onClick={() => handleCopy(bookingDetail.transactionNo, 'mã giao dịch')}
+                                    className="btn btn-link p-0 text-cyan text-decoration-none"
+                                    style={{ fontSize: '0.7rem' }}
+                                    title="Sao chép"
+                                  >
+                                    <i className="far fa-copy"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                            {bookingDetail.invoice && (
+                              <div className="d-flex align-items-center justify-content-between mb-0">
+                                <span className="text-secondary">Số hóa đơn:</span>
+                                <div className="d-flex align-items-center gap-1.5">
+                                  <strong className="font-monospace text-dark">{bookingDetail.invoice.invoiceNumber}</strong>
+                                  <button 
+                                    onClick={() => handleCopy(bookingDetail.invoice.invoiceNumber, 'số hóa đơn')}
+                                    className="btn btn-link p-0 text-cyan text-decoration-none"
+                                    style={{ fontSize: '0.7rem' }}
+                                    title="Sao chép"
+                                  >
+                                    <i className="far fa-copy"></i>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem', borderStyle: 'dashed' }}>
+                            <div className="d-flex align-items-center justify-content-between mb-0">
+                              <span className="text-secondary">Trạng thái thanh toán:</span>
+                              <span className="badge bg-warning bg-opacity-10 text-warning fw-bold" style={{ fontSize: '0.65rem', padding: '3px 8px' }}>
+                                CHƯA THANH TOÁN
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

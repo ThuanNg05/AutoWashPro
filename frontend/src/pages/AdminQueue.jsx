@@ -98,33 +98,6 @@ export const AdminQueue = () => {
   };
 
   useEffect(() => {
-    // Check query parameters for payment success/cancel redirect
-    const params = new URLSearchParams(window.location.search);
-    const paymentStatus = params.get("payment");
-    const bookingId = params.get("bookingId");
-
-    if (paymentStatus) {
-      if (paymentStatus === "success") {
-        if (window.showToast) {
-          window.showToast(
-            `Thanh toán thành công cho lịch đặt #${bookingId}!`,
-            "success",
-          );
-        }
-      } else if (paymentStatus === "cancel") {
-        if (window.showToast) {
-          window.showToast(
-            `Giao dịch thanh toán #${bookingId} đã bị hủy.`,
-            "warning",
-          );
-        }
-      }
-
-      // Clean query params from URL
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-    }
-
     fetchQueue();
     let intervalId = null;
 

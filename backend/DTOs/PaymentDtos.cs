@@ -14,6 +14,9 @@ namespace Auto_Wash.DTOs
         public string? ResponseCode { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }
+        public string? ServiceName { get; set; }
+        public int? PointsEarned { get; set; }
+        public string? PaymentMethodName { get; set; }
     }
 
     /// <summary>
