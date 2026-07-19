@@ -200,7 +200,7 @@ export const CustomerLoyalty = () => {
   // against the tier currently shown, so the simulator buttons below update the
   // figure live — using the full tier ladder returned by the backend.
   const windowMonths = loyalty?.windowMonths ?? 6;
-  const windowedSpend = loyalty?.windowedSpend ?? 0;
+  const windowedSpend = loyalty?.periodSpend ?? 0;
   const tierLadder = loyalty?.tiers ?? [];
 
   const currentLadderIdx = tierLadder.findIndex(
