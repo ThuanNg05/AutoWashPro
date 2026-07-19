@@ -262,13 +262,10 @@ namespace Auto_Wash.Services
 
             // 3. Booking Reminder Check
             var reminderConfig = _configuration.GetSection("BookingReminderConfig");
-            bool useDemoMode = reminderConfig.GetValue<bool>("UseDemoMode", true);
-            double reminder1Threshold = useDemoMode 
-                ? reminderConfig.GetValue<double>("Reminder1DemoSeconds", 60) 
-                : 3600; // 60 minutes in seconds
-            double reminder2Threshold = useDemoMode 
-                ? reminderConfig.GetValue<double>("Reminder2DemoSeconds", 30) 
-                : 1800; // 30 minutes in seconds
+            int reminder1Minutes = reminderConfig.GetValue<int>("Reminder1Minutes");
+            int reminder2Minutes = reminderConfig.GetValue<int>("Reminder2Minutes");
+            double reminder1Threshold = reminder1Minutes * 60;
+            double reminder2Threshold = reminder2Minutes * 60;
 
             var upcomingBookings = await context.Bookings
                 .Include(b => b.Customer)
@@ -309,7 +306,7 @@ namespace Auto_Wash.Services
                         if (!string.IsNullOrWhiteSpace(emailModel.Email))
                         {
                             var notificationService = scope.ServiceProvider.GetRequiredService<BookingNotificationService>();
-                            notificationService.SendBookingReminderEmailInBackground(emailModel, 1, useDemoMode);
+                            notificationService.SendBookingReminderEmailInBackground(emailModel, reminder1Minutes);
                         }
                     }
 
@@ -337,7 +334,7 @@ namespace Auto_Wash.Services
                         if (!string.IsNullOrWhiteSpace(emailModel.Email))
                         {
                             var notificationService = scope.ServiceProvider.GetRequiredService<BookingNotificationService>();
-                            notificationService.SendBookingReminderEmailInBackground(emailModel, 2, useDemoMode);
+                            notificationService.SendBookingReminderEmailInBackground(emailModel, reminder2Minutes);
                         }
                     }
                 }

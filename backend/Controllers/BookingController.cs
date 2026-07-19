@@ -132,7 +132,7 @@ namespace Auto_Wash.Controllers
                         price = b.FinalPrice,
                         points = b.PointsEarned,
                         hasReview = b.Stars.HasValue,
-                        progressTracking = BookingWorkflowConfig.GetProgressForBooking(b, b.Queues.FirstOrDefault())
+                        progressTracking = b.Queues.FirstOrDefault() != null ? BookingWorkflowConfig.GetProgressForBooking(b, b.Queues.FirstOrDefault()) : null
                     })
                     .ToList();
 
@@ -182,7 +182,7 @@ namespace Auto_Wash.Controllers
                     else if (queueStatusEnum == QueueStatus.Completed) washStep = 3;
                 }
 
-                var progressTracking = BookingWorkflowConfig.GetProgressForBooking(activeBooking, queue);
+                var progressTracking = queue != null ? BookingWorkflowConfig.GetProgressForBooking(activeBooking, queue) : null;
                 // Calculate estimated completion time based on workflow config
                 string eta = (queue != null ? queue.CheckInAt : activeBooking.ScheduledAt).AddSeconds(BookingWorkflowConfig.TotalDurationSeconds).ToString("HH:mm:ss");
 
