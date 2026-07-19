@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { adminService } from "../services/adminService";
 import { useBookingHub } from "../hooks/useBookingHub";
 import WebcamCaptureModal from "../components/admin/WebcamCaptureModal";
@@ -25,6 +26,7 @@ const STAGE_COLOR_MAP = {
 };
 
 export const AdminQueue = () => {
+  const navigate = useNavigate();
   const getStageLabel = (stage) =>
     STAGE_LABEL_MAP[stage] || stage || "Chờ check-in";
 
@@ -397,8 +399,17 @@ export const AdminQueue = () => {
       if (window.showToast)
         window.showToast("Đang tạo liên kết thanh toán PayOS...", "info");
       const res = await adminService.createPayment(vehicle.bookingId);
-      if (res && res.success && res.paymentUrl) {
-        window.location.href = res.paymentUrl;
+      if (res && res.success && res.payment) {
+        // Free bookings (100% discount) skip the QR flow entirely.
+        if (res.payment.isFree && res.payment.redirectUrl) {
+          window.location.href = res.payment.redirectUrl;
+        } else {
+          // Open our in-app checkout page (QR + live countdown + return button),
+          // passing the payment data so it renders without a second request.
+          navigate(`/payment/checkout/${vehicle.bookingId}`, {
+            state: { payment: res.payment },
+          });
+        }
       } else {
         if (window.showToast)
           window.showToast(

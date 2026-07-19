@@ -42,15 +42,10 @@ export const AdminDashboard = () => {
   const [fromDate, setFromDate] = useState(daysAgoStr(6)); // last 7 days incl. today
   const [toDate, setToDate] = useState(todayStr());
 
-  // Realtime counters from the live queue (today only, not filtered)
-  const [realtimeCounters, setRealtimeCounters] = useState({
-    todayRevenue: 0,
-    todayBookingsCount: 0,
-    waitingCount: 0,
-    washingCount: 0,
-    completedCount: 0,
-    loyaltyPointsGrantedToday: 0,
-  });
+  // Today's statistics (not filtered). Pulled from the same authoritative
+  // stats endpoint as the period cards — scoped to today — so the figures
+  // match payment/booking records instead of the transient queue snapshot.
+  const [todayStats, setTodayStats] = useState(DEFAULT_STATS.period);
 
   // Dashboard stats scoped to the selected date range (backend does the work).
   const fetchDashboardData = useCallback(async () => {
@@ -71,48 +66,26 @@ export const AdminDashboard = () => {
   }, [fetchDashboardData]);
 
   useEffect(() => {
-    calculateRealtimeStats(true);
-    const intervalId = setInterval(() => calculateRealtimeStats(true), 10000);
+    fetchTodayStats();
+    const intervalId = setInterval(fetchTodayStats, 10000);
     return () => clearInterval(intervalId);
   }, []);
 
-  const calculateRealtimeStats = async (background = false) => {
+  // Today's figures, refreshed on an interval for a realtime feel. Uses the
+  // authoritative stats endpoint (fromDate = toDate = today) so revenue,
+  // discount, paid count, completed washes, points and rating stay in sync
+  // with payment/booking records — unlike the queue, which drops rows once a
+  // booking is paid and archived.
+  const fetchTodayStats = async () => {
     try {
-      const response = await adminService.getQueue(background ? { skipGlobalLoader: true } : {});
-      if (response) {
-        const waiting = response.filter((item) => item.status === "Waiting").length;
-        const washing = response.filter(
-          (item) => item.status === "Washing" || item.status === "Drying",
-        ).length;
-        const completed = response.filter((item) => item.status === "Completed").length;
-
-        const completedRevenue = response
-          .filter((item) => item.status === "Completed")
-          .reduce((sum, item) => sum + (item.finalPrice || 0), 0);
-
-        const pointsGranted = response
-          .filter((item) => item.status === "Completed")
-          .reduce((sum, item) => sum + (item.pointsEarned || 0), 0);
-
-        setRealtimeCounters({
-          todayRevenue: completedRevenue,
-          todayBookingsCount: response.length,
-          waitingCount: waiting,
-          washingCount: washing,
-          completedCount: completed,
-          loyaltyPointsGrantedToday: pointsGranted,
-        });
-      }
+      const t = todayStr();
+      const res = await adminService.getDashboardStats(
+        { fromDate: t, toDate: t },
+        { skipGlobalLoader: true },
+      );
+      if (res && res.period) setTodayStats(res.period);
     } catch (e) {
-      console.error("Lỗi khi tính toán chỉ số thời gian thực:", e);
-      setRealtimeCounters({
-        todayRevenue: 0,
-        todayBookingsCount: 0,
-        waitingCount: 0,
-        washingCount: 0,
-        completedCount: 0,
-        loyaltyPointsGrantedToday: 0,
-      });
+      console.error("Lỗi khi tải thống kê hôm nay:", e);
     }
   };
 
@@ -125,18 +98,13 @@ export const AdminDashboard = () => {
 
   // ── Period figures from the backend ──
   const p = stats.period || DEFAULT_STATS.period;
+  const td = todayStats || DEFAULT_STATS.period; // today's figures (realtime)
   const dailyRevenue = p.dailyRevenue || [];
   const maxDaily = Math.max(...dailyRevenue.map((x) => Number(x.total) || 0), 1);
 
-  if (loading) {
-    return (
-      <div className="d-flex align-items-center justify-content-center vh-100 bg-light">
-        <div className="spinner-border text-info" role="status">
-          <span className="visually-hidden">Đang tải...</span>
-        </div>
-      </div>
-    );
-  }
+  // First paint is covered by the full-screen GlobalLoader ring (mounted in
+  // AdminLayout); render nothing here so the ring is the sole loader.
+  if (loading) return null;
 
   return (
     <div className="container-fluid py-4 text-start">
@@ -338,91 +306,88 @@ export const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* ── Realtime queue (today only — NOT affected by the filter) ── */}
+      {/* ── Realtime "today" statistics (NOT affected by the filter) ── */}
       <h6 className="fw-bold text-secondary mb-3" style={{ fontSize: "0.8rem", letterSpacing: "0.5px" }}>
         <i className="fas fa-bolt text-warning me-2"></i>THỜI GIAN THỰC · HÀNG ĐỢI HÔM NAY
       </h6>
       <div className="row g-3 mb-4">
         <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
             <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
-              DOANH THU HÔM NAY
+              DOANH THU THỰC (NET)
             </small>
-            <h4 className="fw-bold text-cyan mt-1 mb-1">
-              {realtimeCounters.todayRevenue.toLocaleString()}đ
-            </h4>
-            <small className="text-success fw-bold" style={{ fontSize: "0.68rem" }}>
-              <i className="fas fa-trending-up me-1"></i>Đã thanh toán thực tế
-            </small>
-          </div>
-        </div>
-
-        <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
-            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
-              LỊCH ĐẶT HÔM NAY
-            </small>
-            <h4 className="fw-bold text-dark mt-1 mb-1">
-              {realtimeCounters.todayBookingsCount} lượt
-            </h4>
+            <h4 className="fw-bold text-cyan mt-1 mb-1">{(td.netRevenue || 0).toLocaleString()}đ</h4>
             <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
-              Đặt hẹn từ app khách hàng
+              Sau giảm trừ voucher / miễn phí
             </small>
           </div>
         </div>
-
         <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
             <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
-              XE ĐANG CHỜ RỬA
+              TỔNG GIÁ GỐC
             </small>
-            <h4 className="fw-bold text-warning mt-1 mb-1">
-              {realtimeCounters.waitingCount} xe
-            </h4>
+            <h4 className="fw-bold text-dark mt-1 mb-1">{(td.grossRevenue || 0).toLocaleString()}đ</h4>
             <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
-              Đang đợi check-in
+              Trước khi áp dụng ưu đãi
             </small>
           </div>
         </div>
-
         <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
             <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
-              XE ĐANG RỬA & SẤY
+              GIẢM TRỪ (VOUCHER / MIỄN PHÍ)
             </small>
-            <h4 className="fw-bold text-primary mt-1 mb-1">
-              {realtimeCounters.washingCount} xe
-            </h4>
-            <small className="text-cyan fw-bold" style={{ fontSize: "0.68rem" }}>
-              Đang thực hiện công việc
+            <h4 className="fw-bold text-danger mt-1 mb-1">−{(td.totalDiscount || 0).toLocaleString()}đ</h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              {td.voucherUsedCount || 0} voucher đã dùng
             </small>
           </div>
         </div>
-
         <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
             <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
-              HOÀN THÀNH HÔM NAY
+              GIAO DỊCH ĐÃ THANH TOÁN
             </small>
-            <h4 className="fw-bold text-success mt-1 mb-1">
-              {realtimeCounters.completedCount} xe
-            </h4>
+            <h4 className="fw-bold text-dark mt-1 mb-1">{td.paidCount || 0}</h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              {td.bookingCount || 0} lịch đặt hôm nay
+            </small>
+          </div>
+        </div>
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              LƯỢT RỬA HOÀN THÀNH
+            </small>
+            <h4 className="fw-bold text-success mt-1 mb-1">{td.completedCount || 0} xe</h4>
             <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
               Đã qua quy trình rửa
             </small>
           </div>
         </div>
-
         <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 p-3.5 bg-white rounded-4 h-100">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
             <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
-              LOYALTY POINTS HÔM NAY
+              LOYALTY POINTS ĐÃ CỘNG
+            </small>
+            <h4 className="fw-bold text-warning mt-1 mb-1">+{td.pointsGranted || 0} PTS</h4>
+            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
+              Tích điểm cho khách hàng
+            </small>
+          </div>
+        </div>
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
+            <small className="text-muted d-block fw-bold" style={{ fontSize: "0.62rem", letterSpacing: "0.5px" }}>
+              ĐÁNH GIÁ TRUNG BÌNH
             </small>
             <h4 className="fw-bold text-warning mt-1 mb-1">
-              +{realtimeCounters.loyaltyPointsGrantedToday} PTS
+              {td.avgStars || 0}{" "}
+              <i className="fas fa-star" style={{ color: "#ffcf33", fontSize: "1.1rem" }}></i>
             </h4>
             <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
-              Tích điểm hôm nay
+              Phản hồi trong hôm nay
             </small>
           </div>
         </div>

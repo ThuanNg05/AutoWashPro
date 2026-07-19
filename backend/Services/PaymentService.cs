@@ -101,7 +101,7 @@ namespace Auto_Wash.Services
             return MapToDto(payment);
         }
 
-        public async Task<string> CreatePaymentLinkAsync(int bookingId)
+        public async Task<CreatePaymentResultDto> CreatePaymentLinkAsync(int bookingId)
         {
             var booking = await _context.Bookings
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId);
@@ -134,12 +134,23 @@ namespace Auto_Wash.Services
                     (int)PaymentStatus.Paid, null, "FREE");
 
                 _logger.LogInformation("Free booking {BookingId} confirmed without PayOS (amount = 0).", bookingId);
-                return $"/payment/result?payment=success&bookingId={bookingId}";
+                return new CreatePaymentResultDto
+                {
+                    IsFree = true,
+                    RedirectUrl = $"/payment/result?payment=success&bookingId={bookingId}",
+                    BookingId = bookingId,
+                    Amount = 0
+                };
             }
 
             var paymentDto = await CreatePendingPaymentAsync(bookingId, booking.FinalPrice, "127.0.0.1");
 
             long orderCode = long.Parse(paymentDto.TxnRef ?? throw new InvalidOperationException("Transaction reference not generated."));
+
+            // Link is valid for a fixed window (configurable, default 15 min).
+            // PayOS expects a Unix timestamp in seconds; past this instant the
+            // gateway reports the link as Expired.
+            var expiredAt = DateTimeOffset.UtcNow.AddMinutes(_payOSSettings.ExpiryMinutes).ToUnixTimeSeconds();
 
             var paymentRequest = new CreatePaymentLinkRequest
             {
@@ -148,6 +159,7 @@ namespace Auto_Wash.Services
                 Description = $"Rua xe don hang #BK-{bookingId}",
                 CancelUrl = _payOSSettings.CancelUrl,
                 ReturnUrl = _payOSSettings.ReturnUrl,
+                ExpiredAt = expiredAt,
                 Items = new List<PaymentLinkItem>()
             };
 
@@ -155,7 +167,20 @@ namespace Auto_Wash.Services
 
             _logger.LogInformation("Created PayOS Payment Link for booking {BookingId}. Checkout URL: {CheckoutUrl}", bookingId, response.CheckoutUrl);
 
-            return response.CheckoutUrl;
+            return new CreatePaymentResultDto
+            {
+                IsFree = false,
+                BookingId = bookingId,
+                OrderCode = orderCode,
+                Amount = paymentDto.Amount,
+                Description = paymentRequest.Description,
+                QrCode = response.QrCode,
+                AccountName = response.AccountName,
+                AccountNumber = response.AccountNumber,
+                Bin = response.Bin,
+                CheckoutUrl = response.CheckoutUrl,
+                ExpiredAt = expiredAt
+            };
         }
 
         public async Task<PaymentDto> UpdatePaymentStatusAsync(string txnRef, int status, string? transactionNo, string? responseCode)
@@ -426,8 +451,12 @@ namespace Auto_Wash.Services
                         };
                     }
 
-                case PaymentLinkStatus.Cancelled:
                 case PaymentLinkStatus.Expired:
+                    var expiredDto = await UpdatePaymentStatusAsync(payment.TxnRef!, (int)PaymentStatus.Expired, null, link.Status.ToString());
+                    _logger.LogInformation("ReconcilePaymentAsync: OrderCode {OrderCode} marked Expired (PayOS status {Status}).", orderCode, link.Status);
+                    return new PaymentReconcileResult { Payment = expiredDto, JustConfirmed = false };
+
+                case PaymentLinkStatus.Cancelled:
                 case PaymentLinkStatus.Failed:
                     var failedDto = await UpdatePaymentStatusAsync(payment.TxnRef!, (int)PaymentStatus.Failed, null, link.Status.ToString());
                     _logger.LogInformation("ReconcilePaymentAsync: OrderCode {OrderCode} marked Failed (PayOS status {Status}).", orderCode, link.Status);

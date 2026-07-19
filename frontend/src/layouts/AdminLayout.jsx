@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { GlobalToastAndConfirm } from '../components/GlobalToastAndConfirm';
+import { GlobalLoader } from '../components/GlobalLoader';
 import '../styles/shared.css';
 import '../styles/admin/admin.css';
 
@@ -37,6 +38,7 @@ export const AdminLayout = () => {
   return (
     <div className="admin-wrapper">
       <GlobalToastAndConfirm />
+      <GlobalLoader />
 
       {/* Admin Sidebar */}
       <nav id="sidebar" className={sidebarCollapsed ? 'collapsed' : ''}>

@@ -27,6 +27,7 @@ const AdminBookings = lazy(() => import('./pages/AdminBookings'));
 const AdminTransactions = lazy(() => import('./pages/AdminTransactions'));
 const AdminDemoTools = lazy(() => import('./pages/AdminDemoTools'));
 const PaymentResult = lazy(() => import('./pages/PaymentResult'));
+const PaymentCheckout = lazy(() => import('./pages/PaymentCheckout'));
 const AdminOwnershipTransfers = lazy(() => import('./pages/AdminOwnershipTransfers'));
 
 const PageLoader = () => (
@@ -91,7 +92,8 @@ function App() {
             <Route path="ownership-transfers" element={<AdminOwnershipTransfers />} />
           </Route>
 
-          {/* Payment Result (accessible by all authenticated users) */}
+          {/* Payment (accessible by all authenticated users) */}
+          <Route path="/payment/checkout/:bookingId" element={<PaymentCheckout />} />
           <Route path="/payment/result" element={<PaymentResult />} />
 
           {/* Fallback routing */}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { adminService } from "../services/adminService";
 import { Table } from "../components/Table";
+import { BookingDetailDrawer } from "../components/BookingDetailDrawer";
 import "../styles/shared.css";
 
 // Payment status (issue #50): 1 Pending, 2 Paid, 3 Failed, 4 Expired
@@ -39,19 +40,22 @@ export const AdminTransactions = () => {
 
   // Filters
   const [statusFilter, setStatusFilter] = useState("");
-  const [methodFilter, setMethodFilter] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  // Client-side quick search over the loaded rows (invoice / booking / name / plate).
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Booking whose detail drawer is open (null = closed).
+  const [detailBookingId, setDetailBookingId] = useState(null);
 
   const loadTransactions = useCallback(async () => {
     setLoading(true);
     try {
       // Revenue stats (issue #51) share the date range but ignore
-      // status/method filters: they are defined over Paid rows only.
+      // the status filter: they are defined over Paid rows only.
       const [res, statsRes] = await Promise.all([
         adminService.getTransactions({
           status: statusFilter,
-          method: methodFilter,
           fromDate,
           toDate,
         }),
@@ -72,7 +76,7 @@ export const AdminTransactions = () => {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, methodFilter, fromDate, toDate]);
+  }, [statusFilter, fromDate, toDate]);
 
   // Auto-run the filter whenever any field changes (loadTransactions is
   // memoized on the filter values).
@@ -82,10 +86,23 @@ export const AdminTransactions = () => {
 
   const resetFilters = () => {
     setStatusFilter("");
-    setMethodFilter("");
     setFromDate("");
     setToDate("");
+    setSearchTerm("");
   };
+
+  // Stable so BookingDetailDrawer's fetch effect doesn't re-run every render.
+  const closeDetail = useCallback(() => setDetailBookingId(null), []);
+
+  // Quick search filters the loaded rows across invoice number, booking id,
+  // customer name and license plate (issue #70).
+  const q = searchTerm.trim().toLowerCase();
+  const filteredTransactions = q
+    ? transactions.filter((t) =>
+        [t.invoiceNumber, `#${t.bookingId}`, String(t.bookingId), t.customerName, t.licensePlate]
+          .some((field) => (field ?? "").toString().toLowerCase().includes(q))
+      )
+    : transactions;
 
   // Date filters cannot exceed today (no future transactions exist).
   const maxDate = todayStr();
@@ -203,6 +220,23 @@ export const AdminTransactions = () => {
       {/* Filters */}
       <div className="row g-3 mb-4 animate-up align-items-end">
         <div className="col-md-3 col-sm-6">
+          <label className="form-label small fw-bold text-muted">TÌM KIẾM</label>
+          <div className="position-relative">
+            <i
+              className="fas fa-search position-absolute text-muted"
+              style={{ left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "0.8rem" }}
+            ></i>
+            <input
+              type="text"
+              className="form-control bg-white border-0 py-2.5 shadow-sm fw-semibold text-dark"
+              style={{ borderRadius: "10px", boxShadow: "none", paddingLeft: "38px" }}
+              placeholder="Mã HĐ, mã đặt lịch, tên KH, biển số..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="col-md-3 col-sm-6">
           <label className="form-label small fw-bold text-muted">TRẠNG THÁI</label>
           <select
             className="form-select bg-white border-0 py-2.5 shadow-sm fw-semibold text-dark"
@@ -215,21 +249,6 @@ export const AdminTransactions = () => {
             <option value="2">Đã thanh toán</option>
             <option value="3">Thất bại</option>
             <option value="4">Hết hạn</option>
-          </select>
-        </div>
-        <div className="col-md-3 col-sm-6">
-          <label className="form-label small fw-bold text-muted">PHƯƠNG THỨC</label>
-          <select
-            className="form-select bg-white border-0 py-2.5 shadow-sm fw-semibold text-dark"
-            style={{ borderRadius: "10px", boxShadow: "none", cursor: "pointer" }}
-            value={methodFilter}
-            onChange={(e) => setMethodFilter(e.target.value)}
-          >
-            <option value="">Tất cả phương thức</option>
-            <option value="1">Tiền mặt</option>
-            <option value="2">VNPay</option>
-            <option value="3">PayOS</option>
-            <option value="4">Miễn phí</option>
           </select>
         </div>
         <div className="col-md-2 col-sm-6">
@@ -277,7 +296,7 @@ export const AdminTransactions = () => {
           </div>
           <p className="text-secondary small">Đang tải lịch sử giao dịch...</p>
         </div>
-      ) : transactions.length === 0 ? (
+      ) : filteredTransactions.length === 0 ? (
         <div
           className="app-card border-0 shadow-sm p-5 text-center text-muted animate-up"
           style={{ borderRadius: "24px" }}
@@ -297,14 +316,13 @@ export const AdminTransactions = () => {
           headers={[
             { label: "Mã hóa đơn", className: "ps-4 py-3" },
             { label: "Khách hàng" },
-            { label: "Xe" },
-            { label: "Số tiền (đ)", className: "text-end" },
-            { label: "Phương thức", className: "text-center" },
+            { label: "Tổng thanh toán", className: "text-end" },
             { label: "Trạng thái", className: "text-center" },
-            { label: "Thời gian", className: "text-end pe-4" },
+            { label: "Thời gian", className: "text-end" },
+            { label: "Chi tiết", className: "text-center pe-4" },
           ]}
         >
-          {transactions.map((t) => {
+          {filteredTransactions.map((t) => {
             const st = getPaymentStatusStyle(t.status);
             return (
               <tr key={t.paymentId} style={{ borderBottom: "1px solid #f1f5f9" }}>
@@ -319,11 +337,6 @@ export const AdminTransactions = () => {
                     {t.customerName || "—"}
                   </span>
                   <small className="text-muted">{t.customerPhone || ""}</small>
-                </td>
-                <td>
-                  <span className="text-dark font-monospace" style={{ fontSize: "0.8rem" }}>
-                    {t.licensePlate || "—"}
-                  </span>
                 </td>
                 <td className="text-end">
                   {Number(t.discount ?? 0) > 0 && (
@@ -341,29 +354,34 @@ export const AdminTransactions = () => {
                   )}
                 </td>
                 <td className="text-center">
-                  <span
-                    className="badge rounded-pill px-3 py-1.5 border-0 bg-info bg-opacity-10 text-cyan"
-                    style={{ fontSize: "0.62rem" }}
-                  >
-                    {t.paymentMethodName}
-                  </span>
-                </td>
-                <td className="text-center">
                   <span className={`badge px-3 py-1.5 rounded-pill fw-bold ${st.cls}`} style={{ fontSize: "0.62rem" }}>
                     <i className={`fas me-1 ${st.icon}`}></i>
                     {t.statusName}
                   </span>
                 </td>
-                <td className="text-end pe-4">
+                <td className="text-end">
                   <span className="text-dark d-block" style={{ fontSize: "0.78rem" }}>
                     {formatDateTime(t.paidAt || t.createdAt)}
-                  </span>                  
+                  </span>
+                </td>
+                <td className="text-center pe-4">
+                  <button
+                    className="btn btn-sm border-0 text-cyan"
+                    style={{ background: "rgba(0, 191, 255, 0.1)", borderRadius: "8px" }}
+                    onClick={() => setDetailBookingId(t.bookingId)}
+                    title="Xem chi tiết giao dịch"
+                  >
+                    <i className="fas fa-eye"></i>
+                  </button>
                 </td>
               </tr>
             );
           })}
         </Table>
       )}
+
+      {/* Transaction detail drawer (reuses the AdminBookings booking-drawer block) */}
+      <BookingDetailDrawer bookingId={detailBookingId} onClose={closeDetail} />
     </div>
   );
 };
