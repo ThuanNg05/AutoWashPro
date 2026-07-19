@@ -183,15 +183,9 @@ export const AdminLoyalty = () => {
     Platinum: "linear-gradient(135deg, #475569, #0f172a)",
   };
 
-  if (loading) {
-    return (
-      <div className="d-flex align-items-center justify-content-center vh-100 bg-light">
-        <div className="spinner-border text-info" role="status">
-          <span className="visually-hidden">Đang tải...</span>
-        </div>
-      </div>
-    );
-  }
+  // First paint is covered by the full-screen GlobalLoader ring (mounted in
+  // AdminLayout); render nothing here so the ring is the sole loader.
+  if (loading) return null;
 
   return (
     <div className="container-fluid py-4 text-start">

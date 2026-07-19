@@ -14,6 +14,9 @@ namespace Auto_Wash.DTOs
         public string? ResponseCode { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? PaidAt { get; set; }
+        public string? ServiceName { get; set; }
+        public int? PointsEarned { get; set; }
+        public string? PaymentMethodName { get; set; }
     }
 
     /// <summary>
@@ -56,6 +59,35 @@ namespace Auto_Wash.DTOs
         public int PaymentMethod { get; set; }
         public int Amount { get; set; }
         public string? TxnRef { get; set; }
+    }
+
+    /// <summary>
+    /// Everything the in-app checkout page needs to render its own QR + live
+    /// countdown without leaving the app. For free bookings (100% discount) no
+    /// PayOS link is created — <see cref="IsFree"/> is true and the client
+    /// redirects straight to <see cref="RedirectUrl"/>.
+    /// </summary>
+    public class CreatePaymentResultDto
+    {
+        public bool IsFree { get; set; }
+        public string? RedirectUrl { get; set; }
+
+        public int BookingId { get; set; }
+        public long OrderCode { get; set; }
+        public int Amount { get; set; }
+        public string? Description { get; set; }
+
+        // PayOS bank-transfer QR payload (VietQR string) + account context.
+        public string? QrCode { get; set; }
+        public string? AccountName { get; set; }
+        public string? AccountNumber { get; set; }
+        public string? Bin { get; set; }
+
+        /// <summary>PayOS-hosted checkout page (card / fallback).</summary>
+        public string? CheckoutUrl { get; set; }
+
+        /// <summary>Unix seconds when the link expires — drives the countdown.</summary>
+        public long? ExpiredAt { get; set; }
     }
 
     public class UpdatePaymentDto

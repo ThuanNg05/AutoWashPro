@@ -139,6 +139,13 @@ export const customerService = {
     return response.data;
   },
 
+  // Current payment status for a booking. The backend reconciles against PayOS
+  // on read, so this doubles as the checkout page's "has it been paid?" poll.
+  getPaymentStatus: async (bookingId, config = {}) => {
+    const response = await api.get(`/api/payment/${bookingId}`, config);
+    return response.data;
+  },
+
   getActiveBooking: async (config = {}) => {
     const response = await api.get('/Customer/GetActiveBooking', config);
     return response.data;
