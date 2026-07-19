@@ -105,7 +105,7 @@ namespace Auto_Wash.Services
                         CurrentStage = "CheckIn",
                         Progress = 0,
                         RemainingSeconds = BookingWorkflowConfig.TotalDurationSeconds,
-                        ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(b, null),
+                        ProgressTracking = null,
                         BookingStatus = b.Status.ToString()
                     };
                 })
@@ -1000,7 +1000,7 @@ namespace Auto_Wash.Services
         public string CurrentStage { get; set; } = string.Empty;
         public int Progress { get; set; } = 0;
         public int RemainingSeconds { get; set; } = 50;
-        public BookingProgressDto ProgressTracking { get; set; } = new();
+        public BookingProgressDto? ProgressTracking { get; set; } = null;
 
         // null = walk-in không có booking/email; false = xe xong nhưng chưa gửi email
         // báo khách (FE hiện nút "Chụp ảnh & báo khách"); true = đã gửi.

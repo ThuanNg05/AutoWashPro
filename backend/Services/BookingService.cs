@@ -535,7 +535,7 @@ namespace Auto_Wash.Services
                 .ToListAsync();
 
             var queue = b.Queues.FirstOrDefault();
-            var progressTracking = BookingWorkflowConfig.GetProgressForBooking(b, queue);
+            var progressTracking = queue != null ? BookingWorkflowConfig.GetProgressForBooking(b, queue) : null;
 
             // Calculate reschedule quota statistics for this customer (temporarily disabled)
             /*

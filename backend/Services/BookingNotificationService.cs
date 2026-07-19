@@ -226,12 +226,12 @@ namespace Auto_Wash.Services
             });
         }
 
-        public async Task SendBookingReminderEmailAsync(BookingEmailModel model, int reminderNumber, bool isDemoMode)
+        public async Task SendBookingReminderEmailAsync(BookingEmailModel model, int reminderMinutes)
         {
             var dateStr = model.ScheduledAt.ToString("dd/MM/yyyy");
             var timeStr = model.ScheduledAt.ToString("HH:mm");
 
-            string timingStr = reminderNumber == 1 ? (isDemoMode ? "60 giây" : "60 phút") : (isDemoMode ? "30 giây" : "30 phút");
+            string timingStr = $"{reminderMinutes} phút";
             var subject = $"[AutoWash Pro] Nhắc nhở lịch hẹn sắp diễn ra - {timingStr} nữa";
 
             var body = $@"
@@ -275,17 +275,17 @@ namespace Auto_Wash.Services
             await _otpService.SendEmailAsync(model.Email, subject, body);
         }
 
-        public void SendBookingReminderEmailInBackground(BookingEmailModel model, int reminderNumber, bool isDemoMode)
+        public void SendBookingReminderEmailInBackground(BookingEmailModel model, int reminderMinutes)
         {
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    await SendBookingReminderEmailAsync(model, reminderNumber, isDemoMode);
+                    await SendBookingReminderEmailAsync(model, reminderMinutes);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to send booking reminder {Reminder} email for BookingId BK-{BookingId} to {Email}", reminderNumber, model.BookingId, model.Email);
+                    _logger.LogError(ex, "Failed to send booking reminder {ReminderMinutes}m email for BookingId BK-{BookingId} to {Email}", reminderMinutes, model.BookingId, model.Email);
                 }
             });
         }
