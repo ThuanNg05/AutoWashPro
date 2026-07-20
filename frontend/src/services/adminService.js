@@ -5,6 +5,7 @@ export const adminService = {
     const params = {};
     if (filters.fromDate) params.fromDate = filters.fromDate;
     if (filters.toDate) params.toDate = filters.toDate;
+    if (filters.groupBy) params.groupBy = filters.groupBy;
     const response = await api.get('/Admin/DashboardStats', { params, ...config });
     return response.data;
   },

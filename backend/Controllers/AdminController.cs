@@ -29,13 +29,13 @@ namespace Auto_Wash.Controllers
         // ── Dashboard Stats API ───────────────────────────────────────
 
         [HttpGet]
-        public async Task<IActionResult> DashboardStats([FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null)
+        public async Task<IActionResult> DashboardStats([FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null, [FromQuery] string groupBy = "day")
         {
             if (!IsAdminOrStaff()) return Unauthorized();
 
             try
             {
-                var stats = await _adminService.GetDashboardStatsAsync(fromDate, toDate);
+                var stats = await _adminService.GetDashboardStatsAsync(fromDate, toDate, groupBy);
                 return Ok(stats);
             }
             catch (Exception ex)

@@ -21,3 +21,4 @@
 [2026-07-19 17:08:31] [Information] [DELETE bookings] by=admin@autowash.com pk={"bookingid":214}
 [2026-07-19 17:08:31] [Information] [DELETE bookings] by=admin@autowash.com pk={"bookingid":213}
 [2026-07-19 17:09:46] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":215} values={"scheduledat":"2026-07-19T17:15"}
+[2026-07-20 19:20:28] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":216} values={"scheduledat":"2026-07-20T19:25"}
