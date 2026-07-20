@@ -57,8 +57,7 @@ namespace Auto_Wash.Controllers
         /// Transaction history for the currently signed-in customer (issue #50).
         /// Returns the customer's own payments only, newest first.
         /// </summary>
-        [HttpGet]
-        [Route("history/me")]
+        [HttpGet("GetMyTransactions")]
         public async Task<IActionResult> GetMyTransactions()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -83,8 +82,7 @@ namespace Auto_Wash.Controllers
         /// Transaction history across all customers for the admin page (issue #50),
         /// with optional status / method / date-range filters.
         /// </summary>
-        [HttpGet]
-        [Route("history")]
+        [HttpGet("GetAllTransactions")]
         public async Task<IActionResult> GetAllTransactions(
             [FromQuery] int? status,
             [FromQuery] int? method,
@@ -113,8 +111,8 @@ namespace Auto_Wash.Controllers
         /// gross revenue, deductions (voucher / tier / points / free) and net
         /// revenue over Paid transactions, optionally date-filtered by PaidAt.
         /// </summary>
-        [HttpGet]
-        [Route("revenue-stats")]
+        [HttpGet("GetRevenueStats")]
+     //   [Route("revenue-stats")]
         public async Task<IActionResult> GetRevenueStats(
             [FromQuery] DateTime? fromDate,
             [FromQuery] DateTime? toDate)
@@ -141,8 +139,8 @@ namespace Auto_Wash.Controllers
             public int BookingId { get; set; }
         }
 
-        [HttpPost]
-        [Route("create")]
+        [HttpPost("CreatePayment")]
+  //      [Route("create")]
         public async Task<IActionResult> CreatePayment([FromBody] CreatePaymentRequest request)
         {
             if (request == null || request.BookingId <= 0)
@@ -178,8 +176,8 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("return")]
+        [HttpGet("PaymentReturn")]
+   //     [Route("return")]
         public async Task<IActionResult> PaymentReturn()
         {
             _logger.LogInformation("PaymentReturn: Received redirect callback query: {Query}", Request.QueryString.Value);
@@ -222,8 +220,8 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("webhook")]
+        [HttpPost("PaymentWebhook")]
+
         public async Task<IActionResult> PaymentWebhook([FromBody] Webhook webhookBody)
         {
             _logger.LogInformation("========== PAYOS WEBHOOK HIT ==========");
@@ -290,8 +288,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("{bookingId}")]
+        [HttpGet("GetPaymentStatus")]
         public async Task<IActionResult> GetPaymentStatus(int bookingId)
         {
             try
@@ -321,6 +318,7 @@ namespace Auto_Wash.Controllers
         /// and the reconcile-on-read path so the email is sent exactly once, on
         /// the transition to Paid.
         /// </summary>
+
         private async Task SendPaymentSuccessEmailAsync(PaymentDto payment, string? transactionNo)
         {
             var booking = await _context.Bookings

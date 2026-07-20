@@ -13,6 +13,8 @@ using Auto_Wash.DTOs.OwnershipTransfer;
 
 namespace Auto_Wash.Controllers
 {
+    [ApiController]
+    [Route("api/[controller]")]
     public class OwnershipTransferController : Controller
     {
         private readonly OwnershipTransferService _transferService;
@@ -56,8 +58,7 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Kiểm tra biển số xe trên hệ thống.
         /// </summary>
-        [HttpGet]
-        [Route("api/ownership-transfer/check-plate")]
+        [HttpGet("CheckPlate")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -94,9 +95,9 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Gửi yêu cầu chuyển nhượng xe với tài liệu chứng minh.
         /// </summary>
-        [HttpPost]
+        [HttpPost("CreateTransferRequest")]
         [Consumes("multipart/form-data")]
-        [Route("api/ownership-transfers")]
+      //  [Route("api/ownership-transfers")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -162,8 +163,8 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Lấy danh sách các yêu cầu chuyển nhượng xe do khách hàng hiện tại đã gửi.
         /// </summary>
-        [HttpGet]
-        [Route("api/ownership-transfers/my-requests")]
+        [HttpGet("GetMyRequests")]
+      //  [Route("api/ownership-transfers/my-requests")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetMyRequests()
@@ -188,8 +189,8 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Khách hàng hủy yêu cầu chuyển nhượng đang chờ xử lý.
         /// </summary>
-        [HttpPost]
-        [Route("api/ownership-transfers/{id}/cancel")]
+        [HttpPost("CancelTransferRequest")]
+    //    [Route("api/ownership-transfers/{id}/cancel")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -220,8 +221,8 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Admin/Staff lấy danh sách tất cả yêu cầu chuyển nhượng.
         /// </summary>
-        [HttpGet]
-        [Route("api/admin/ownership-transfers")]
+        [HttpGet("GetAdminRequests")]
+      //  [Route("api/admin/ownership-transfers")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetAdminRequests(string? status, string? search)
@@ -245,8 +246,8 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Admin/Staff xem chi tiết một yêu cầu chuyển nhượng.
         /// </summary>
-        [HttpGet]
-        [Route("api/admin/ownership-transfers/{id}")]
+        [HttpGet("GetRequestDetail")]
+    //    [Route("api/admin/ownership-transfers/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -292,8 +293,8 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Admin/Staff phê duyệt yêu cầu chuyển nhượng.
         /// </summary>
-        [HttpPut]
-        [Route("api/admin/ownership-transfers/{id}/approve")]
+        [HttpPut("ApproveRequest")]
+    //    [Route("api/admin/ownership-transfers/{id}/approve")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -330,8 +331,8 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Admin/Staff từ chối yêu cầu chuyển nhượng.
         /// </summary>
-        [HttpPut]
-        [Route("api/admin/ownership-transfers/{id}/reject")]
+        [HttpPut("RejectRequest")]
+    //    [Route("api/admin/ownership-transfers/{id}/reject")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -372,8 +373,8 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Xem trước tài liệu chuyển nhượng (inline). Cho phép Admin/Staff và chính khách hàng yêu cầu truy cập.
         /// </summary>
-        [HttpGet]
-        [Route("api/admin/ownership-transfers/document/{id}")]
+        [HttpGet("PreviewDocument")]
+   //     [Route("api/admin/ownership-transfers/document/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -403,8 +404,8 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Tải xuống tài liệu chuyển nhượng. Cho phép Admin/Staff và chính khách hàng yêu cầu truy cập.
         /// </summary>
-        [HttpGet]
-        [Route("api/admin/ownership-transfers/document/{id}/download")]
+        [HttpGet("DownloadDocument")]
+    //    [Route("api/admin/ownership-transfers/document/{id}/download")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -434,8 +435,8 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Lấy lịch sử chuyển nhượng sở hữu của một phương tiện (Admin/Staff).
         /// </summary>
-        [HttpGet]
-        [Route("api/admin/ownership-transfers/vehicle/{id}/history")]
+        [HttpGet("GetVehicleOwnershipHistory")]
+   //     [Route("api/admin/ownership-transfers/vehicle/{id}/history")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetVehicleOwnershipHistory(int id)
@@ -459,9 +460,9 @@ namespace Auto_Wash.Controllers
         /// <summary>
         /// Khách hàng bổ sung tài liệu cho yêu cầu chuyển quyền sở hữu đang chờ duyệt.
         /// </summary>
-        [HttpPost]
+        [HttpPost("UploadAdditionalDocuments")]
         [Consumes("multipart/form-data")]
-        [Route("api/ownership-transfers/{id}/documents")]
+   //     [Route("api/ownership-transfers/{id}/documents")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

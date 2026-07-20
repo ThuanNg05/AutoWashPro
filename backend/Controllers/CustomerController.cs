@@ -6,6 +6,8 @@ using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Controllers
 {
+    [ApiController]
+    [Route("api/[controller]")]
     public class CustomerController : Controller
     {
         private readonly CustomerService _customerService;
@@ -21,7 +23,7 @@ namespace Auto_Wash.Controllers
             _otpService = otpService;
         }
 
-        [HttpPost]
+        [HttpPost("UpdateProfile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
         {
             var account = await _authContextService.GetCurrentAccountAsync();
@@ -56,7 +58,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("SendEmailOtp")]
         public async Task<IActionResult> SendEmailOtp([FromBody] SendEmailOtpRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email))
@@ -103,7 +105,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("VerifyEmailAndChangePassword")]
         public async Task<IActionResult> VerifyEmailAndChangePassword([FromBody] VerifyEmailAndChangePasswordRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.OtpCode) || string.IsNullOrWhiteSpace(request.NewPassword))
@@ -127,7 +129,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpGet("GetVouchers")]
         public async Task<IActionResult> GetVouchers()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -147,7 +149,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpGet("GetNotifications")]
         public async Task<IActionResult> GetNotifications()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -167,7 +169,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("MarkNotificationAsRead")]
         public async Task<IActionResult> MarkNotificationAsRead([FromBody] MarkNotificationRequest request)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -187,7 +189,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpGet("GetRewards")]
         public async Task<IActionResult> GetRewards()
         {
             try
@@ -201,7 +203,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpGet("GetLoyaltyStatus")]
         public async Task<IActionResult> GetLoyaltyStatus()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -225,7 +227,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("RedeemReward")]
         public async Task<IActionResult> RedeemReward([FromBody] RedeemRewardRequest request)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();

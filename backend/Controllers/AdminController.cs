@@ -7,6 +7,9 @@ using Auto_Wash.DTOs.Admin;
 
 namespace Auto_Wash.Controllers
 {
+
+    [ApiController]
+    [Route("api/[controller]")]
     public class AdminController : Controller
     {
         private readonly AdminService _adminService;
@@ -23,9 +26,8 @@ namespace Auto_Wash.Controllers
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
         }
 
-        // ── Dashboard Stats API ───────────────────────────────────────
-
-        [HttpGet]
+       
+        [HttpGet("DashboardStats")]
         public async Task<IActionResult> DashboardStats([FromQuery] DateTime? fromDate = null, [FromQuery] DateTime? toDate = null)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -43,7 +45,7 @@ namespace Auto_Wash.Controllers
 
         // ── Loyalty Config API ────────────────────────────────────────
 
-        [HttpGet]
+        [HttpGet("GetLoyaltyConfig")]
         public async Task<IActionResult> GetLoyaltyConfig()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -59,7 +61,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("SaveLoyaltyConfig")]
         public async Task<IActionResult> SaveLoyaltyConfig([FromBody] SaveLoyaltyConfigRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -78,7 +80,7 @@ namespace Auto_Wash.Controllers
 
         // ── Monthly Tier Review API ───────────────────────────────────
 
-        [HttpGet]
+        [HttpGet("TierReview")]
         public async Task<IActionResult> TierReview()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -96,7 +98,7 @@ namespace Auto_Wash.Controllers
 
         // ── Run Tier Review (Apply) API ───────────────────────────────
 
-        [HttpPost]
+        [HttpPost("RunTierReview")]
         public async Task<IActionResult> RunTierReview()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -114,7 +116,7 @@ namespace Auto_Wash.Controllers
 
         // ── Service Management API ─────────────────────────────────────
 
-        [HttpGet]
+        [HttpGet("GetServices")]
         public async Task<IActionResult> GetServices()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -130,7 +132,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("SaveService")]
         public async Task<IActionResult> SaveService([FromBody] SaveServiceRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -150,7 +152,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("ToggleService")]
         public async Task<IActionResult> ToggleService([FromQuery] int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -167,7 +169,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("DeleteService")]
         public async Task<IActionResult> DeleteService([FromQuery] int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -186,7 +188,7 @@ namespace Auto_Wash.Controllers
 
         // ── Customer Management API ────────────────────────────────────
 
-        [HttpGet]
+        [HttpGet("GetCustomers")]
         public async Task<IActionResult> GetCustomers([FromQuery] string? search)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -202,7 +204,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpGet("GetCustomerDetail")]
         public async Task<IActionResult> GetCustomerDetail([FromQuery] int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -219,7 +221,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("AdjustCustomerPoints")]
         public async Task<IActionResult> AdjustCustomerPoints([FromBody] AdjustPointsRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -241,7 +243,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpGet("GetAvailableVouchers")]
         public async Task<IActionResult> GetAvailableVouchers()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -257,7 +259,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
+        [HttpPost("AssignVoucher")]
         public async Task<IActionResult> AssignVoucher([FromBody] AssignVoucherRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();

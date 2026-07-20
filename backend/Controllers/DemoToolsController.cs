@@ -13,11 +13,8 @@ using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Controllers
 {
-    /// <summary>
-    /// Demo-only tools: browse and edit raw database tables from the admin UI
-    /// so demo scenarios (booking times, statuses...) can be tweaked without
-    /// opening Supabase directly.
-    /// </summary>
+    [ApiController]
+    [Route("api/[controller]")]
     public class DemoToolsController : Controller
     {
         private readonly AutoWashDbContext _context;
@@ -29,7 +26,7 @@ namespace Auto_Wash.Controllers
             _auditLogger = new FileLogger(System.IO.Path.Combine(env.ContentRootPath, "demo_tools_log.txt"));
         }
 
-        /// <summary>Writes every demo-tools write operation to demo_tools_log.txt so demo edits stay traceable.</summary>
+      
         private void Audit(string action, string details)
         {
             var user = HttpContext.Session.GetString("UserEmail")
@@ -46,8 +43,7 @@ namespace Auto_Wash.Controllers
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
         }
 
-        [HttpGet]
-        [Route("api/admin/demo-tools/tables")]
+        [HttpGet("GetTables")]
         public IActionResult GetTables()
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -81,8 +77,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("api/admin/demo-tools/tables/{table}/rows")]
+        [HttpGet("GetRows")]
         public async Task<IActionResult> GetRows(string table, int page = 1, int pageSize = 20, string? search = null, string? sortBy = null, string? sortDir = null)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -167,8 +162,7 @@ namespace Auto_Wash.Controllers
             public Dictionary<string, JsonElement>? Values { get; set; }
         }
 
-        [HttpPut]
-        [Route("api/admin/demo-tools/tables/{table}/rows")]
+        [HttpPut("UpdateRow")]
         public async Task<IActionResult> UpdateRow(string table, [FromBody] RowRequest request)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -212,8 +206,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("api/admin/demo-tools/tables/{table}/rows")]
+        [HttpPost("InsertRow")]
         public async Task<IActionResult> InsertRow(string table, [FromBody] RowRequest request)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -268,8 +261,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpDelete]
-        [Route("api/admin/demo-tools/tables/{table}/rows")]
+        [HttpDelete("DeleteRow")]
         public async Task<IActionResult> DeleteRow(string table, [FromBody] RowRequest request)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -304,14 +296,9 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        /// <summary>
-        /// Shifts every timestamp of a booking (and its queue rows) by N minutes so demo
-        /// scenarios can be triggered instantly: shift ScheduledAt into the past to fire
-        /// no-show, into the near future to fire reminders, or move Queue.CheckInAt back
-        /// to jump wash stages. Shifting into the future re-arms the email flags.
-        /// </summary>
-        [HttpPost]
-        [Route("api/admin/demo-tools/bookings/{id}/shift-time")]
+   
+        [HttpPost("ShiftBookingTime")]
+     
         public async Task<IActionResult> ShiftBookingTime(int id, int minutes)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -375,10 +362,7 @@ namespace Auto_Wash.Controllers
                 ?? throw new ArgumentException($"Cột '{name}' không tồn tại trong bảng '{table}'.");
         }
 
-        /// <summary>
-        /// Adds a parameter carrying the JSON value as text and returns the SQL placeholder
-        /// with a cast to the column's store type — values never get concatenated into SQL.
-        /// </summary>
+     
         private static string AddTypedParameter(DbCommand cmd, string name, JsonElement jsonValue, ColumnInfo col)
         {
             var p = cmd.CreateParameter();
@@ -431,7 +415,7 @@ namespace Auto_Wash.Controllers
                 .FirstOrDefault(et => string.Equals(et.GetTableName(), tableName, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary>Quotes a Postgres identifier; the only untrusted part of built SQL — values always go through parameters.</summary>
+      
         private static string Quote(string identifier) => "\"" + identifier.Replace("\"", "\"\"") + "\"";
 
         private async Task<T> WithConnectionAsync<T>(Func<DbConnection, Task<T>> action)

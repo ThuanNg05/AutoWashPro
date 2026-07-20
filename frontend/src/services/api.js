@@ -6,23 +6,13 @@ export const API_BASE_URL = "";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true, // Quan trọng: Đảm bảo Session Cookie và Custom Cookies được gửi đi
-  headers: {
+  withCredentials: true, 
+  headers: { 
     'Content-Type': 'application/json',
   },
 });
 
-/* ──────────────────────────────────────────────────────────────
- * Global loading tracker
- * ----------------------------------------------------------------
- * Đếm số request "tải dữ liệu" đang chạy (mặc định là GET) để hiển thị
- * một vòng tròn loading toàn cục. Các component đăng ký qua subscribeLoading.
- *
- *  - Chỉ GET được tính (đây là các lệnh tải dữ liệu khi mở trang).
- *  - Các thao tác ghi (POST/PUT/DELETE) đã có trạng thái loading riêng trên nút.
- *  - Request nền (vd: polling thông báo) có thể bỏ qua bằng cách truyền
- *    `{ skipGlobalLoader: true }` trong config.
- * ────────────────────────────────────────────────────────────── */
+
 let activeCount = 0;
 const loadingListeners = new Set();
 

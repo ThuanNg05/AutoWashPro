@@ -7,6 +7,8 @@ using Auto_Wash.DTOs.Booking;
 
 namespace Auto_Wash.Controllers
 {
+    [ApiController]
+    [Route("api/[controller]")]
     public class AdminBookingController : Controller
     {
         private readonly AdminBookingService _adminBookingService;
@@ -23,8 +25,7 @@ namespace Auto_Wash.Controllers
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
         }
 
-        [HttpGet]
-        [Route("api/admin/bookings")]
+        [HttpGet("GetBookings")]
         public async Task<IActionResult> GetBookings()
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -40,8 +41,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("api/admin/bookings/{id}")]
+        [HttpGet("GetBookingDetail")]
         public async Task<IActionResult> GetBookingDetail(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -61,8 +61,8 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPut]
-        [Route("api/admin/bookings/{id}/confirm")]
+        [HttpPut("ConfirmBooking")]
+       // [Route("api/admin/bookings/{id}/confirm")]
         public async Task<IActionResult> ConfirmBooking(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -82,8 +82,8 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPut]
-        [Route("api/admin/bookings/{id}/cancel")]
+        [HttpPut("CancelBooking")]
+       // [Route("api/admin/bookings/{id}/cancel")]
         public async Task<IActionResult> CancelBooking(int id, [FromBody] CancelBookingDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -140,8 +140,8 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPut]
-        [Route("api/admin/bookings/{id}/checkin")]
+        [HttpPut("CheckInBooking")]
+     //   [Route("api/admin/bookings/{id}/checkin")]
         public async Task<IActionResult> CheckInBooking(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
@@ -161,8 +161,8 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPut]
-        [Route("api/admin/bookings/{id}/reschedule")]
+        [HttpPut("RescheduleBooking")]
+       // [Route("api/admin/bookings/{id}/reschedule")]
         public async Task<IActionResult> RescheduleBooking(int id, [FromBody] RescheduleBookingDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });

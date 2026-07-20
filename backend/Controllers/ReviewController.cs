@@ -10,6 +10,8 @@ using Auto_Wash.Services;
 
 namespace Auto_Wash.Controllers
 {
+    [ApiController]
+    [Route("api/[controller]")]
     public class ReviewController : Controller
     {
         private readonly AutoWashDbContext _context;
@@ -29,7 +31,7 @@ namespace Auto_Wash.Controllers
         }
 
         [HttpPost]
-        [Route("api/reviews")]
+   //     [Route("api/reviews")]
         public async Task<IActionResult> CreateReview([FromBody] CreateReviewDto request)
         {
             if (request == null)
@@ -109,7 +111,7 @@ namespace Auto_Wash.Controllers
         }
 
         [HttpGet]
-        [Route("api/reviews/customer")]
+     //   [Route("api/reviews/customer")]
         public async Task<IActionResult> GetCustomerReviews()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -150,7 +152,7 @@ namespace Auto_Wash.Controllers
         }
 
         [HttpGet]
-        [Route("api/reviews/pending")]
+    //    [Route("api/reviews/pending")]
         public async Task<IActionResult> GetPendingReviews()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -189,7 +191,7 @@ namespace Auto_Wash.Controllers
         }
 
         [HttpGet]
-        [Route("api/reviews/admin")]
+  //      [Route("api/reviews/admin")]
         public async Task<IActionResult> GetAdminReviews()
         {
             if (!IsAdminOrStaff())

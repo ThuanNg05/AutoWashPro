@@ -7,6 +7,9 @@ using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Controllers
 {
+
+    [ApiController]
+    [Route("api/[controller]")]
     public class VehicleController : Controller
     {
         private readonly VehicleService _vehicleService;
@@ -20,13 +23,9 @@ namespace Auto_Wash.Controllers
             _otpService = otpService;
         }
 
-        /// <summary>
-        /// Lấy danh sách toàn bộ phương tiện của khách hàng đang đăng nhập.
-        /// </summary>
-        /// <response code="200">Lấy danh sách thành công.</response>
-        /// <response code="401">Khách hàng chưa đăng nhập.</response>
+        
         [HttpGet]
-        [Route("Customer/GetVehicles")]
+       // [Route("Customer/GetVehicles")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetVehicles()
@@ -48,16 +47,9 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        /// <summary>
-        /// Gửi mã OTP xác nhận đăng ký phương tiện đến email khách hàng.
-        /// </summary>
-        /// <param name="request">Thông tin phương tiện đăng ký (biển số xe, phân khúc, hãng, dòng xe).</param>
-        /// <response code="200">Gửi mã OTP thành công.</response>
-        /// <response code="400">Dữ liệu đầu vào không hợp lệ hoặc thiếu thông tin.</response>
-        /// <response code="401">Khách hàng chưa đăng nhập.</response>
-        /// <response code="409">Biển số xe đã tồn tại trên hệ thống.</response>
+    
         [HttpPost]
-        [Route("api/vehicle/send-otp")]
+    //    [Route("api/vehicle/send-otp")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -140,7 +132,7 @@ namespace Auto_Wash.Controllers
         /// <response code="401">Khách hàng chưa đăng nhập.</response>
         /// <response code="409">Biển số xe đã được đăng ký trước đó.</response>
         [HttpPost]
-        [Route("api/vehicle/verify-otp")]
+     //   [Route("api/vehicle/verify-otp")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -215,7 +207,7 @@ namespace Auto_Wash.Controllers
         /// <response code="400">Dữ liệu cập nhật không hợp lệ.</response>
         /// <response code="401">Khách hàng chưa đăng nhập.</response>
         [HttpPut]
-        [Route("api/vehicle/{id}")]
+      //  [Route("api/vehicle/{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -248,18 +240,18 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        /// <summary>
-        /// Xóa phương tiện của khách hàng (chỉ thực hiện được khi không có lịch đặt hoạt động).
-        /// </summary>
-        /// <param name="id">ID phương tiện cần xóa.</param>
-        /// <response code="200">Xóa phương tiện thành công.</response>
-        /// <response code="400">Không thể xóa xe do đang có lịch đặt hoạt động.</response>
-        /// <response code="401">Khách hàng chưa đăng nhập.</response>
-        [HttpDelete]
-        [Route("api/vehicle/{id}")]
-        [ProducesResponseType(StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+            /// <summary>
+            /// Xóa phương tiện của khách hàng (chỉ thực hiện được khi không có lịch đặt hoạt động).
+            /// </summary>
+            /// <param name="id">ID phương tiện cần xóa.</param>
+            /// <response code="200">Xóa phương tiện thành công.</response>
+            /// <response code="400">Không thể xóa xe do đang có lịch đặt hoạt động.</response>
+            /// <response code="401">Khách hàng chưa đăng nhập.</response>
+            [HttpDelete]
+     //       [Route("api/vehicle/{id}")]
+            [ProducesResponseType(StatusCodes.Status200OK)]
+            [ProducesResponseType(StatusCodes.Status400BadRequest)]
+            [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> DeleteVehicle(int id)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();

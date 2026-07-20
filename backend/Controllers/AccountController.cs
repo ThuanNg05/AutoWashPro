@@ -63,6 +63,7 @@ namespace Auto_Wash.Controllers
         }
 
         [HttpPost("Login")]
+
         public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Identifier) || string.IsNullOrWhiteSpace(request.Password))
@@ -83,10 +84,9 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        //[HttpGet]
+        
         [HttpPost("Logout")]
-        //[Route("Account/Logout")]
-        //[Route("api/account/logout")]
+
         public IActionResult Logout()
         {
             HttpContext.Session.Clear();
@@ -146,6 +146,7 @@ namespace Auto_Wash.Controllers
         }
 
         [HttpPost("GoogleLogin")]
+
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.GoogleId))

@@ -12,6 +12,9 @@ using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Controllers
 {
+
+    [ApiController]
+    [Route("api/[controller]")]
     public class BookingController : Controller
     {
         private readonly AuthContextService _authContextService;
@@ -30,8 +33,7 @@ namespace Auto_Wash.Controllers
             _configuration = configuration;
         }
 
-        [HttpGet]
-        [Route("Customer/GetServices")]
+        [HttpGet("GetServices")]
         public async Task<IActionResult> GetServices()
         {
             try
@@ -60,8 +62,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Customer/CreateBooking")]
+        [HttpPost("CreateBooking")]
         public async Task<IActionResult> CreateBooking([FromBody] CreateBookingDto request)
         {
             if (!ModelState.IsValid)
@@ -101,8 +102,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("Customer/GetWashHistory")]
+        [HttpGet("GetWashHistory")]
         public async Task<IActionResult> GetWashHistory()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -144,8 +144,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("Customer/GetActiveBooking")]
+        [HttpGet("GetActiveBooking")]
         public async Task<IActionResult> GetActiveBooking()
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -215,8 +214,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("Customer/GetBookingDetail/{id}")]
+        [HttpGet("GetBookingDetail")]
         public async Task<IActionResult> GetBookingDetail(int id)
         {
             var customer = await _authContextService.GetCurrentCustomerAsync();
@@ -240,8 +238,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Customer/CancelBooking/{id}")]
+        [HttpPost("CancelBooking")]
         public async Task<IActionResult> CancelBooking(int id, [FromBody] CancelBookingDto request)
         {
             if (request == null)
@@ -275,8 +272,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Customer/RescheduleBooking/{id}")]
+        [HttpPost("RescheduleBooking")]
         public async Task<IActionResult> RescheduleBooking(int id, [FromBody] RescheduleBookingDto request)
         {
             return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = "Tự đổi lịch hẹn hiện tại đã tạm ngưng. Vui lòng liên hệ tiệm để được hỗ trợ." });
@@ -322,8 +318,7 @@ namespace Auto_Wash.Controllers
 #pragma warning restore CS0162
         }
 
-        [HttpGet]
-        [Route("Customer/GetBookingConfig")]
+        [HttpGet("GetBookingConfig")]
         public IActionResult GetBookingConfig()
         {
             try
@@ -352,8 +347,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("Customer/GetOccupiedSlots")]
+        [HttpGet("GetOccupiedSlots")]
         public async Task<IActionResult> GetOccupiedSlots([FromQuery] string date)
         {
             if (!DateTime.TryParse(date, out DateTime parsedDate))
@@ -405,8 +399,8 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpGet]
-        [Route("Customer/GetEarliestAvailableDate")]
+        [HttpGet("GetEarliestAvailableDate")]
+     
         public async Task<IActionResult> GetEarliestAvailableDate([FromQuery] string startDate, [FromQuery] int windowDays = 7)
         {
             if (!DateTime.TryParse(startDate, out DateTime startParsed))

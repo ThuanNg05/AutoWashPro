@@ -21,8 +21,7 @@ namespace Auto_Wash.Hubs
             var http = Context.GetHttpContext();
             if (http != null)
             {
-                // The session cookie rides along on the negotiate/handshake request;
-                // make sure the session store is loaded before reading from it.
+                
                 try { await http.Session.LoadAsync(); } catch { /* already loaded */ }
 
                 var role = http.Session.GetString("UserRole");
