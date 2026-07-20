@@ -43,6 +43,13 @@ namespace Auto_Wash.Data.Entities
 
         public bool IsAutomaticReward { get; set; } = false;
 
+        [MaxLength(500)]
+        public string? ImageUrl { get; set; }
+
+        public DateTime? StartDate { get; set; }
+
+        public DateTime? EndDate { get; set; }
+
         // Navigation properties
         [ForeignKey("ServiceId")]
         public virtual Service? Service { get; set; }

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Auto_Wash.Data;
 using Auto_Wash.Data.Entities;
 using Auto_Wash.DTOs.Admin;
+using Auto_Wash.DTOs.Reward;
 using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Services
@@ -601,7 +602,299 @@ namespace Auto_Wash.Services
             });
 
             await _context.SaveChangesAsync();
+
+            // Set unique voucher code after ID is generated
+            string codePrefix = reward.RewardType == "PhysicalGift" ? "AW-GIFT-" : "AW-RED-";
+            redemption.VoucherCode = $"{codePrefix}{redemption.RedemptionId}";
+            await _context.SaveChangesAsync();
+
             return true;
+        }
+
+        public async Task<(bool success, string message)> ClaimPhysicalGiftAsync(string voucherCode, int staffAccountId, string? staffNotes)
+        {
+            var code = voucherCode.Trim();
+            var redemption = await _context.RewardRedemptions
+                .Include(r => r.Reward)
+                .FirstOrDefaultAsync(r => r.VoucherCode != null && r.VoucherCode.ToLower() == code.ToLower());
+
+            if (redemption == null)
+            {
+                return (false, "Không tìm thấy mã nhận quà này.");
+            }
+
+            if (redemption.Reward.RewardType != "PhysicalGift")
+            {
+                return (false, "Mã này không phải là quà tặng vật lý.");
+            }
+
+            if (redemption.Status == RedemptionStatus.Claimed || redemption.Status == RedemptionStatus.Used)
+            {
+                return (false, "Mã quà tặng này đã được nhận trước đó.");
+            }
+
+            if (redemption.Status == RedemptionStatus.Expired || redemption.ExpiresAt < DateTime.Now)
+            {
+                if (redemption.Status != RedemptionStatus.Expired)
+                {
+                    redemption.Status = RedemptionStatus.Expired;
+                    await _context.SaveChangesAsync();
+                }
+                return (false, "Mã quà tặng này đã hết hạn nhận quà.");
+            }
+
+            if (redemption.Status == RedemptionStatus.Cancelled)
+            {
+                return (false, "Mã quà tặng này đã bị hủy.");
+            }
+
+            if (redemption.Status != RedemptionStatus.Active)
+            {
+                return (false, "Trạng thái mã quà tặng không hợp lệ để nhận quà.");
+            }
+
+            // Perform claim
+            redemption.Status = RedemptionStatus.Claimed;
+            redemption.UsedAt = DateTime.Now;
+            redemption.HandledByAccountId = staffAccountId;
+            redemption.StaffNotes = staffNotes?.Trim();
+
+            // Create notification for customer
+            _context.Notifications.Add(new Notification
+            {
+                CustomerId = redemption.CustomerId,
+                Title = "Đã nhận quà tặng thành công",
+                Message = $"Bạn đã nhận thành công quà tặng '{redemption.Reward.RewardName}' tại cửa hàng AutoWash.",
+                Type = "Gift",
+                IsRead = false,
+                CreatedAt = DateTime.Now
+            });
+
+            await _context.SaveChangesAsync();
+            return (true, $"Nhận quà '{redemption.Reward.RewardName}' thành công!");
+        }
+
+        // ── Voucher & Rewards Management APIs ──────────────────────────
+
+        public async Task<List<RewardDetailDto>> GetAdminRewardsAsync(string? search = null, string? type = null, string? status = null)
+        {
+            var query = _context.Rewards
+                .Include(r => r.Service)
+                .Include(r => r.MinTier)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                query = query.Where(r => r.RewardName.ToLower().Contains(s) || (r.Description != null && r.Description.ToLower().Contains(s)));
+            }
+
+            if (!string.IsNullOrWhiteSpace(type) && type != "All")
+            {
+                if (type == "Voucher")
+                {
+                    query = query.Where(r => r.RewardType == "DiscountPercent" || r.RewardType == "DiscountFixed");
+                }
+                else if (type == "FreeService")
+                {
+                    query = query.Where(r => r.RewardType == "FreeService" || r.RewardType == "Free_Wash");
+                }
+                else
+                {
+                    query = query.Where(r => r.RewardType == type);
+                }
+            }
+
+            var now = DateTime.Now;
+            if (!string.IsNullOrWhiteSpace(status) && status != "All")
+            {
+                if (status == "Active")
+                {
+                    query = query.Where(r => r.IsActive && (!r.EndDate.HasValue || r.EndDate.Value >= now));
+                }
+                else if (status == "Disabled")
+                {
+                    query = query.Where(r => !r.IsActive);
+                }
+                else if (status == "Expired")
+                {
+                    query = query.Where(r => r.EndDate.HasValue && r.EndDate.Value < now);
+                }
+            }
+
+            var list = await query.OrderByDescending(r => r.RewardId).ToListAsync();
+
+            return list.Select(r => new RewardDetailDto
+            {
+                RewardId = r.RewardId,
+                RewardName = r.RewardName,
+                Description = r.Description,
+                PointCost = r.PointCost,
+                RewardType = r.RewardType,
+                DiscountValue = r.DiscountValue,
+                ServiceId = r.ServiceId,
+                ServiceName = r.Service?.ServiceName,
+                MinTierId = r.MinTierId,
+                MinTierName = r.MinTier?.TierName,
+                ValidDays = r.ValidDays,
+                StockLimit = r.StockLimit,
+                RedeemedCount = r.RedeemedCount,
+                MaxRedemptionsPerCustomer = r.MaxRedemptionsPerCustomer,
+                IsActive = r.IsActive,
+                IsAutomaticReward = r.IsAutomaticReward,
+                ImageUrl = r.ImageUrl,
+                StartDate = r.StartDate,
+                EndDate = r.EndDate
+            }).ToList();
+        }
+
+        public async Task<(bool success, string message, int rewardId)> CreateRewardAsync(CreateRewardRequestDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.RewardName))
+                return (false, "Tên phần thưởng không được để trống.", 0);
+
+            if (dto.PointCost < 0)
+                return (false, "Điểm quy đổi không được là số âm.", 0);
+
+            var reward = new Reward
+            {
+                RewardName = dto.RewardName.Trim(),
+                Description = dto.Description?.Trim(),
+                PointCost = dto.PointCost,
+                RewardType = dto.RewardType.Trim(),
+                DiscountValue = dto.DiscountValue,
+                ServiceId = dto.ServiceId,
+                MinTierId = dto.MinTierId,
+                ValidDays = dto.ValidDays > 0 ? dto.ValidDays : 30,
+                StockLimit = dto.StockLimit,
+                ImageUrl = dto.ImageUrl?.Trim(),
+                StartDate = dto.StartDate,
+                EndDate = dto.EndDate,
+                IsActive = dto.IsActive
+            };
+
+            _context.Rewards.Add(reward);
+            await _context.SaveChangesAsync();
+
+            return (true, "Tạo phần thưởng thành công!", reward.RewardId);
+        }
+
+        public async Task<(bool success, string message)> UpdateRewardAsync(int rewardId, UpdateRewardRequestDto dto)
+        {
+            var reward = await _context.Rewards.FindAsync(rewardId);
+            if (reward == null) return (false, "Không tìm thấy phần thưởng.");
+
+            if (string.IsNullOrWhiteSpace(dto.RewardName))
+                return (false, "Tên phần thưởng không được để trống.");
+
+            reward.RewardName = dto.RewardName.Trim();
+            reward.Description = dto.Description?.Trim();
+            reward.PointCost = dto.PointCost;
+            reward.DiscountValue = dto.DiscountValue;
+            reward.ServiceId = dto.ServiceId;
+            reward.MinTierId = dto.MinTierId;
+            reward.ValidDays = dto.ValidDays > 0 ? dto.ValidDays : 30;
+            reward.StockLimit = dto.StockLimit;
+            reward.ImageUrl = dto.ImageUrl?.Trim();
+            reward.StartDate = dto.StartDate;
+            reward.EndDate = dto.EndDate;
+            reward.IsActive = dto.IsActive;
+
+            await _context.SaveChangesAsync();
+            return (true, "Cập nhật phần thưởng thành công!");
+        }
+
+        public async Task<bool> ToggleRewardStatusAsync(int rewardId)
+        {
+            var reward = await _context.Rewards.FindAsync(rewardId);
+            if (reward == null) return false;
+
+            reward.IsActive = !reward.IsActive;
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task<List<AdminRedemptionDto>> GetRewardRedemptionsAsync(string? search = null, string? status = null, string? type = null)
+        {
+            var query = _context.RewardRedemptions
+                .Include(r => r.Customer)
+                    .ThenInclude(c => c.Account)
+                .Include(r => r.Reward)
+                .Include(r => r.HandledBy)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var s = search.Trim().ToLower();
+                query = query.Where(r => r.Customer.Account.FullName.ToLower().Contains(s)
+                                      || (r.Customer.Account.Phone != null && r.Customer.Account.Phone.Contains(s))
+                                      || (r.VoucherCode != null && r.VoucherCode.ToLower().Contains(s))
+                                      || r.Reward.RewardName.ToLower().Contains(s));
+            }
+
+            if (!string.IsNullOrWhiteSpace(status) && status != "All")
+            {
+                if (Enum.TryParse<RedemptionStatus>(status, true, out var parsedStatus))
+                {
+                    query = query.Where(r => r.Status == parsedStatus);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(type) && type != "All")
+            {
+                if (type == "Voucher")
+                {
+                    query = query.Where(r => r.Reward.RewardType == "DiscountPercent" || r.Reward.RewardType == "DiscountFixed");
+                }
+                else if (type == "FreeService")
+                {
+                    query = query.Where(r => r.Reward.RewardType == "FreeService" || r.Reward.RewardType == "Free_Wash");
+                }
+                else
+                {
+                    query = query.Where(r => r.Reward.RewardType == type);
+                }
+            }
+
+            var list = await query.OrderByDescending(r => r.RedeemedAt).ToListAsync();
+
+            return list.Select(r => new AdminRedemptionDto
+            {
+                RedemptionId = r.RedemptionId,
+                CustomerId = r.CustomerId,
+                CustomerName = r.Customer.Account.FullName,
+                CustomerPhone = r.Customer.Account.Phone ?? "",
+                RewardId = r.RewardId,
+                RewardName = r.Reward.RewardName,
+                RewardType = r.Reward.RewardType,
+                RedemptionCode = r.VoucherCode ?? (r.Reward.RewardType == "PhysicalGift" ? $"AW-GIFT-{r.RedemptionId}" : $"AW-RED-{r.RedemptionId}"),
+                RedeemedAt = r.RedeemedAt,
+                ExpiresAt = r.ExpiresAt,
+                UsedAt = r.UsedAt,
+                Status = r.Status.ToString(),
+                StaffNotes = r.StaffNotes,
+                HandledByAccountId = r.HandledByAccountId,
+                HandledByName = r.HandledBy?.FullName
+            }).ToList();
+        }
+
+        public async Task<RewardStatsDto> GetRewardStatsAsync()
+        {
+            var now = DateTime.Now;
+            var rewards = await _context.Rewards.ToListAsync();
+            var redemptions = await _context.RewardRedemptions.ToListAsync();
+
+            return new RewardStatsDto
+            {
+                TotalRewards = rewards.Count,
+                ActiveRewards = rewards.Count(r => r.IsActive && (!r.EndDate.HasValue || r.EndDate.Value >= now)),
+                ExpiredRewards = rewards.Count(r => r.EndDate.HasValue && r.EndDate.Value < now),
+                VoucherCount = rewards.Count(r => r.RewardType == "DiscountPercent" || r.RewardType == "DiscountFixed" || r.RewardType == "Free_Wash" || r.RewardType == "FreeService"),
+                GiftCount = rewards.Count(r => r.RewardType == "PhysicalGift"),
+                TotalRedeemed = redemptions.Count,
+                TotalClaimed = redemptions.Count(r => r.Status == RedemptionStatus.Claimed || r.Status == RedemptionStatus.Used)
+            };
         }
     }
 }
+

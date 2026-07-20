@@ -227,5 +227,52 @@ export const adminService = {
   rejectTransfer: async (id, reason) => {
     const response = await api.put(`/api/admin/ownership-transfers/${id}/reject`, { RejectReason: reason });
     return response.data;
+  },
+
+  // Voucher & Reward Management APIs
+  getAdminRewards: async (filters = {}) => {
+    const params = {};
+    if (filters.search) params.search = filters.search;
+    if (filters.type) params.type = filters.type;
+    if (filters.status) params.status = filters.status;
+    const response = await api.get('/Admin/GetAdminRewards', { params });
+    return response.data;
+  },
+
+  createReward: async (rewardData) => {
+    const response = await api.post('/Admin/CreateReward', rewardData);
+    return response.data;
+  },
+
+  updateReward: async (id, rewardData) => {
+    const response = await api.post(`/Admin/UpdateReward?id=${id}`, rewardData);
+    return response.data;
+  },
+
+  toggleRewardStatus: async (id) => {
+    const response = await api.post(`/Admin/ToggleRewardStatus?id=${id}`);
+    return response.data;
+  },
+
+  getRewardRedemptions: async (filters = {}) => {
+    const params = {};
+    if (filters.search) params.search = filters.search;
+    if (filters.status) params.status = filters.status;
+    if (filters.type) params.type = filters.type;
+    const response = await api.get('/Admin/GetRewardRedemptions', { params });
+    return response.data;
+  },
+
+  confirmGift: async (voucherCode, staffNotes) => {
+    const response = await api.post('/Admin/ClaimGift', {
+      VoucherCode: voucherCode,
+      StaffNotes: staffNotes
+    });
+    return response.data;
+  },
+
+  getRewardStats: async () => {
+    const response = await api.get('/Admin/GetRewardStats');
+    return response.data;
   }
 };

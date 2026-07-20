@@ -220,6 +220,26 @@ export const customerService = {
   getOwnershipTransferDetail: async (id) => {
     const response = await api.get(`/api/admin/ownership-transfers/${id}`);
     return response.data;
+  },
+
+  getRewardsCatalog: async (category) => {
+    const params = {};
+    if (category) params.category = category;
+    const response = await api.get('/Customer/GetRewardsCatalog', { params });
+    return response.data;
+  },
+
+  getMyRewards: async (status, type) => {
+    const params = {};
+    if (status) params.status = status;
+    if (type) params.type = type;
+    const response = await api.get('/Customer/GetMyRewards', { params });
+    return response.data;
+  },
+
+  getRewardHistory: async () => {
+    const response = await api.get('/Customer/GetRewardHistory');
+    return response.data;
   }
 };
 

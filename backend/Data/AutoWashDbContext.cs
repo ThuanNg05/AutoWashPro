@@ -257,6 +257,12 @@ namespace Auto_Wash.Data
                 .HasForeignKey(r => r.BookingId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            builder.Entity<RewardRedemption>()
+                .HasOne(r => r.HandledBy)
+                .WithMany()
+                .HasForeignKey(r => r.HandledByAccountId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // 13. BookingServices
             builder.Entity<BookingService>()
                 .HasIndex(bs => new { bs.BookingId, bs.ServiceId })
@@ -495,6 +501,19 @@ namespace Auto_Wash.Data
                     RewardType = "Free_Wash",
                     ServiceId = 999,
                     ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1006,
+                    RewardName = "Mũ bảo hiểm AutoWash",
+                    Description = "Mũ bảo hiểm nửa đầu in logo AutoWash cao cấp",
+                    PointCost = 500,
+                    RewardType = "PhysicalGift",
+                    ValidDays = 60,
+                    StockLimit = 50,
+                    RedeemedCount = 0,
                     IsActive = true,
                     IsAutomaticReward = false
                 }
