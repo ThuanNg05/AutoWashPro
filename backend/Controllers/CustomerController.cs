@@ -254,6 +254,61 @@ namespace Auto_Wash.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRewardsCatalog([FromQuery] string? category)
+        {
+            var customer = await _authContextService.GetCurrentCustomerAsync();
+            try
+            {
+                var rewards = await _customerService.GetRewardsCatalogAsync(category, customer?.CustomerId);
+                return Ok(new { success = true, rewards });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetMyRewards([FromQuery] string? status, [FromQuery] string? type)
+        {
+            var customer = await _authContextService.GetCurrentCustomerAsync();
+            if (customer == null)
+            {
+                return Unauthorized(new { success = false, message = "Bạn chưa đăng nhập!" });
+            }
+
+            try
+            {
+                var rewards = await _customerService.GetMyRewardsAsync(customer.CustomerId, status, type);
+                return Ok(new { success = true, rewards });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetRewardHistory()
+        {
+            var customer = await _authContextService.GetCurrentCustomerAsync();
+            if (customer == null)
+            {
+                return Unauthorized(new { success = false, message = "Bạn chưa đăng nhập!" });
+            }
+
+            try
+            {
+                var history = await _customerService.GetRewardHistoryAsync(customer.CustomerId);
+                return Ok(new { success = true, history });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 
     public class RedeemRewardRequest

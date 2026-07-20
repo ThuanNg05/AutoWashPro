@@ -31,6 +31,11 @@ namespace Auto_Wash.Data.Entities
         [MaxLength(50)]
         public string? VoucherCode { get; set; }
 
+        public int? HandledByAccountId { get; set; }
+
+        [MaxLength(300)]
+        public string? StaffNotes { get; set; }
+
         // Navigation properties
         [ForeignKey("CustomerId")]
         public virtual Customer Customer { get; set; } = null!;
@@ -39,12 +44,14 @@ namespace Auto_Wash.Data.Entities
         public virtual Reward Reward { get; set; } = null!;
 
         [ForeignKey("BookingId")]
-        [InverseProperty("RelatedRedemptions")]
         public virtual Booking? Booking { get; set; }
 
         [InverseProperty("AppliedRedemption")]
         public virtual ICollection<Booking> AppliedBookings { get; set; } = new List<Booking>();
         
         public virtual ICollection<LoyaltyTransaction> LoyaltyTransactions { get; set; } = new List<LoyaltyTransaction>();
+
+        [ForeignKey("HandledByAccountId")]
+        public virtual Account? HandledBy { get; set; }
     }
 }

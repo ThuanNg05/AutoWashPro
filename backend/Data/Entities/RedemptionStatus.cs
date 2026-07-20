@@ -5,6 +5,7 @@ namespace Auto_Wash.Data.Entities
         Active,
         Used,
         Expired,
-        Cancelled
+        Cancelled,
+        Claimed
     }
 }

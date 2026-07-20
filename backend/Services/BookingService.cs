@@ -311,6 +311,11 @@ namespace Auto_Wash.Services
                             return (false, "Voucher này đã hết hạn sử dụng.", 0);
                         }
 
+                        if (redemption.Reward.RewardType == "PhysicalGift")
+                        {
+                            return (false, "Mã này là quà tặng vật lý, không thể áp dụng cho dịch vụ rửa xe.", 0);
+                        }
+
                         if (redemption.Reward.RewardType == "DiscountPercent" || redemption.Reward.RewardType == "UpgradeReward")
                         {
                             promoDiscount = (int)(calculatedBasePrice * (redemption.Reward.DiscountValue ?? 0) / 100);

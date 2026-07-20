@@ -29,6 +29,7 @@ const AdminDemoTools = lazy(() => import('./pages/AdminDemoTools'));
 const PaymentResult = lazy(() => import('./pages/PaymentResult'));
 const PaymentCheckout = lazy(() => import('./pages/PaymentCheckout'));
 const AdminOwnershipTransfers = lazy(() => import('./pages/AdminOwnershipTransfers'));
+const AdminRewards = lazy(() => import('./pages/AdminRewards'));
 
 const PageLoader = () => (
   <div className="d-flex align-items-center justify-content-center vh-100 bg-light">
@@ -83,6 +84,7 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="loyalty" element={<AdminLoyalty />} />
+            <Route path="rewards" element={<AdminRewards />} />
             <Route path="queue" element={<AdminQueue />} />
             <Route path="bookings" element={<AdminBookings />} />
             <Route path="customers" element={<AdminCustomers />} />
