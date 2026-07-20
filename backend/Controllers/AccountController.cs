@@ -286,7 +286,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost("Register")]
+        [HttpPost("Register")]        
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.FullName) || string.IsNullOrWhiteSpace(request.OtpCode))

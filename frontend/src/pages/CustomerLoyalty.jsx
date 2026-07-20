@@ -12,8 +12,8 @@ const TIER_DATA = {
     dbName: "Member",
     multiplier: "x1.0",
     benefits: [
-      "Tích lũy 100% điểm thưởng cơ bản khi rửa xe.",
-      "Xếp hàng dịch vụ theo thứ tự thông thường."
+      "Tích điểm cơ bản cho mỗi lần rửa xe.",
+      "Phục vụ theo thứ tự thông thường."
     ],
     nextTier: "Silver",
     neededPts: 500,
@@ -24,9 +24,9 @@ const TIER_DATA = {
     dbName: "Silver",
     multiplier: "x1.2",
     benefits: [
-      "Thưởng thêm +20% điểm cho mỗi lần thanh toán.",
-      "Ưu tiên luồng rửa xe trước khách hàng thường.",
-      "Voucher nâng hạng Bạc giảm 5% dịch vụ."
+      "Cộng thêm 20% điểm mỗi lần thanh toán.",
+      "Được ưu tiên rửa xe trước khách thường.",
+      "Voucher giảm 5% khi lên hạng Bạc."
     ],
     nextTier: "Gold",
     neededPts: 1000,
@@ -37,9 +37,9 @@ const TIER_DATA = {
     dbName: "Gold",
     multiplier: "x1.5",
     benefits: [
-      "Thưởng thêm +50% điểm cho mỗi lần thanh toán.",
-      "Bypass hàng rửa xe thường. Vào thẳng ô rửa VIP.",
-      "Voucher nâng hạng Vàng giảm 10% dịch vụ."
+      "Cộng thêm 50% điểm mỗi lần thanh toán.",
+      "Vào thẳng khu rửa ưu tiên, không xếp hàng.",
+      "Voucher giảm 10% khi lên hạng Vàng."
     ],
     nextTier: "Platinum",
     neededPts: 2000,
@@ -50,9 +50,9 @@ const TIER_DATA = {
     dbName: "Platinum",
     multiplier: "x2.0",
     benefits: [
-      "Gấp đôi điểm thưởng (+100% điểm quy đổi).",
-      "Ưu tiên TUYỆT ĐỐI. Phục vụ ngay không chờ đợi.",
-      "Voucher nâng hạng Bạch Kim giảm 50% dịch vụ."
+      "Nhân đôi điểm cho mỗi lần rửa xe.",
+      "Được phục vụ ngay, không phải chờ.",
+      "Voucher giảm 50% khi lên hạng Bạch Kim."
     ],
     nextTier: "Diamond Ultimate",
     neededPts: null,
@@ -308,12 +308,12 @@ export const CustomerLoyalty = () => {
       case "DiscountPercent":
         return <span className="badge bg-info-subtle text-info fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-percent me-1"></i> Voucher %</span>;
       case "DiscountFixed":
-        return <span className="badge bg-primary-subtle text-primary fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-tag me-1"></i> Voucher Tiền</span>;
+        return <span className="badge bg-primary-subtle text-primary fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-tag me-1"></i> Voucher tiền</span>;
       case "FreeService":
       case "Free_Wash":
-        return <span className="badge bg-cyan-subtle text-cyan fw-bold px-2.5 py-1 rounded-pill" style={{ color: "#0891b2" }}><i className="fas fa-soap me-1"></i> Dịch Vụ Miễn Phí</span>;
+        return <span className="badge bg-cyan-subtle text-cyan fw-bold px-2.5 py-1 rounded-pill" style={{ color: "#0891b2" }}><i className="fas fa-soap me-1"></i> Dịch vụ miễn phí</span>;
       case "PhysicalGift":
-        return <span className="badge bg-warning-subtle text-warning-emphasis fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-gift me-1"></i> Quà Tặng Vật Lý</span>;
+        return <span className="badge bg-warning-subtle text-warning-emphasis fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-gift me-1"></i> Quà tặng</span>;
       default:
         return <span className="badge bg-secondary-subtle text-secondary px-2.5 py-1 rounded-pill">{type}</span>;
     }
@@ -323,14 +323,14 @@ export const CustomerLoyalty = () => {
     const isGift = type === "PhysicalGift";
     if (status === "Active") {
       return isGift
-        ? <span className="badge bg-warning-subtle text-warning-emphasis fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-store me-1"></i> Chờ Nhận Tại Quầy</span>
-        : <span className="badge bg-success-subtle text-success fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-check-circle me-1"></i> Khả Dụng</span>;
+        ? <span className="badge bg-warning-subtle text-warning-emphasis fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-store me-1"></i> Chờ nhận tại quầy</span>
+        : <span className="badge bg-success-subtle text-success fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-check-circle me-1"></i> Còn dùng được</span>;
     } else if (status === "Claimed" || status === "Used") {
       return isGift
-        ? <span className="badge bg-info-subtle text-info fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-gift me-1"></i> Đã Nhận Quà</span>
-        : <span className="badge bg-secondary-subtle text-secondary fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-receipt me-1"></i> Đã Sử Dụng</span>;
+        ? <span className="badge bg-info-subtle text-info fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-gift me-1"></i> Đã nhận</span>
+        : <span className="badge bg-secondary-subtle text-secondary fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-receipt me-1"></i> Đã dùng</span>;
     } else if (status === "Expired") {
-      return <span className="badge bg-danger-subtle text-danger fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-times-circle me-1"></i> Hết Hạn</span>;
+      return <span className="badge bg-danger-subtle text-danger fw-bold px-2.5 py-1 rounded-pill"><i className="fas fa-times-circle me-1"></i> Hết hạn</span>;
     }
     return <span className="badge bg-light text-dark px-2.5 py-1 rounded-pill">{status}</span>;
   };
@@ -349,12 +349,12 @@ export const CustomerLoyalty = () => {
       <div className="d-flex justify-content-between align-items-center flex-wrap mb-4 pb-3 border-bottom gap-3">
         <div>
           <h3 className="fw-bold text-dark mb-1" style={{ letterSpacing: "-0.5px" }}>
-            {mainTab === "loyalty" ? "HỆ THỐNG TÍCH ĐIỂM & ĐẶC QUYỀN" : "KHO VOUCHER & REWARDS"}
+            {mainTab === "loyalty" ? "Điểm thưởng & hạng thành viên" : "Voucher & quà của bạn"}
           </h3>
           <p className="text-muted small mb-0">
             {mainTab === "loyalty"
-              ? "Theo dõi hạng thành viên, hệ số tích điểm và khám phá đặc quyền dịch vụ AutoWash Pro"
-              : "Đổi điểm tích lũy lấy voucher rửa xe, quà tặng vật lý và quản lý ví phần thưởng của bạn"}
+              ? "Xem hạng thành viên, cách tích điểm và các đặc quyền bạn đang có."
+              : "Dùng điểm để đổi voucher, quà tặng và xem lại những phần quà đã đổi."}
           </p>
         </div>
 
@@ -366,7 +366,7 @@ export const CustomerLoyalty = () => {
             }`}
             onClick={() => setMainTab("loyalty")}
           >
-            <i className="fas fa-trophy me-2 text-warning"></i> Thẻ Thành Viên (Loyalty)
+            <i className="fas fa-trophy me-2 text-warning"></i> Hạng thành viên
           </button>
           <button
             className={`btn btn-sm fw-bold border-0 rounded-3 px-4 py-2 transition-all ${
@@ -374,7 +374,7 @@ export const CustomerLoyalty = () => {
             }`}
             onClick={() => setMainTab("rewards")}
           >
-            <i className="fas fa-gift me-2 text-warning"></i> Voucher & Rewards ({myRewards.length})
+            <i className="fas fa-gift me-2 text-warning"></i> Voucher & quà ({myRewards.length})
           </button>
         </div>
       </div>
@@ -405,7 +405,7 @@ export const CustomerLoyalty = () => {
                         border: "1px solid #cbd5e1",
                         statBg: "#f8fafc",
                         statBorder: "1px solid #cbd5e1",
-                        currentNote: "Đây là hạng mặc định của bạn. Tích lũy điểm thưởng cơ bản khi rửa xe."
+                        currentNote: "Đây là hạng mặc định của bạn, tích điểm cơ bản khi rửa xe."
                       };
                     case "Silver Member":
                       return {
@@ -421,7 +421,7 @@ export const CustomerLoyalty = () => {
                         border: "1px solid #94a3b8",
                         statBg: "rgba(255, 255, 255, 0.15)",
                         statBorder: "1px solid rgba(255, 255, 255, 0.25)",
-                        currentNote: "🎉 Bạn đang ở hạng Silver và nhận thêm +20% điểm thưởng khi rửa xe."
+                        currentNote: "Bạn đang ở hạng Bạc, được cộng thêm 20% điểm mỗi lần rửa xe."
                       };
                     case "Gold Member":
                       return {
@@ -437,7 +437,7 @@ export const CustomerLoyalty = () => {
                         border: "1px solid #f59e0b",
                         statBg: "rgba(0, 0, 0, 0.18)",
                         statBorder: "1px solid rgba(255, 255, 255, 0.25)",
-                        currentNote: "🎉 Bạn đang ở hạng Gold và nhận thêm +50% điểm cùng đặc quyền ô rửa VIP."
+                        currentNote: "Bạn đang ở hạng Vàng, được cộng thêm 50% điểm và vào khu rửa ưu tiên."
                       };
                     case "Platinum Member":
                     default:
@@ -454,7 +454,7 @@ export const CustomerLoyalty = () => {
                         border: "1px solid #38bdf8",
                         statBg: "rgba(255, 255, 255, 0.12)",
                         statBorder: "1px solid rgba(255, 255, 255, 0.2)",
-                        currentNote: "🎉 Bạn đang ở hạng thành viên cao nhất. Nhân đôi (+100%) điểm thưởng cho mỗi giao dịch."
+                        currentNote: "Bạn đang ở hạng cao nhất, được nhân đôi điểm cho mỗi lần rửa xe."
                       };
                   }
                 };
@@ -499,15 +499,15 @@ export const CustomerLoyalty = () => {
                       <div className="d-flex justify-content-between align-items-center mb-3">
                         {isCurrentTierState ? (
                           <span className="badge bg-warning text-dark fw-bold px-3 py-1.5 rounded-pill shadow-sm" style={{ fontSize: "0.78rem" }}>
-                            <i className="fas fa-crown me-1.5"></i> 🎉 Hạng Hiện Tại
+                            <i className="fas fa-crown me-1.5"></i> Hạng hiện tại
                           </span>
                         ) : isCompletedTierState ? (
                           <span className="badge bg-success text-white fw-bold px-3 py-1.5 rounded-pill shadow-sm" style={{ fontSize: "0.78rem" }}>
-                            <i className="fas fa-check-circle me-1.5"></i> ✓ Đã Mở Khóa
+                            <i className="fas fa-check-circle me-1.5"></i> Đã đạt
                           </span>
                         ) : (
                           <span className="badge bg-dark text-white fw-bold px-3 py-1.5 rounded-pill shadow-sm border border-white-20" style={{ fontSize: "0.78rem" }}>
-                            <i className="fas fa-lock me-1.5 text-warning"></i> 🔒 Chưa Mở Khóa
+                            <i className="fas fa-lock me-1.5 text-warning"></i> Chưa mở khóa
                           </span>
                         )}
 
@@ -519,7 +519,7 @@ export const CustomerLoyalty = () => {
                             fontSize: "0.82rem"
                           }}
                         >
-                          <i className="fas fa-bolt me-1"></i> {nextTierDetails.multiplier} Points
+                          <i className="fas fa-bolt me-1"></i> {nextTierDetails.multiplier} điểm
                         </span>
                       </div>
 
@@ -533,8 +533,8 @@ export const CustomerLoyalty = () => {
                         {isCurrentTierState
                           ? cardStyle.currentNote
                           : isCompletedTierState
-                          ? "✓ Bạn đã mở khóa và hoàn thành mốc chi tiêu cho hạng thành viên này."
-                          : `🔒 Cần đạt tổng chi tiêu ${previewTierMin.toLocaleString("vi-VN")}đ để mở khóa hạng thành viên này.`}
+                          ? "Bạn đã đạt mốc chi tiêu của hạng này."
+                          : `Cần chi tiêu ${previewTierMin.toLocaleString("vi-VN")}đ để lên hạng này.`}
                       </p>
                     </div>
 
@@ -589,17 +589,17 @@ export const CustomerLoyalty = () => {
                 <div>
                   <div className="d-flex justify-content-between align-items-center mb-3">
                     <h5 className="fw-bold text-dark mb-0">
-                       Tiến Trình Thăng Hạng Tiếp Theo
+                      Tiến trình lên hạng tiếp theo
                     </h5>
                     <small className="text-muted fw-semibold">
-                      Xét duyệt chi tiêu {windowMonths} tháng gần nhất
+                      Tính theo chi tiêu {windowMonths} tháng gần nhất
                     </small>
                   </div>
 
                   {/* Simulator Buttons */}
                   <div className="mb-3">
                     <small className="text-muted d-block mb-1.5 fw-semibold" style={{ fontSize: "0.75rem" }}>
-                      Xem trước trạng thái các cấp độ:
+                      Xem thử các hạng:
                     </small>
                     <div className="d-flex flex-wrap gap-2">
                       {["Standard Member", "Silver Member", "Gold Member", "Platinum Member"].map((tName) => {
@@ -671,7 +671,7 @@ export const CustomerLoyalty = () => {
                         </span>
                       ) : (
                         <span className="text-cyan fw-bold">
-                          <i className="fas fa-crown text-warning me-1"></i> Bạn đang ở hạng thành viên cao nhất (Platinum)!
+                          <i className="fas fa-crown text-warning me-1"></i> Bạn đang ở hạng cao nhất – Bạch Kim.
                         </span>
                       )}
                     </div>
@@ -682,7 +682,7 @@ export const CustomerLoyalty = () => {
                 <div className="d-flex align-items-center justify-content-between pt-2 border-top">
                   <div className="small text-muted">
                     <i className="fas fa-award text-warning me-1.5"></i>
-                    Đặc quyền hiện tại: <strong>Nhân hệ số {nextTierDetails.multiplier} điểm thưởng khi thanh toán</strong>
+                    Đặc quyền hiện tại: <strong>cộng điểm theo hệ số {nextTierDetails.multiplier} mỗi lần thanh toán</strong>
                   </div>
                 </div>
               </div>
@@ -692,7 +692,7 @@ export const CustomerLoyalty = () => {
           {/* Row 2: Tier Benefits Ladder (4 Columns Grid with 3 States) */}
           <div className="mb-4">
             <h5 className="fw-bold text-dark mb-3">
-              <i className="fas fa-star text-warning me-2"></i> Danh Sách Đặc Quyền Theo Hạng Thành Viên
+              <i className="fas fa-star text-warning me-2"></i> Đặc quyền theo từng hạng
             </h5>
 
             <div className="row g-3">
@@ -735,15 +735,15 @@ export const CustomerLoyalty = () => {
                       {/* State Footer Badge */}
                       {isRealCurrent ? (
                         <div className="badge bg-warning text-dark fw-bold w-100 py-2 rounded-3 text-center shadow-sm">
-                          <i className="fas fa-crown me-1"></i> 🎉 HẠNG HIỆN TẠI
+                          <i className="fas fa-crown me-1"></i> Hạng hiện tại
                         </div>
                       ) : isCompleted ? (
                         <div className="badge bg-success text-white fw-bold w-100 py-2 rounded-3 text-center">
-                          <i className="fas fa-check-circle me-1"></i> ✓ ĐÃ MỞ KHÓA
+                          <i className="fas fa-check-circle me-1"></i> Đã đạt
                         </div>
                       ) : (
                         <div className="badge bg-secondary-subtle text-muted border fw-bold w-100 py-2 rounded-3 text-center">
-                          <i className="fas fa-lock me-1"></i> 🔒 CHƯA MỞ KHÓA
+                          <i className="fas fa-lock me-1"></i> Chưa mở khóa
                         </div>
                       )}
                     </div>
@@ -759,7 +759,7 @@ export const CustomerLoyalty = () => {
             <div className="col-12 col-lg-6">
               <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
                 <h5 className="fw-bold text-dark mb-3">
-                  <i className="fas fa-coins text-warning me-2"></i> Quy Tắc Tích Điểm & Đổi Điểm
+                  <i className="fas fa-coins text-warning me-2"></i> Cách tích và dùng điểm
                 </h5>
 
                 <div className="d-flex flex-column gap-3 small text-muted">
@@ -768,7 +768,7 @@ export const CustomerLoyalty = () => {
                       <i className="fas fa-car fa-lg"></i>
                     </div>
                     <div>
-                      <strong className="text-dark d-block mb-1">Tích điểm khi rửa xe & dịch vụ</strong>
+                      <strong className="text-dark d-block mb-1">Tích điểm khi rửa xe</strong>
                       Mỗi <strong>1.000 VNĐ</strong> chi tiêu thực tế được tính làm 1 điểm cơ bản. Hệ số hạng thành viên sẽ nhân thêm điểm thưởng (Bạc x1.2, Vàng x1.5, Bạch Kim x2.0).
                     </div>
                   </div>
@@ -778,8 +778,8 @@ export const CustomerLoyalty = () => {
                       <i className="fas fa-exchange-alt fa-lg"></i>
                     </div>
                     <div>
-                      <strong className="text-dark d-block mb-1">Đổi điểm lấy quà tặng & Voucher</strong>
-                      Điểm tích lũy được dùng trực tiếp để đổi Voucher giảm giá rửa xe hoặc Quà tặng vật lý (Áo mưa, Nước hoa, Nón bảo hiểm...) trong Kho Voucher & Rewards.
+                      <strong className="text-dark d-block mb-1">Đổi điểm lấy quà và voucher</strong>
+                      Điểm tích lũy dùng để đổi voucher giảm giá rửa xe hoặc quà tặng (áo mưa, nước hoa, nón bảo hiểm...) trong mục Voucher & quà.
                     </div>
                   </div>
 
@@ -800,15 +800,15 @@ export const CustomerLoyalty = () => {
             <div className="col-12 col-lg-6">
               <div className="card border-0 shadow-sm rounded-4 p-4 bg-white h-100">
                 <h5 className="fw-bold text-dark mb-3">
-                  <i className="fas fa-layer-group text-cyan me-2"></i> Lộ Trình Thăng Hạng Thành Viên
+                  <i className="fas fa-layer-group text-cyan me-2"></i> Lộ trình thăng hạng
                 </h5>
 
                 <div className="d-flex flex-column gap-3">
                   {[
-                    { name: "Standard Member", minSpend: "0đ", desc: "Mặc định cho mọi tài khoản khách hàng mới đăng ký." },
-                    { name: "Silver Member", minSpend: "500.000đ", desc: "Ưu tiên xếp hàng rửa xe + Thưởng +20% điểm cho mỗi hóa đơn." },
-                    { name: "Gold Member", minSpend: "1.000.000đ", desc: "Vào thẳng ô rửa VIP bypass hàng đợi + Thưởng +50% điểm." },
-                    { name: "Platinum Member", minSpend: "2.000.000đ", desc: "Ưu tiên tuyệt đối không chờ đợi + Nhân đôi (+100%) điểm thưởng." }
+                    { name: "Standard Member", minSpend: "0đ", desc: "Mặc định cho mọi khách hàng mới đăng ký." },
+                    { name: "Silver Member", minSpend: "500.000đ", desc: "Ưu tiên rửa xe và cộng thêm 20% điểm mỗi hóa đơn." },
+                    { name: "Gold Member", minSpend: "1.000.000đ", desc: "Vào thẳng khu rửa ưu tiên và cộng thêm 50% điểm." },
+                    { name: "Platinum Member", minSpend: "2.000.000đ", desc: "Được phục vụ ngay và nhân đôi điểm thưởng." }
                   ].map((tierItem, idx) => {
                     const isReached = currentTier === tierItem.name;
                     return (
@@ -836,7 +836,7 @@ export const CustomerLoyalty = () => {
           {/* Row 4: Frequently Asked Questions (FAQ) Section */}
           <div className="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
             <h5 className="fw-bold text-dark mb-3">
-              <i className="far fa-question-circle text-cyan me-2"></i> Câu Hỏi Thường Gặp (FAQ)
+              <i className="far fa-question-circle text-cyan me-2"></i> Câu hỏi thường gặp
             </h5>
 
             <div className="row g-3">
@@ -881,19 +881,19 @@ export const CustomerLoyalty = () => {
                 className={`ui-tab-button ${rewardsSubTab === 'catalog' ? 'active' : ''}`}
                 onClick={() => setRewardsSubTab('catalog')}
               >
-                <i className="fas fa-store"></i> Đổi Phần Thưởng
+                <i className="fas fa-store"></i> Đổi thưởng
               </button>
               <button
                 className={`ui-tab-button ${rewardsSubTab === 'my-rewards' ? 'active' : ''}`}
                 onClick={() => setRewardsSubTab('my-rewards')}
               >
-                <i className="fas fa-wallet"></i> Quà Của Tôi ({myRewards.length})
+                <i className="fas fa-wallet"></i> Quà của tôi ({myRewards.length})
               </button>
               <button
                 className={`ui-tab-button ${rewardsSubTab === 'history' ? 'active' : ''}`}
                 onClick={() => setRewardsSubTab('history')}
               >
-                <i className="fas fa-history"></i> Lịch Sử Đổi Điểm
+                <i className="fas fa-history"></i> Lịch sử đổi điểm
               </button>
             </div>
 
@@ -909,10 +909,10 @@ export const CustomerLoyalty = () => {
               {/* Category Filter Pills */}
               <div className="d-flex flex-wrap gap-2 mb-4">
                 {[
-                  { label: "Tất Cả Loại", val: "All" },
+                  { label: "Tất cả", val: "All" },
                   { label: "Voucher", val: "Voucher" },
-                  { label: "Dịch Vụ Miễn Phí", val: "FreeService" },
-                  { label: "Quà Tặng Vật Lý", val: "PhysicalGift" }
+                  { label: "Dịch vụ miễn phí", val: "FreeService" },
+                  { label: "Quà tặng", val: "PhysicalGift" }
                 ].map((c) => (
                   <button
                     key={c.val}
@@ -932,10 +932,10 @@ export const CustomerLoyalty = () => {
               ) : rewardsCatalog.length === 0 ? (
                 <div className="empty-state-card">
                   <i className="fas fa-box-open fa-3x text-muted mb-3 opacity-50"></i>
-                  <h6 className="fw-bold text-dark mb-1">Không Tìm Thấy Phần Thưởng Nào</h6>
-                  <p className="text-muted small mb-3">Hiện chưa có phần thưởng thuộc danh mục này. Vui lòng chọn danh mục khác.</p>
+                  <h6 className="fw-bold text-dark mb-1">Chưa có phần thưởng nào</h6>
+                  <p className="text-muted small mb-3">Chưa có phần thưởng thuộc loại này. Bạn thử chọn loại khác xem sao.</p>
                   <button className="btn btn-outline-cyan btn-sm fw-bold px-3 rounded-pill" onClick={() => setCatalogCategory("All")}>
-                    <i className="fas fa-undo me-1.5"></i> Xem Tất Cả Quà
+                    <i className="fas fa-undo me-1.5"></i> Xem tất cả
                   </button>
                 </div>
               ) : (
@@ -997,11 +997,11 @@ export const CustomerLoyalty = () => {
                             <div>
                               <h6 className="fw-bold text-dark mb-1.5 clamp-1" title={r.rewardName} style={{ fontSize: "1rem" }}>{r.rewardName}</h6>
                               <p className="small text-muted mb-2 clamp-2" style={{ fontSize: "0.8rem", minHeight: 36 }}>
-                                {r.description || "Phần thưởng hấp dẫn từ AutoWash Pro."}
+                                {r.description || "Ưu đãi từ AutoWash Pro."}
                               </p>
                               {r.rewardType === "PhysicalGift" && (
                                 <div className="small text-warning-emphasis bg-warning-subtle px-2 py-1 rounded-2 mb-2" style={{ fontSize: "0.7rem" }}>
-                                  <i className="fas fa-info-circle me-1"></i> Quà tặng chỉ được đổi 1 lần / tài khoản.
+                                  <i className="fas fa-info-circle me-1"></i> Mỗi tài khoản chỉ đổi quà này 1 lần.
                                 </div>
                               )}
                             </div>
@@ -1013,7 +1013,7 @@ export const CustomerLoyalty = () => {
                                 </span>
                                 {r.stockLimit != null && r.remainingStock > 0 && r.remainingStock <= 5 ? (
                                   <small className="fw-bold px-2 py-0.5 rounded-pill bg-danger-subtle text-danger" style={{ fontSize: "0.72rem" }}>
-                                    <i className="fas fa-exclamation-triangle me-1"></i>Chỉ còn {r.remainingStock} phần quà
+                                    <i className="fas fa-exclamation-triangle me-1"></i>Chỉ còn {r.remainingStock} phần
                                   </small>
                                 ) : r.stockLimit != null && r.remainingStock === 0 ? (
                                   <small className="fw-bold px-2 py-0.5 rounded-pill bg-secondary-subtle text-secondary" style={{ fontSize: "0.72rem" }}>
@@ -1025,12 +1025,12 @@ export const CustomerLoyalty = () => {
                               <button
                                 className={`btn w-100 fw-bold py-2 rounded-3 shadow-sm ${isAvailable && canAfford ? 'btn-cyan text-white' : 'btn-light text-muted border'}`}
                                 disabled={!isAvailable || !canAfford}
-                                title={isAlreadyRedeemed ? "Quà tặng vật lý này chỉ được đổi 1 lần duy nhất cho mỗi tài khoản" : !isAvailable || !canAfford ? reasonText : "Nhấn để đổi quà"}
+                                title={isAlreadyRedeemed ? "Mỗi tài khoản chỉ đổi quà này 1 lần" : !isAvailable || !canAfford ? reasonText : "Nhấn để đổi quà"}
                                 onClick={() => handleOpenRedeemModal(r)}
                               >
                                 {isAvailable && canAfford ? (
                                   <>
-                                    <i className="fas fa-exchange-alt me-1.5"></i>Đổi Ngay
+                                    <i className="fas fa-exchange-alt me-1.5"></i>Đổi ngay
                                   </>
                                 ) : (
                                   reasonText
@@ -1053,11 +1053,11 @@ export const CustomerLoyalty = () => {
               {/* Chip Filters Bar for My Rewards */}
               <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4 bg-light p-3 rounded-4 border">
                 <div className="d-flex flex-wrap align-items-center gap-2">
-                  <small className="fw-bold text-muted me-1" style={{ fontSize: "0.75rem" }}>Loại Quà:</small>
+                  <small className="fw-bold text-muted me-1" style={{ fontSize: "0.75rem" }}>Loại:</small>
                   {[
-                    { label: "Tất Cả", val: "All" },
+                    { label: "Tất cả", val: "All" },
                     { label: "Voucher", val: "Voucher" },
-                    { label: "Quà Vật Lý", val: "Gift" }
+                    { label: "Quà tặng", val: "Gift" }
                   ].map((t) => (
                     <button
                       key={t.val}
@@ -1070,12 +1070,12 @@ export const CustomerLoyalty = () => {
                 </div>
 
                 <div className="d-flex flex-wrap align-items-center gap-2">
-                  <small className="fw-bold text-muted me-1" style={{ fontSize: "0.75rem" }}>Trạng Thái:</small>
+                  <small className="fw-bold text-muted me-1" style={{ fontSize: "0.75rem" }}>Trạng thái:</small>
                   {[
-                    { label: "Khả Dụng / Chờ Nhận", val: "Available" },
-                    { label: "Đã Dùng / Đã Nhận", val: "Used" },
-                    { label: "Hết Hạn", val: "Expired" },
-                    { label: "Tất Cả", val: "All" }
+                    { label: "Còn dùng / chờ nhận", val: "Available" },
+                    { label: "Đã dùng / đã nhận", val: "Used" },
+                    { label: "Hết hạn", val: "Expired" },
+                    { label: "Tất cả", val: "All" }
                   ].map((s) => (
                     <button
                       key={s.val}
@@ -1096,8 +1096,8 @@ export const CustomerLoyalty = () => {
               ) : myRewards.length === 0 ? (
                 <div className="empty-state-card">
                   <i className="fas fa-wallet fa-3x text-muted mb-3 opacity-50"></i>
-                  <h6 className="fw-bold text-dark mb-1">Ví Phần Thưởng Đang Trống</h6>
-                  <p className="text-muted small mb-0">Bạn chưa có phần thưởng nào thuộc danh mục này.</p>
+                  <h6 className="fw-bold text-dark mb-1">Chưa có phần quà nào</h6>
+                  <p className="text-muted small mb-0">Bạn chưa có phần quà nào thuộc mục này.</p>
                 </div>
               ) : (
                 <div className="row g-3">
@@ -1170,7 +1170,7 @@ export const CustomerLoyalty = () => {
                                 </div>
                                 <div>
                                   <small className="text-cyan fw-bold d-block text-uppercase" style={{ fontSize: "0.68rem", letterSpacing: "0.5px" }}>
-                                    VOUCHER CODE
+                                    Mã voucher
                                   </small>
                                   <span className="fw-bold font-monospace text-dark" style={{ fontSize: "1.2rem", letterSpacing: "1px" }}>
                                     {v.code}
@@ -1220,8 +1220,8 @@ export const CustomerLoyalty = () => {
                             >
                               <i className={`fas ${isGift ? 'fa-store me-1.5' : 'fa-info-circle me-1.5'}`}></i>
                               {isGift
-                                ? "Xuất trình mã này tại cửa hàng để nhận quà"
-                                : "Áp dụng mã này khi đặt lịch rửa xe để nhận ưu đãi"}
+                                ? "Đưa mã này tại cửa hàng để nhận quà"
+                                : "Nhập mã này khi đặt lịch rửa xe để được giảm giá"}
                             </div>
                           </div>
                         </div>
@@ -1236,7 +1236,7 @@ export const CustomerLoyalty = () => {
           {/* SUBTAB 3: REDEMPTION HISTORY */}
           {rewardsSubTab === "history" && (
             <div className="card border-0 shadow-sm rounded-4 overflow-hidden bg-white p-4">
-              <h5 className="fw-bold text-dark mb-3">Lịch Sử Giao Dịch Đổi Điểm</h5>
+              <h5 className="fw-bold text-dark mb-3">Lịch sử đổi điểm</h5>
               {loadingHistory ? (
                 <div className="text-center py-5 text-muted">
                   <div className="spinner-border spinner-border-sm text-cyan me-2"></div>
@@ -1245,8 +1245,8 @@ export const CustomerLoyalty = () => {
               ) : rewardHistory.length === 0 ? (
                 <div className="empty-state-card">
                   <i className="fas fa-history fa-3x text-muted mb-3 opacity-50"></i>
-                  <h6 className="fw-bold text-dark mb-1">Chưa Có Giao Dịch Đổi Điểm</h6>
-                  <p className="text-muted small mb-0">Bạn chưa thực hiện lượt đổi phần thưởng nào.</p>
+                  <h6 className="fw-bold text-dark mb-1">Chưa có giao dịch nào</h6>
+                  <p className="text-muted small mb-0">Bạn chưa đổi phần thưởng nào.</p>
                 </div>
               ) : (
                 <div>
@@ -1254,12 +1254,12 @@ export const CustomerLoyalty = () => {
                     <table className="table table-hover align-middle mb-0">
                       <thead className="bg-light">
                         <tr className="text-muted small text-uppercase" style={{ fontSize: "0.72rem" }}>
-                          <th className="ps-3">Thời Gian</th>
-                          <th>Phần Thưởng</th>
-                          <th>Loại Quà</th>
-                          <th>Mã Quà</th>
-                          <th>Điểm Đổi</th>
-                          <th className="text-end pe-3">Trạng Thái</th>
+                          <th className="ps-3">Thời gian</th>
+                          <th>Phần thưởng</th>
+                          <th>Loại</th>
+                          <th>Mã</th>
+                          <th>Điểm</th>
+                          <th className="text-end pe-3">Trạng thái</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1315,7 +1315,7 @@ export const CustomerLoyalty = () => {
             <div className="modal-content rounded-4 border-0 shadow-lg overflow-hidden">
               <div className="modal-header bg-light border-bottom p-3">
                 <h5 className="modal-title fw-bold text-dark">
-                  <i className="fas fa-exchange-alt text-cyan me-2"></i> Xác Nhận Đổi Phần Thưởng
+                  <i className="fas fa-exchange-alt text-cyan me-2"></i> Xác nhận đổi thưởng
                 </h5>
                 <button type="button" className="btn-close" onClick={() => setRedeemModalOpen(false)}></button>
               </div>
@@ -1328,7 +1328,7 @@ export const CustomerLoyalty = () => {
                 </div>
 
                 <h5 className="fw-bold text-dark mb-2">{pendingRedeem.rewardName}</h5>
-                <p className="text-muted small mb-3">{pendingRedeem.description || "Quy đổi điểm thưởng lấy ưu đãi đặc quyền."}</p>
+                <p className="text-muted small mb-3">{pendingRedeem.description || "Đổi điểm lấy ưu đãi."}</p>
 
                 <div className="p-3 bg-light rounded-3 border text-start small mb-3">
                   <div className="d-flex justify-content-between mb-1">
@@ -1346,7 +1346,7 @@ export const CustomerLoyalty = () => {
                 </div>
 
                 <div className="alert alert-info py-2 px-3 small rounded-3 mb-0 text-start">
-                  <i className="fas fa-info-circle me-1"></i> Sau khi đổi thành công, phần thưởng sẽ được lưu vào <strong>Quà Của Tôi</strong>.
+                  <i className="fas fa-info-circle me-1"></i> Sau khi đổi, phần thưởng sẽ được lưu vào mục <strong>Quà của tôi</strong>.
                 </div>
               </div>
 
@@ -1354,7 +1354,7 @@ export const CustomerLoyalty = () => {
                 <button type="button" className="btn btn-light border" onClick={() => setRedeemModalOpen(false)}>Hủy</button>
                 <button type="button" className="btn btn-cyan text-white px-4 fw-bold shadow-sm" disabled={redeeming} onClick={handleConfirmRedeem}>
                   {redeeming ? <span className="spinner-border spinner-border-sm me-1.5"></span> : null}
-                  Xác Nhận Đổi
+                  Xác nhận
                 </button>
               </div>
             </div>
@@ -1372,11 +1372,11 @@ export const CustomerLoyalty = () => {
                   <i className="fas fa-check-circle fa-3x"></i>
                 </div>
 
-                <h4 className="fw-bold text-dark mb-1">Đổi Phần Thưởng Thành Công!</h4>
-                <p className="text-muted small mb-3">Bạn đã đổi thành công phần thưởng <strong>{successData.rewardName}</strong>.</p>
+                <h4 className="fw-bold text-dark mb-1">Đổi thưởng thành công!</h4>
+                <p className="text-muted small mb-3">Bạn đã đổi phần thưởng <strong>{successData.rewardName}</strong>.</p>
 
                 <div className="p-3 bg-light rounded-3 border mb-3">
-                  <small className="text-muted d-block text-uppercase fw-bold mb-1" style={{ fontSize: "0.68rem" }}>MÃ QUÀ TẶNG CỦA BẠN</small>
+                  <small className="text-muted d-block text-uppercase fw-bold mb-1" style={{ fontSize: "0.68rem" }}>Mã quà của bạn</small>
                   <div className="d-flex align-items-center justify-content-center gap-2">
                     <span className="fw-bold font-monospace text-cyan" style={{ fontSize: "1.4rem" }}>{successData.code}</span>
                     <button
@@ -1400,7 +1400,7 @@ export const CustomerLoyalty = () => {
                       className="btn btn-cyan text-white fw-bold px-4 py-2 rounded-3 shadow-sm hover-lift"
                       onClick={() => { setSuccessModalOpen(false); navigate("/booking"); }}
                     >
-                      <i className="fas fa-calendar-check me-1.5"></i> Đặt Lịch Ngay
+                      <i className="fas fa-calendar-check me-1.5"></i> Đặt lịch ngay
                     </button>
                   )}
                   <button
