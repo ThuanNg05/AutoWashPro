@@ -1,11 +1,11 @@
 import api from './api';
 
 export const adminService = {
-  getDashboardStats: async (filters = {}) => {
+  getDashboardStats: async (filters = {}, config = {}) => {
     const params = {};
     if (filters.fromDate) params.fromDate = filters.fromDate;
     if (filters.toDate) params.toDate = filters.toDate;
-    const response = await api.get('/Admin/DashboardStats', { params });
+    const response = await api.get('/Admin/DashboardStats', { params, ...config });
     return response.data;
   },
 

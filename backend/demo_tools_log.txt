@@ -12,3 +12,12 @@
 [2026-07-18 22:24:28] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":205} values={"scheduledat":"2026-07-18T22:30"}
 [2026-07-18 22:42:30] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":206} values={"scheduledat":"2026-07-18T22:45"}
 [2026-07-18 22:49:40] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":207} values={"scheduledat":"2026-07-18T22:50"}
+[2026-07-19 08:09:31] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":208} values={"scheduledat":"2026-07-19T08:11"}
+[2026-07-19 08:44:36] [Information] [DELETE payments] by=admin@autowash.com pk={"paymentid":72}
+[2026-07-19 08:44:46] [Information] [DELETE bookings] by=admin@autowash.com pk={"bookingid":208}
+[2026-07-19 15:58:33] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":213} values={"scheduledat":"2026-07-19T16:00"}
+[2026-07-19 17:07:56] [Information] [DELETE payments] by=admin@autowash.com pk={"paymentid":75}
+[2026-07-19 17:08:24] [Information] [DELETE payments] by=admin@autowash.com pk={"paymentid":74}
+[2026-07-19 17:08:31] [Information] [DELETE bookings] by=admin@autowash.com pk={"bookingid":214}
+[2026-07-19 17:08:31] [Information] [DELETE bookings] by=admin@autowash.com pk={"bookingid":213}
+[2026-07-19 17:09:46] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":215} values={"scheduledat":"2026-07-19T17:15"}

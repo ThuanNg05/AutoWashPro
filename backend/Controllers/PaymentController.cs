@@ -154,10 +154,12 @@ namespace Auto_Wash.Controllers
             try
             {
                 _logger.LogInformation("CreatePayment: Creating payment link for BookingId: {BookingId}", request.BookingId);
-                var paymentUrl = await _paymentService.CreatePaymentLinkAsync(request.BookingId);
-                
+                var payment = await _paymentService.CreatePaymentLinkAsync(request.BookingId);
+
                 _logger.LogInformation("CreatePayment: Successfully generated payment link for BookingId: {BookingId}", request.BookingId);
-                return Ok(new { success = true, paymentUrl });
+                // `paymentUrl` kept for backward compatibility with any existing
+                // caller that redirected straight to the PayOS-hosted page.
+                return Ok(new { success = true, payment, paymentUrl = payment.CheckoutUrl ?? payment.RedirectUrl });
             }
             catch (KeyNotFoundException ex)
             {

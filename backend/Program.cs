@@ -102,6 +102,7 @@ namespace Auto_Wash
             builder.Services.AddScoped<IPaymentService, PaymentService>();
             builder.Services.AddSingleton<IBookingRealtimeNotifier, BookingRealtimeNotifier>();
             builder.Services.AddHostedService<BookingWorkflowBackgroundService>();
+            builder.Services.AddHostedService<PaymentExpiryBackgroundService>();
 
             // Vehicle Ownership Transfer registrations
             builder.Services.AddScoped<OwnershipTransferService>();
@@ -118,10 +119,59 @@ namespace Auto_Wash
                 options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             });
 
+            // Configure Swagger UI
+            builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+                {
+                    Title = "Auto-Wash Pro API Specification",
+                    Version = "v1",
+                    Description = "API documentation for the Auto-Wash Pro smart car wash management system."
+                });
+
+                // Load XML documentation comments
+                var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                if (File.Exists(xmlPath))
+                {
+                    options.IncludeXmlComments(xmlPath);
+                }
+
+                // Document Cookie/Session authentication inside Swagger UI
+                options.AddSecurityDefinition("CookieAuth", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                {
+                    Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+                    In = Microsoft.OpenApi.Models.ParameterLocation.Cookie,
+                    Name = ".AspNetCore.Session",
+                    Description = "Session Cookie generated after login. Browser automatically sends this cookie."
+                });
+
+                options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+                {
+                    {
+                        new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+                        {
+                            Reference = new Microsoft.OpenApi.Models.OpenApiReference { Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme, Id = "CookieAuth" }
+                        },
+                        new string[] { }
+                    }
+                });
+            });
+
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            if (!app.Environment.IsDevelopment())
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Auto-Wash Pro API v1");
+                    c.RoutePrefix = "swagger";
+                });
+            }
+            else
             {
                 app.UseHsts();
                 app.UseHttpsRedirection();
@@ -138,7 +188,7 @@ namespace Auto_Wash
 
             app.UseAuthorization();
 
-            app.MapControllerRoute(
+           app.MapControllerRoute(
                 name: "default",
                 pattern: "{controller=Home}/{action=Index}/{id?}");
 

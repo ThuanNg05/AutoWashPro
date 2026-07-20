@@ -1,13 +1,25 @@
 import api from './api';
 
 export const authService = {
-  login: async (identifier, password) => {
-    const response = await api.post('/Account/Login', {
-      Identifier: identifier,
-      Password: password
-    });
-    return response.data;
-  },
+  // login: async (identifier, password) => {
+  //   const response = await api.post('/Account/Login', {
+  //     Identifier: identifier,
+  //     Password: password
+  //   });
+  //   return response.data;
+  //   },
+    login: async (identifier, password) => {
+
+        console.log("AUTH SERVICE LOGIN");
+
+        const response = await api.post('/api/Account/Login', {
+            Identifier: identifier,
+            Password: password
+        });
+
+        return response.data;
+    },
+
 
   logout: async () => {
     const response = await api.post('/api/account/logout');

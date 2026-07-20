@@ -111,7 +111,9 @@ export const CustomerBooking = () => {
     // Load vehicles
     const fetchVehicles = async () => {
       try {
-        const response = await customerService.getVehicles();
+          const response = await customerService.getVehicles();
+          console.log("response =", response);
+          console.log("vehicles =", response.vehicles);
         if (response.success) {
           if (response.vehicles && response.vehicles.length > 0) {
             const list = response.vehicles.map((v) => ({
