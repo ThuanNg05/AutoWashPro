@@ -25,21 +25,6 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/Account': {
-        target: 'http://localhost:5023',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/Customer': {
-        target: 'http://localhost:5023',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/Admin': {
-        target: 'http://localhost:5023',
-        changeOrigin: true,
-        secure: false,
-      },
       '/Debug': {
         target: 'http://localhost:5023',
         changeOrigin: true,

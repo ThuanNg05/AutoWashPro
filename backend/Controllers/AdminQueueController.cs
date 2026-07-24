@@ -8,6 +8,8 @@ using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Controllers
 {
+    [ApiController]
+    [Route("api/[controller]")]
     public class AdminQueueController : Controller
     {
         private readonly AdminQueueService _adminQueueService;
@@ -24,8 +26,7 @@ namespace Auto_Wash.Controllers
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
         }
 
-        [HttpGet]
-        [Route("Admin/GetQueue")]
+        [HttpGet("GetQueue")]
         public async Task<IActionResult> GetQueue()
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -41,8 +42,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Admin/AdvanceQueue")]
+        [HttpPost("AdvanceQueue")]
         public async Task<IActionResult> AdvanceQueue(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -62,8 +62,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Admin/UpdateQueue")]
+        [HttpPost("UpdateQueue")]
         public async Task<IActionResult> UpdateQueue(int id, [FromBody] UpdateQueueRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -88,8 +87,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Admin/CheckoutQueue")]
+        [HttpPost("CheckoutQueue")]
         public async Task<IActionResult> CheckoutQueue(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -110,8 +108,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Admin/SendCompletionPhotos")]
+        [HttpPost("SendCompletionPhotos")]
         [RequestSizeLimit(30_000_000)] // 5 ảnh x 5MB + overhead multipart
         public async Task<IActionResult> SendCompletionPhotos(int id, [FromForm] IFormFileCollection photos)
         {
@@ -133,8 +130,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Admin/CancelQueue")]
+        [HttpPost("CancelQueue")]
         public async Task<IActionResult> CancelQueue(int id)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -154,8 +150,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Admin/AddWalkIn")]
+        [HttpPost("AddWalkIn")]
         public async Task<IActionResult> AddWalkIn([FromBody] WalkInRequestDto request)
         {
             if (!IsAdminOrStaff()) return Unauthorized();
@@ -192,8 +187,7 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost]
-        [Route("Admin/ClearQueueToday")]
+        [HttpPost("ClearQueueToday")]
         public async Task<IActionResult> ClearQueueToday()
         {
             if (!IsAdminOrStaff()) return Unauthorized();

@@ -62,7 +62,9 @@ namespace Auto_Wash.Controllers
             };
         }
 
-        [HttpPost("Login")]
+        [HttpPost]
+        [Route("Login")]
+
         public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Identifier) || string.IsNullOrWhiteSpace(request.Password))
@@ -83,10 +85,10 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        //[HttpGet]
-        [HttpPost("Logout")]
-        //[Route("Account/Logout")]
-        //[Route("api/account/logout")]
+        
+        [HttpPost]
+        [Route("Logout")]
+        
         public IActionResult Logout()
         {
             HttpContext.Session.Clear();
@@ -96,9 +98,9 @@ namespace Auto_Wash.Controllers
             return Ok(new { success = true });
         }
 
-        [HttpGet("Me")]
-        //[Route("Account/Me")]
-        //[Route("api/account/me")]
+        [HttpGet]
+        [Route("Me")]
+        
         public async Task<IActionResult> Me()
         {
             var accountId = HttpContext.Session.GetInt32("AccountId");
@@ -145,7 +147,9 @@ namespace Auto_Wash.Controllers
             });
         }
 
-        [HttpPost("GoogleLogin")]
+        [HttpPost]
+        [Route("GoogleLogin")]
+
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.GoogleId))
@@ -201,7 +205,9 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost("CompleteGoogleSignup")]
+        [HttpPost]
+        [Route("CompleteGoogleSignup")]
+
         public async Task<IActionResult> CompleteGoogleSignup([FromBody] CompleteGoogleSignupRequestDto request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.GoogleId))
@@ -240,7 +246,9 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost("SendRegisterOtp")]
+        [HttpPost]
+        [Route("SendRegisterOtp")]
+
         public async Task<IActionResult> SendRegisterOtp([FromBody] SendRegisterOtpRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email))
@@ -286,7 +294,9 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost("Register")]        
+        [HttpPost]
+        [Route("Register")]
+
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.FullName) || string.IsNullOrWhiteSpace(request.OtpCode))

@@ -188,9 +188,7 @@ namespace Auto_Wash
 
             app.UseAuthorization();
 
-           app.MapControllerRoute(
-                name: "default",
-                pattern: "{controller=Home}/{action=Index}/{id?}");
+            app.MapControllers();
 
             app.MapHub<BookingHub>("/hubs/bookings"); // Real-time booking events (staff/admin)
 

@@ -2,7 +2,7 @@ import api from './api';
 
 export const customerService = {
   updateProfile: async (fullName, phone) => {
-    const response = await api.post('/Customer/UpdateProfile', {
+    const response = await api.post('/api/Customer/UpdateProfile', {
       FullName: fullName,
       Phone: phone
     });
@@ -10,14 +10,14 @@ export const customerService = {
   },
 
   sendEmailOtp: async (email) => {
-    const response = await api.post('/Customer/SendEmailOtp', {
+    const response = await api.post('/api/Customer/SendEmailOtp', {
       Email: email
     });
     return response.data;
   },
 
   verifyEmailAndChangePassword: async (email, otpCode, newPassword) => {
-    const response = await api.post('/Customer/VerifyEmailAndChangePassword', {
+    const response = await api.post('/api/Customer/VerifyEmailAndChangePassword', {
       Email: email,
       OtpCode: otpCode,
       NewPassword: newPassword
@@ -26,7 +26,7 @@ export const customerService = {
   },
 
   getVehicles: async (config = {}) => {
-    const response = await api.get('/Customer/GetVehicles', config);
+    const response = await api.get('/api/Vehicle/GetVehicles', config);
     return response.data;
   },
 
@@ -66,29 +66,29 @@ export const customerService = {
   },
 
   getServices: async () => {
-    const response = await api.get('/Customer/GetServices');
+    const response = await api.get('/api/Booking/GetServices');
     return response.data;
   },
 
   createBooking: async (bookingData) => {
-    const response = await api.post('/Customer/CreateBooking', bookingData);
+    const response = await api.post('/api/Booking/CreateBooking', bookingData);
     return response.data;
   },
 
   getBookingDetail: async (id, config = {}) => {
-    const response = await api.get(`/Customer/GetBookingDetail/${id}`, config);
+    const response = await api.get(`/api/Booking/GetBookingDetail/${id}`, config);
     return response.data;
   },
 
   cancelBooking: async (id, reason) => {
-    const response = await api.post(`/Customer/CancelBooking/${id}`, {
+    const response = await api.post(`/api/Booking/CancelBooking/${id}`, {
       Reason: reason
     });
     return response.data;
   },
 
   rescheduleBooking: async (id, scheduledAt, reason) => {
-    const response = await api.post(`/Customer/RescheduleBooking/${id}`, {
+    const response = await api.post(`/api/Booking/RescheduleBooking/${id}`, {
       ScheduledAt: scheduledAt,
       Reason: reason
     });
@@ -115,22 +115,22 @@ export const customerService = {
   },
 
   getBookingConfig: async () => {
-    const response = await api.get('/Customer/GetBookingConfig');
+    const response = await api.get('/api/Booking/GetBookingConfig');
     return response.data;
   },
 
   getOccupiedSlots: async (date, config = {}) => {
-    const response = await api.get(`/Customer/GetOccupiedSlots?date=${date}`, config);
+    const response = await api.get(`/api/Booking/GetOccupiedSlots?date=${date}`, config);
     return response.data;
   },
 
   getEarliestAvailableDate: async (startDate, windowDays) => {
-    const response = await api.get(`/Customer/GetEarliestAvailableDate?startDate=${startDate}&windowDays=${windowDays}`);
+    const response = await api.get(`/api/Booking/GetEarliestAvailableDate?startDate=${startDate}&windowDays=${windowDays}`);
     return response.data;
   },
 
   getWashHistory: async (config = {}) => {
-    const response = await api.get('/Customer/GetWashHistory', config);
+    const response = await api.get('/api/Booking/GetWashHistory', config);
     return response.data;
   },
 
@@ -147,39 +147,39 @@ export const customerService = {
   },
 
   getActiveBooking: async (config = {}) => {
-    const response = await api.get('/Customer/GetActiveBooking', config);
+    const response = await api.get('/api/Booking/GetActiveBooking', config);
     return response.data;
   },
 
   getVouchers: async () => {
-    const response = await api.get('/Customer/GetVouchers');
+    const response = await api.get('/api/Customer/GetVouchers');
     return response.data;
   },
 
   getNotifications: async (config = {}) => {
-    const response = await api.get('/Customer/GetNotifications', config);
+    const response = await api.get('/api/Customer/GetNotifications', config);
     return response.data;
   },
 
   markNotificationAsRead: async (id) => {
-    const response = await api.post('/Customer/MarkNotificationAsRead', {
+    const response = await api.post('/api/Customer/MarkNotificationRead', {
       Id: id
     });
     return response.data;
   },
 
   getRewards: async () => {
-    const response = await api.get('/Customer/GetRewards');
+    const response = await api.get('/api/Customer/GetRewards');
     return response.data;
   },
 
   getLoyaltyStatus: async () => {
-    const response = await api.get('/Customer/GetLoyaltyStatus');
+    const response = await api.get('/api/Customer/GetLoyaltyStatus');
     return response.data;
   },
 
   redeemReward: async (rewardId) => {
-    const response = await api.post('/Customer/RedeemReward', {
+    const response = await api.post('/api/Customer/RedeemReward', {
       RewardId: rewardId
     });
     return response.data;
@@ -225,7 +225,7 @@ export const customerService = {
   getRewardsCatalog: async (category) => {
     const params = {};
     if (category) params.category = category;
-    const response = await api.get('/Customer/GetRewardsCatalog', { params });
+    const response = await api.get('/api/Customer/GetRewardsCatalog', { params });
     return response.data;
   },
 
@@ -233,12 +233,12 @@ export const customerService = {
     const params = {};
     if (status) params.status = status;
     if (type) params.type = type;
-    const response = await api.get('/Customer/GetMyRewards', { params });
+    const response = await api.get('/api/Customer/GetMyRewards', { params });
     return response.data;
   },
 
   getRewardHistory: async () => {
-    const response = await api.get('/Customer/GetRewardHistory');
+    const response = await api.get('/api/Customer/GetMyRewards');
     return response.data;
   }
 };

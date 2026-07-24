@@ -443,7 +443,7 @@ export default function AdminDashboard() {
         <i className="fas fa-coins text-cyan me-2 section-title-icon"></i>TỔNG QUAN DOANH THU & GIẢM TRỪ (THEO KỲ BÁO CÁO)
       </h6>
       <div className="row g-3 mb-3.5">
-        <div className="col-lg-3 col-sm-6">
+        <div className="col-lg-4 col-sm-6">
           <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100 position-relative overflow-hidden">
             <span className="position-absolute top-0 end-0 p-3 opacity-10">
               <i className="fas fa-file-invoice-dollar fa-3x text-dark"></i>
@@ -458,7 +458,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="col-lg-3 col-sm-6">
+        <div className="col-lg-4 col-sm-6">
           <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100 position-relative overflow-hidden">
             <span className="position-absolute top-0 end-0 p-3 opacity-10">
               <i className="fas fa-ticket-alt fa-3x text-danger"></i>
@@ -473,22 +473,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100 position-relative overflow-hidden">
-            <span className="position-absolute top-0 end-0 p-3 opacity-10">
-              <i className="fas fa-crown fa-3x text-warning"></i>
-            </span>
-            <small className="text-muted d-block fw-bold text-uppercase" style={{ fontSize: "0.64rem" }}>
-              GIẢM GIÁ LOYALTY & TIER (−)
-            </small>
-            <h3 className="fw-bold text-warning mt-1.5 mb-1">−{Math.abs(Number(revenueOverview.loyaltyDiscount) || 0).toLocaleString()}đ</h3>
-            <small className="text-secondary" style={{ fontSize: "0.7rem" }}>
-              Đặc quyền hạng & đổi điểm
-            </small>
-          </div>
-        </div>
-
-        <div className="col-lg-3 col-sm-6">
+        <div className="col-lg-4 col-sm-6">
           <div className="app-card border-0 shadow-sm p-3.5 bg-primary text-white rounded-4 h-100 position-relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)" }}>
             <span className="position-absolute top-0 end-0 p-3 opacity-20 text-white">
               <i className="fas fa-wallet fa-3x"></i>
@@ -527,10 +512,6 @@ export default function AdminDashboard() {
                   <span style={{ width: "10px", height: "10px", borderRadius: "3px", backgroundColor: "#ef4444" }}></span>
                   Giảm Giá Voucher
                 </small>
-                <small className="d-flex align-items-center gap-1.5 text-secondary">
-                  <span style={{ width: "10px", height: "10px", borderRadius: "3px", backgroundColor: "#f59e0b" }}></span>
-                  Ưu Đãi Loyalty
-                </small>
               </div>
             </div>
 
@@ -547,7 +528,6 @@ export default function AdminDashboard() {
                 {revenueChart.map((bar, idx) => {
                   const netVal = Number(bar.netRevenue || bar.total || 0);
                   const voucherVal = Number(bar.voucherDiscount || 0);
-                  const loyaltyVal = Number(bar.loyaltyDiscount || 0);
                   const pct = netVal > 0 ? Math.max(8, Math.round((netVal / maxChartNet) * 100)) : 3;
 
                   // Requirement 1: Weekly Date Range Labels & Tooltip Format
@@ -555,7 +535,7 @@ export default function AdminDashboard() {
                     ? getWeekRangeDetails(bar)
                     : { axisLabel: bar.label || bar.date, tooltipTitle: bar.label || bar.date };
 
-                  const tooltipText = `${labelDetails.tooltipTitle}\n\nRevenue:\n${netVal.toLocaleString()}đ\n\nVoucher Discount:\n${voucherVal.toLocaleString()}đ\n\nLoyalty Discount:\n${loyaltyVal.toLocaleString()}đ`;
+                  const tooltipText = `${labelDetails.tooltipTitle}\n\nRevenue:\n${netVal.toLocaleString()}đ\n\nVoucher Discount:\n${voucherVal.toLocaleString()}đ`;
 
                   const isZero = netVal === 0;
 

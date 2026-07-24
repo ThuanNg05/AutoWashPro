@@ -7,6 +7,8 @@ using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Controllers
 {
+    [ApiController]
+    [Route("api/[controller]")]
     public class VehicleController : Controller
     {
         private readonly VehicleService _vehicleService;
@@ -25,8 +27,7 @@ namespace Auto_Wash.Controllers
         /// </summary>
         /// <response code="200">Lấy danh sách thành công.</response>
         /// <response code="401">Khách hàng chưa đăng nhập.</response>
-        [HttpGet]
-        [Route("Customer/GetVehicles")]
+        [HttpGet("GetVehicles")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetVehicles()
@@ -56,8 +57,7 @@ namespace Auto_Wash.Controllers
         /// <response code="400">Dữ liệu đầu vào không hợp lệ hoặc thiếu thông tin.</response>
         /// <response code="401">Khách hàng chưa đăng nhập.</response>
         /// <response code="409">Biển số xe đã tồn tại trên hệ thống.</response>
-        [HttpPost]
-        [Route("api/vehicle/send-otp")]
+        [HttpPost("send-otp")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -139,8 +139,7 @@ namespace Auto_Wash.Controllers
         /// <response code="400">Sai mã OTP hoặc dữ liệu biển số xe không hợp lệ.</response>
         /// <response code="401">Khách hàng chưa đăng nhập.</response>
         /// <response code="409">Biển số xe đã được đăng ký trước đó.</response>
-        [HttpPost]
-        [Route("api/vehicle/verify-otp")]
+        [HttpPost("verify-otp")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -214,8 +213,7 @@ namespace Auto_Wash.Controllers
         /// <response code="200">Cập nhật thông tin thành công.</response>
         /// <response code="400">Dữ liệu cập nhật không hợp lệ.</response>
         /// <response code="401">Khách hàng chưa đăng nhập.</response>
-        [HttpPut]
-        [Route("api/vehicle/{id}")]
+        [HttpPut("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -255,8 +253,7 @@ namespace Auto_Wash.Controllers
         /// <response code="200">Xóa phương tiện thành công.</response>
         /// <response code="400">Không thể xóa xe do đang có lịch đặt hoạt động.</response>
         /// <response code="401">Khách hàng chưa đăng nhập.</response>
-        [HttpDelete]
-        [Route("api/vehicle/{id}")]
+        [HttpDelete("{id}")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]

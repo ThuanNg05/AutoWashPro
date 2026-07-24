@@ -405,7 +405,7 @@ export const CustomerBooking = () => {
   const finalTotal = Math.max(0, baseTotal - promoDiscountAmount);
 
   // Earned points (+1 point for every 10,000đ spent)
-  const earnedPoints = Math.round(finalTotal / 10000);
+  const earnedPoints = Math.round(finalTotal / 1000);
 
   // Confirm booking
   const handleConfirmBooking = useCallback(async () => {
@@ -1033,17 +1033,18 @@ export const CustomerBooking = () => {
                 <span
                   className="small text-secondary fw-bold"
                   style={{ fontSize: "0.7rem" }}
-                >
-                  Điểm nhận:{" "}
+                >{/*Điểm nhận:{" "}
                   <strong className="text-warning">
-                    +{earnedPoints} points
-                  </strong>
+                                                        
+                                      +{earnedPoints} points
+                  </strong>*/ } 
+                  
                 </span>
               </div>
               <h3 className="fw-bold text-dark mb-0">
                 {Number(finalTotal).toLocaleString()}đ
               </h3>
-            </div>
+            </div> 
 
             <button
               onClick={handleConfirmBooking}

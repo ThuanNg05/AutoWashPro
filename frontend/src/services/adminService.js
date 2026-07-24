@@ -6,42 +6,42 @@ export const adminService = {
     if (filters.fromDate) params.fromDate = filters.fromDate;
     if (filters.toDate) params.toDate = filters.toDate;
     if (filters.groupBy) params.groupBy = filters.groupBy;
-    const response = await api.get('/Admin/DashboardStats', { params, ...config });
+    const response = await api.get('/api/Admin/DashboardStats', { params, ...config });
     return response.data;
   },
 
   getLoyaltyConfig: async () => {
-    const response = await api.get('/Admin/GetLoyaltyConfig');
+    const response = await api.get('/api/Admin/GetLoyaltyConfig');
     return response.data;
   },
 
   saveLoyaltyConfig: async (config) => {
-    const response = await api.post('/Admin/SaveLoyaltyConfig', config);
+    const response = await api.post('/api/Admin/SaveLoyaltyConfig', config);
     return response.data;
   },
 
   tierReview: async () => {
-    const response = await api.get('/Admin/TierReview');
+    const response = await api.get('/api/Admin/TierReview');
     return response.data;
   },
 
   runTierReview: async () => {
-    const response = await api.post('/Admin/RunTierReview');
+    const response = await api.post('/api/Admin/RunTierReview');
     return response.data;
   },
 
   getQueue: async (config = {}) => {
-    const response = await api.get('/Admin/GetQueue', config);
+    const response = await api.get('/api/AdminQueue/GetQueue', config);
     return response.data;
   },
 
   advanceQueue: async (id) => {
-    const response = await api.post(`/Admin/AdvanceQueue?id=${id}`);
+    const response = await api.post(`/api/AdminQueue/AdvanceQueue?id=${id}`);
     return response.data;
   },
 
   updateQueue: async (id, status, staffNote) => {
-    const response = await api.post(`/Admin/UpdateQueue?id=${id}`, {
+    const response = await api.post(`/api/AdminQueue/UpdateQueue?id=${id}`, {
       Status: status,
       StaffNote: staffNote
     });
@@ -49,7 +49,7 @@ export const adminService = {
   },
 
   checkoutQueue: async (id) => {
-    const response = await api.post(`/Admin/CheckoutQueue?id=${id}`);
+    const response = await api.post(`/api/AdminQueue/CheckoutQueue?id=${id}`);
     return response.data;
   },
 
@@ -57,19 +57,19 @@ export const adminService = {
   sendCompletionPhotos: async (id, files) => {
     const formData = new FormData();
     files.forEach((file) => formData.append('photos', file));
-    const response = await api.post(`/Admin/SendCompletionPhotos?id=${id}`, formData, {
+    const response = await api.post(`/api/AdminQueue/SendCompletionPhotos?id=${id}`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data;
   },
 
   cancelQueue: async (id) => {
-    const response = await api.post(`/Admin/CancelQueue?id=${id}`);
+    const response = await api.post(`/api/AdminQueue/CancelQueue?id=${id}`);
     return response.data;
   },
 
   addWalkIn: async (licensePlate, customerName) => {
-    const response = await api.post('/Admin/AddWalkIn', {
+    const response = await api.post('/api/AdminQueue/AddWalkIn', {
       LicensePlate: licensePlate,
       CustomerName: customerName
     });
@@ -77,37 +77,37 @@ export const adminService = {
   },
 
   getServices: async () => {
-    const response = await api.get('/Admin/GetServices');
+    const response = await api.get('/api/Admin/GetServices');
     return response.data;
   },
 
   saveService: async (service) => {
-    const response = await api.post('/Admin/SaveService', service);
+    const response = await api.post('/api/Admin/SaveService', service);
     return response.data;
   },
 
   toggleService: async (id) => {
-    const response = await api.post(`/Admin/ToggleService?id=${id}`);
+    const response = await api.post(`/api/Admin/ToggleService?id=${id}`);
     return response.data;
   },
 
   deleteService: async (id) => {
-    const response = await api.post(`/Admin/DeleteService?id=${id}`);
+    const response = await api.post(`/api/Admin/DeleteService?id=${id}`);
     return response.data;
   },
 
   getCustomers: async (search) => {
-    const response = await api.get('/Admin/GetCustomers', { params: { search } });
+    const response = await api.get('/api/Admin/GetCustomers', { params: { search } });
     return response.data;
   },
 
   getCustomerDetail: async (id) => {
-    const response = await api.get(`/Admin/GetCustomerDetail?id=${id}`);
+    const response = await api.get(`/api/Admin/GetCustomerDetail?id=${id}`);
     return response.data;
   },
 
   adjustCustomerPoints: async (customerId, pointsChange, reason) => {
-    const response = await api.post('/Admin/AdjustCustomerPoints', {
+    const response = await api.post('/api/Admin/AdjustCustomerPoints', {
       CustomerId: customerId,
       PointsChange: pointsChange,
       Reason: reason
@@ -116,12 +116,12 @@ export const adminService = {
   },
 
   getAvailableVouchers: async () => {
-    const response = await api.get('/Admin/GetAvailableVouchers');
+    const response = await api.get('/api/Admin/GetAvailableVouchers');
     return response.data;
   },
 
   assignVoucher: async (customerId, rewardId) => {
-    const response = await api.post('/Admin/AssignVoucher', {
+    const response = await api.post('/api/Admin/AssignVoucher', {
       CustomerId: customerId,
       RewardId: rewardId
     });
@@ -236,22 +236,22 @@ export const adminService = {
     if (filters.search) params.search = filters.search;
     if (filters.type) params.type = filters.type;
     if (filters.status) params.status = filters.status;
-    const response = await api.get('/Admin/GetAdminRewards', { params });
+    const response = await api.get('/api/Admin/GetAdminRewards', { params });
     return response.data;
   },
 
   createReward: async (rewardData) => {
-    const response = await api.post('/Admin/CreateReward', rewardData);
+    const response = await api.post('/api/Admin/CreateReward', rewardData);
     return response.data;
   },
 
   updateReward: async (id, rewardData) => {
-    const response = await api.post(`/Admin/UpdateReward?id=${id}`, rewardData);
+    const response = await api.post(`/api/Admin/UpdateReward?id=${id}`, rewardData);
     return response.data;
   },
 
   toggleRewardStatus: async (id) => {
-    const response = await api.post(`/Admin/ToggleRewardStatus?id=${id}`);
+    const response = await api.post(`/api/Admin/ToggleRewardStatus?id=${id}`);
     return response.data;
   },
 
@@ -260,12 +260,12 @@ export const adminService = {
     if (filters.search) params.search = filters.search;
     if (filters.status) params.status = filters.status;
     if (filters.type) params.type = filters.type;
-    const response = await api.get('/Admin/GetRewardRedemptions', { params });
+    const response = await api.get('/api/Admin/GetRewardRedemptions', { params });
     return response.data;
   },
 
   confirmGift: async (voucherCode, staffNotes) => {
-    const response = await api.post('/Admin/ClaimGift', {
+    const response = await api.post('/api/Admin/ClaimGift', {
       VoucherCode: voucherCode,
       StaffNotes: staffNotes
     });
@@ -273,7 +273,7 @@ export const adminService = {
   },
 
   getRewardStats: async () => {
-    const response = await api.get('/Admin/GetRewardStats');
+    const response = await api.get('/api/Admin/GetRewardStats');
     return response.data;
   }
 };
