@@ -141,7 +141,7 @@ export const adminService = {
   confirmBooking: async (id) => {
     const response = await api.put(`/api/admin/bookings/${id}/confirm`);
     return response.data;
-  },
+  },    
 
  cancelBooking: async (id, reason) => {
   console.log("Cancel Booking", {

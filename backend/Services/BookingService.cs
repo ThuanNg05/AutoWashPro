@@ -121,6 +121,7 @@ namespace Auto_Wash.Services
             }
 
             // Lock Check: block locked vehicles from booking
+            
             bool isLocked = await _context.OwnershipTransferRequests
                 .AnyAsync(r => r.VehicleId == vehicle.VehicleId && 
                                r.Status == OwnershipTransferStatus.Pending);
@@ -166,7 +167,7 @@ namespace Auto_Wash.Services
                 return (false, "Vui lòng đặt lịch trước ít nhất 15 phút.", 0);
             }
 
-            // 3b. Validate that the scheduled time matches one of the generated operating slots
+            // 3b. validate khung giow hoat dong cua centre
             int startHour = _configuration.GetValue<int>("BookingCapacityConfig:StartHour", 8);
             int endHour = _configuration.GetValue<int>("BookingCapacityConfig:EndHour", 23);
             var allowedSlots = new HashSet<string>();
@@ -239,7 +240,7 @@ namespace Auto_Wash.Services
                     int calculatedBasePrice = mainService.BasePrice;
                     int totalDurationMinutes = mainService.EstimatedMinutes;
 
-                    // 7b. Dynamic Add-on Services lookup
+                    // 7b. check co sd dich vu phu kh
                     if (request.AddOnServiceNames != null && request.AddOnServiceNames.Count > 0)
                     {
                         foreach (var addonName in request.AddOnServiceNames)

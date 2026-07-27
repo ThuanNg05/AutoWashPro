@@ -42,7 +42,7 @@ export const queueStatusMapper = {
         return 'bg-success bg-opacity-10 text-success';
       case 'Cancelled':
       case 'NoShow':
-        return 'bg-danger bg-opacity-10 text-danger';
+        return 'bg-danger text-white';
       default:
         return 'bg-secondary bg-opacity-10 text-muted';
     }
@@ -75,19 +75,16 @@ export const queueStatusMapper = {
       { id: 'CheckedIn', name: 'Đã check-in' },
       { id: 'Washing', name: 'Đang rửa' },
       { id: 'Drying', name: 'Đã sấy khô' },
-      { id: 'WaitingCheckout', name: 'Chờ thanh toán' },
       { id: 'Completed', name: 'Hoàn tất' }
     ];
 
     let activeIndex = -1;
     
-    if (bookingStatus === 'Completed' || bookingStatus === 'Checkout' || queueStatus === 'Archived' || currentStage === 'Checkout') {
-      activeIndex = 5;
-    } else if (bookingStatus === 'WaitingCheckout' || queueStatus === 'Completed' || currentStage === 'Completed') {
-      activeIndex = 3;
+    if (bookingStatus === 'Completed' || bookingStatus === 'Checkout' || queueStatus === 'Archived' || queueStatus === 'Completed' || currentStage === 'Checkout' || currentStage === 'Completed') {
+      activeIndex = 4;
     } else {
       const stage = currentStage || '';
-      if (stage === 'CheckIn' || stage === 'CheckedIn' || bookingStatus === 'CheckedIn') {
+      if (stage === 'CheckIn' || stage === 'CheckedIn') {
         activeIndex = 0;
       } else if (stage === 'Washing') {
         activeIndex = 1;
