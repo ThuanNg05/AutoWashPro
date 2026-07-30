@@ -643,15 +643,10 @@ export const AdminBookings = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
             >
               <option value="ALL">Tất cả trạng thái</option>
-              <option value="Pending">Chờ xác nhận</option>
               <option value="Confirmed">Đã xác nhận</option>
-              <option value="CheckedIn">Đã check-in</option>
-              <option value="Washing">Đang rửa xe</option>
               <option value="Completed">Hoàn thành</option>
               <option value="Cancelled">Đã hủy</option>
-              <option value="NoShow">Khách không đến</option>
-              <option value="WAITING_CHECKIN">Chờ check-in</option>
-              <option value="PROCESSING">Đang xử lý</option>
+              <option value="NoShow">Khách không đến (No-Show)</option>
             </select>
           </div>
 

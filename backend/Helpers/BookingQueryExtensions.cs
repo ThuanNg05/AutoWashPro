@@ -11,21 +11,15 @@ namespace Auto_Wash.Helpers
         /// </summary>
         public static IQueryable<Booking> WhereSlotOccupied(this IQueryable<Booking> query)
         {
-            return query.Where(b => b.Status != BookingStatus.Completed 
-                                 && b.Status != BookingStatus.Cancelled 
-                                 && b.Status != BookingStatus.NoShow 
-                                 && b.Status != BookingStatus.WaitingCheckout);
+            return query.Where(b => b.Status == BookingStatus.Confirmed);
         }
-
+    
         /// <summary>
         /// Filters bookings that represent an active, unfinished booking lifecycle for a vehicle.
-        /// Includes WaitingCheckout because the vehicle is still at the shop waiting for payment and cannot book another slot.
         /// </summary>
         public static IQueryable<Booking> WhereActive(this IQueryable<Booking> query)
         {
-            return query.Where(b => b.Status != BookingStatus.Completed 
-                                 && b.Status != BookingStatus.Cancelled 
-                                 && b.Status != BookingStatus.NoShow);
+            return query.Where(b => b.Status == BookingStatus.Confirmed);
         }
     }
 }

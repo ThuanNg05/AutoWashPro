@@ -1115,11 +1115,7 @@ export const AdminQueue = () => {
       </div>
 
       {loading ? (
-        <div className="d-flex justify-content-center align-items-center py-5">
-          <div className="spinner-border text-info" role="status">
-            <span className="visually-hidden">Đang tải...</span>
-          </div>
-        </div>
+        <div className="py-5"></div>
       ) : (
         <div className="flex-grow-1">
           {!hasAnyItems ? (
@@ -1267,7 +1263,7 @@ export const AdminQueue = () => {
                       </div>
                       <div className="col-6 text-end">
                         <span className="text-muted d-block small">
-                          ETA HOÀN THÀNH
+                          DỰ KIẾN HOÀN THÀNH
                         </span>
                         <strong className="text-cyan">
                           {selectedVehicle.etaCompletion}
@@ -1275,7 +1271,7 @@ export const AdminQueue = () => {
                       </div>
                       <div className="col-6 mt-2">
                         <span className="text-muted d-block small">
-                          TIẾN ĐỘ THỜI GIAN
+                          TIẾN ĐỘ
                         </span>
                         <strong className="text-dark">
                           {selectedVehicle.progress}%

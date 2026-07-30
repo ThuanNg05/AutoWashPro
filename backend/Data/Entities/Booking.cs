@@ -19,7 +19,7 @@ namespace Auto_Wash.Data.Entities
 
         public DateTime ScheduledAt { get; set; }
 
-        public BookingStatus Status { get; set; } = BookingStatus.Pending;
+        public BookingStatus Status { get; set; } = BookingStatus.Confirmed;
 
         public int BasePrice { get; set; }
 

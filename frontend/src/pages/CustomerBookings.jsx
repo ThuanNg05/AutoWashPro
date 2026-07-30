@@ -48,6 +48,7 @@ export const CustomerBookings = () => {
   const [reviewSubTab, setReviewSubTab] = useState('pending'); // pending, submitted
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [customerStatusFilter, setCustomerStatusFilter] = useState('ALL');
 
   // Review states
   const [myReviews, setMyReviews] = useState([]);
@@ -479,23 +480,17 @@ export const CustomerBookings = () => {
     }
   }, [reviewTargetId, reviewRating, reviewComment, detailModalBooking, loadData, handleOpenDetail]);
 
-  // Filtering bookings based on tab
-  const activeBookings = useMemo(() => bookings.filter(b => 
-    (b.status === 'Pending' || 
-     b.status === 'Pending Confirmation' ||
-     b.status === 'Confirmed' || 
-     b.status === 'CheckedIn' ||
-     b.status === 'Checked In' ||
-     b.status === 'Washing' ||
-     b.status === 'InProgress' ||
-     b.status === 'In Progress' ||
-     b.status === 'WaitingCheckout' ||
-     b.status === 'Completed') && 
-     b.status !== 'Cancelled' &&
-     b.status !== 'NoShow' &&
-     b.status !== 'No Show' &&
-     !b.checkedOutAt
-  ), [bookings]);
+  // Filtering bookings based on status filter
+  const displayedCustomerBookings = useMemo(() => {
+    return bookings.filter(b => {
+      if (customerStatusFilter === 'ALL') return true;
+      if (customerStatusFilter === 'Confirmed') return b.status === 'Confirmed' || b.status === 'Pending' || b.status === 'CheckedIn';
+      if (customerStatusFilter === 'Completed') return b.status === 'Completed' || b.status === 'WaitingCheckout';
+      if (customerStatusFilter === 'Cancelled') return b.status === 'Cancelled';
+      if (customerStatusFilter === 'NoShow') return b.status === 'NoShow' || b.status === 'No Show';
+      return true;
+    });
+  }, [bookings, customerStatusFilter]);
 
   const translateStatus = (status) => {
     switch (status) {
@@ -515,10 +510,37 @@ export const CustomerBookings = () => {
       case 'No Show':
         return { label: 'Khách không đến', badgeClass: 'bg-danger bg-opacity-15 text-danger fw-bold', icon: 'fa-user-slash' };
       case 'WaitingCheckout':
-        return { label: 'Chờ thanh toán', badgeClass: 'bg-warning bg-opacity-15 text-warning', icon: 'fa-file-invoice-dollar' };
+        return { label: 'Chờ thanh toán', badgeClass: 'bg-warning bg-opacity-25 text-dark', icon: 'fa-file-invoice-dollar' };
       default:
         return { label: 'Đang xử lý', badgeClass: 'bg-secondary bg-opacity-10 text-secondary', icon: 'fa-cog fa-spin' };
     }
+  };
+
+  // Trạng thái hiển thị cho khách. Chỉ hiện 'Hoàn tất' khi đã thanh toán
+  // (status === 'Completed'). Khi rửa xong nhưng CHƯA thanh toán (queueStatus ở
+  // nhóm hoàn tất công đoạn: Completed/Archived/Checkout, hoặc status
+  // 'WaitingCheckout') thì hiển thị 'Chờ thanh toán' để tránh gây hiểu nhầm cho staff.
+  const resolveDisplayStatus = (booking) => {
+    const { status, queueStatus } = booking;
+    if (status === 'Cancelled') return translateStatus('Cancelled');
+    if (status === 'NoShow' || status === 'No Show') return translateStatus('NoShow');
+    if (status === 'Completed') return translateStatus('Completed');
+    if (
+      status === 'WaitingCheckout' ||
+      queueStatus === 'Completed' ||
+      queueStatus === 'Archived' ||
+      queueStatus === 'Checkout'
+    ) {
+      return translateStatus('WaitingCheckout');
+    }
+    if (queueStatus) {
+      return {
+        label: queueStatusMapper.getLabel(queueStatus),
+        badgeClass: queueStatusMapper.getBadgeClass(queueStatus),
+        icon: queueStatusMapper.getIcon(queueStatus),
+      };
+    }
+    return translateStatus(status);
   };
 
   const getDetailTimelineStages = (booking) => {
@@ -579,7 +601,7 @@ export const CustomerBookings = () => {
               style={{ background: 'transparent' }}
               onClick={() => setActiveTab('active')}
             >
-              Lịch hẹn hoạt động ({activeBookings.length})
+              Lịch hẹn của tôi ({bookings.length})
             </button>
             <button
               className={`btn pb-2 fw-bold text-decoration-none border-0 rounded-0 px-2 position-relative ${activeTab === 'reviews' ? 'text-cyan border-bottom border-cyan border-3' : 'text-secondary'}`}
@@ -594,32 +616,33 @@ export const CustomerBookings = () => {
 
       {/* Tab Contents */}
       {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-info mb-2" role="status">
-            <span className="visually-hidden">Đang tải...</span>
-          </div>
-          <p className="text-secondary small">Đang tải dữ liệu lịch hẹn...</p>
-        </div>
+        <div className="py-5"></div>
       ) : (
         <div className="row text-start">
-          {/* TAB 1: ACTIVE BOOKINGS */}
+          {/* TAB 1: ALL CUSTOMER BOOKINGS WITH STATUS FILTER */}
           {activeTab === 'active' && (
             <div className="col-12">
-              {activeBookings.length === 0 ? (
+              {/* Status Filter Pills */}
+              <div className="d-flex gap-2 mb-3 flex-wrap align-items-center">
+                <span className="small fw-bold text-muted me-1"><i className="fas fa-filter me-1"></i>Lọc trạng thái:</span>
+                <button className={`btn btn-sm rounded-pill px-3 fw-bold ${customerStatusFilter === 'ALL' ? 'btn-dark' : 'btn-light border text-secondary'}`} onClick={() => setCustomerStatusFilter('ALL')}>Tất cả ({bookings.length})</button>
+                <button className={`btn btn-sm rounded-pill px-3 fw-bold ${customerStatusFilter === 'Confirmed' ? 'btn-primary' : 'btn-light border text-secondary'}`} onClick={() => setCustomerStatusFilter('Confirmed')}>Đã xác nhận</button>
+                <button className={`btn btn-sm rounded-pill px-3 fw-bold ${customerStatusFilter === 'Completed' ? 'btn-success' : 'btn-light border text-secondary'}`} onClick={() => setCustomerStatusFilter('Completed')}>Hoàn tất</button>
+                <button className={`btn btn-sm rounded-pill px-3 fw-bold ${customerStatusFilter === 'Cancelled' ? 'btn-secondary' : 'btn-light border text-secondary'}`} onClick={() => setCustomerStatusFilter('Cancelled')}>Đã hủy</button>
+                <button className={`btn btn-sm rounded-pill px-3 fw-bold ${customerStatusFilter === 'NoShow' ? 'btn-danger' : 'btn-light border text-secondary'}`} onClick={() => setCustomerStatusFilter('NoShow')}>Khách không đến</button>
+              </div>
+
+              {displayedCustomerBookings.length === 0 ? (
                 <div className="app-card p-5 text-center text-muted rounded-4 bg-white border-0 shadow-sm">
                   <div className="mb-3"><i className="fas fa-calendar-minus fa-3x text-light"></i></div>
-                  <h5 className="fw-bold mb-1 text-dark">Không có lịch hẹn hoạt động nào</h5>
-                  <p className="small mb-3">Bạn chưa có lịch hẹn nào đang chờ xử lý hoặc đã xác nhận.</p>
+                  <h5 className="fw-bold mb-1 text-dark">Không tìm thấy lịch hẹn nào</h5>
+                  <p className="small mb-3">Không có đơn đặt lịch nào khớp với bộ lọc trạng thái đã chọn.</p>
                   <button className="app-btn-primary px-4 py-2 border-0 w-auto" onClick={() => navigate('/customer/booking')}>Đặt lịch ngay</button>
                 </div>
               ) : (
                 <div className="row g-3">
-                  {activeBookings.map((b) => {
-                    const statusInfo = (b.status === 'WaitingCheckout')
-                      ? translateStatus(b.status)
-                      : (b.queueStatus
-                        ? { label: queueStatusMapper.getLabel(b.queueStatus), badgeClass: queueStatusMapper.getBadgeClass(b.queueStatus), icon: queueStatusMapper.getIcon(b.queueStatus) }
-                        : translateStatus(b.status));
+                  {displayedCustomerBookings.map((b) => {
+                    const statusInfo = resolveDisplayStatus(b);
                     return (
                       <div key={b.id} className="col-md-6 col-lg-4">
                         <div className={`app-card border border-light p-4 bg-white rounded-4 shadow-sm hover-shadow transition-all ${getStatusBorderClass(b.status)}`} style={{ cursor: 'pointer' }} onClick={() => handleOpenDetail(b.id)}>
@@ -924,24 +947,14 @@ export const CustomerBookings = () => {
                       <div className="col-6 ps-0">
                         <small className="text-secondary d-block mb-1" style={{ fontSize: '0.62rem', fontWeight: 600 }}>THỜI GIAN HẸN</small>
                         <strong className="d-block" style={{ fontSize: '0.82rem' }}>{new Date(detailModalBooking.scheduledAt).toLocaleDateString('vi-VN')}</strong>
-                        <span className="badge bg-cyan bg-opacity-10 text-cyan font-monospace mt-0.5" style={{ fontSize: '0.68rem' }}>
+                        <span className="badge font-monospace mt-0.5 px-2 py-1" style={{ fontSize: '0.72rem', backgroundColor: '#e0f2fe', color: '#0f172a', fontWeight: 700 }}>
                           {new Date(detailModalBooking.scheduledAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       <div className="col-6 pe-0">
                         <small className="text-secondary d-block mb-1" style={{ fontSize: '0.62rem', fontWeight: 600 }}>TRẠNG THÁI</small>
-                        <span className={`badge px-2.5 py-1.5 rounded-pill small fw-bold d-inline-block mt-0.5 ${
-                          detailModalBooking.status === 'WaitingCheckout'
-                            ? translateStatus(detailModalBooking.status).badgeClass
-                            : (detailModalBooking.queueStatus
-                              ? queueStatusMapper.getBadgeClass(detailModalBooking.queueStatus)
-                              : translateStatus(detailModalBooking.status).badgeClass)
-                        }`} style={{ fontSize: '0.68rem' }}>
-                          {detailModalBooking.status === 'WaitingCheckout'
-                            ? translateStatus(detailModalBooking.status).label
-                            : (detailModalBooking.queueStatus
-                              ? queueStatusMapper.getLabel(detailModalBooking.queueStatus)
-                              : translateStatus(detailModalBooking.status).label)}
+                        <span className={`badge px-2.5 py-1.5 rounded-pill small fw-bold d-inline-block mt-0.5 ${resolveDisplayStatus(detailModalBooking).badgeClass}`} style={{ fontSize: '0.68rem' }}>
+                          {resolveDisplayStatus(detailModalBooking).label}
                         </span>
                       </div>
                       <div className="col-12 border-top pt-1.5 px-0 mt-1.5">
@@ -1008,7 +1021,7 @@ export const CustomerBookings = () => {
                                 </div>
                               </div>
                               {step.isCompleted && <span className="badge bg-success bg-opacity-10 text-success" style={{ fontSize: '0.55rem' }}>Xong</span>}
-                              {step.isActive && <span className="badge bg-info bg-opacity-10 text-cyan animate-pulse" style={{ fontSize: '0.55rem' }}>Đang chạy</span>}
+                              {step.isActive && <span className="badge bg-info bg-opacity-10 text-cyan animate-pulse" style={{ fontSize: '0.55rem' }}>Đang thực hiện</span>}
                               {!step.isCompleted && !step.isActive && <span className="badge bg-light text-muted" style={{ fontSize: '0.55rem' }}>Chờ</span>}
                             </div>
                           ));
@@ -1089,7 +1102,7 @@ export const CustomerBookings = () => {
 
                       {/* Payment Details Card */}
                       {detailModalBooking.status === 'Completed' ? (
-                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem', borderStyle: 'dashed' }}>
+                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem' }}>
                           <div className="d-flex align-items-center justify-content-between mb-1.5">
                             <span className="text-secondary">Trạng thái thanh toán:</span>
                             <span className="badge bg-success bg-opacity-10 text-success fw-bold" style={{ fontSize: '0.65rem', padding: '3px 8px' }}>
@@ -1144,7 +1157,7 @@ export const CustomerBookings = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem', borderStyle: 'dashed' }}>
+                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem' }}>
                           <div className="d-flex align-items-center justify-content-between mb-0">
                             <span className="text-secondary">Trạng thái thanh toán:</span>
                             <span className="badge bg-warning bg-opacity-10 text-warning fw-bold" style={{ fontSize: '0.65rem', padding: '3px 8px' }}>
@@ -1179,7 +1192,7 @@ export const CustomerBookings = () => {
                               <div className="timeline-marker" style={{ left: '-12.5px', top: '4px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--cyan-electric)', position: 'absolute' }}></div>
                               <div className="d-flex justify-content-between align-items-start ms-2">
                                 <div>
-                                  <strong className="text-dark">{log.action === 'Created' ? 'Khởi tạo' : log.action === 'Confirmed' ? 'Đã duyệt' : log.action === 'CheckedIn' ? 'Đã check-in' : log.action === 'WashingStarted' ? 'Đang rửa' : log.action === 'Completed' ? 'Hoàn thành' : log.action === 'Cancelled' ? 'Đã hủy' : log.action === 'NoShow' ? 'Không đến' : log.action === 'Rescheduled' ? 'Đổi lịch' : log.action}</strong>
+                                  <strong className="text-dark">{log.action === 'CustomerNotified' ? 'Thông báo' : log.action === 'WaitingCheckout' ? 'Chờ thanh toán' : log.action === 'Created' ? 'Khởi tạo' : log.action === 'Confirmed' ? 'Đã duyệt' : log.action === 'CheckedIn' ? 'Đã check-in' : log.action === 'WashingStarted' ? 'Đang rửa' : log.action === 'Completed' ? 'Hoàn thành' : log.action === 'Cancelled' ? 'Đã hủy' : log.action === 'NoShow' ? 'Không đến' : log.action === 'Rescheduled' ? 'Đổi lịch' : log.action}</strong>
                                   <span className="text-secondary d-block mt-0.5" style={{ fontSize: '0.72rem' }}>{log.description}</span>
                                 </div>
                                 <div className="text-end text-muted font-monospace" style={{ fontSize: '0.65rem', minWidth: '80px', paddingLeft: '8px' }}>
