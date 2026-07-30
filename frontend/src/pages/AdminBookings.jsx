@@ -302,6 +302,41 @@ export const AdminBookings = () => {
     }
   };
 
+  const handleDemoCheckIn = (id, plate, scheduledAt) => {
+    const performDemoCheckIn = async () => {
+      try {
+        const minutes = Math.round((Date.now() - new Date(scheduledAt).getTime()) / 60000);
+        const shiftRes = await adminService.demoShiftBookingTime(id, minutes === 0 ? -1 : minutes);
+        if (!shiftRes || !shiftRes.success) {
+          if (window.showToast) window.showToast(shiftRes?.message || 'Lỗi dịch giờ hẹn (demo)', 'error');
+          return;
+        }
+
+        const checkinRes = await adminService.checkinBooking(id);
+        if (checkinRes && checkinRes.success) {
+          if (window.showToast) window.showToast('DEMO: Đã dịch giờ hẹn về hiện tại và check-in thành công!', 'success');
+          loadBookings();
+          if (selectedBookingId === id) {
+            loadBookingDetail(id);
+          }
+        } else {
+          if (window.showToast) window.showToast(checkinRes?.message || 'Lỗi check-in xe (demo)', 'error');
+        }
+      } catch (e) {
+        console.error('Demo check-in error', e);
+        const errMsg = e.response?.data?.message || 'Lỗi hệ thống demo check-in';
+        if (window.showToast) window.showToast(errMsg, 'error');
+      }
+    };
+
+    const confirmMsg = `DEMO: Dịch giờ hẹn xe biển số ${plate} về hiện tại và check-in ngay lập tức?`;
+    if (window.showConfirm) {
+      window.showConfirm('Demo Check-In tức thì', confirmMsg, performDemoCheckIn);
+    } else if (window.confirm(confirmMsg)) {
+      performDemoCheckIn();
+    }
+  };
+
   const getStatusLabel = (status) => {
     switch (status) {
       case 'Pending': return 'Chờ xác nhận';
@@ -1814,6 +1849,26 @@ export const AdminBookings = () => {
                               }
                             >
                               CHECK-IN NGAY
+                            </button>
+                            <button
+                              className="btn fw-bold px-4 py-2.5"
+                              style={{
+                                borderRadius: "14px",
+                                fontSize: "0.8rem",
+                                border: "1px solid #8b5cf6",
+                                color: "#8b5cf6",
+                                background: "transparent",
+                              }}
+                              title="Demo: dịch giờ hẹn về hiện tại rồi check-in ngay, bỏ qua ràng buộc ngày hẹn"
+                              onClick={() =>
+                                handleDemoCheckIn(
+                                  bookingDetail.bookingId,
+                                  bookingDetail.vehicle.licensePlate,
+                                  bookingDetail.scheduledAt,
+                                )
+                              }
+                            >
+                              DEMO CHECK-IN
                             </button>
                           </>
                         );
