@@ -185,12 +185,7 @@ export const CustomerHistory = () => {
 
       {/* Loading state */}
       {loading ? (
-        <div className="text-center py-5">
-          <div className="spinner-border text-info mb-2" role="status">
-            <span className="visually-hidden">Đang tải...</span>
-          </div>
-          <p className="text-secondary small">Đang tải lịch sử giao dịch...</p>
-        </div>
+        <div className="py-5"></div>
       ) : (
         <>
           {activeTab === "care" && (

@@ -141,7 +141,7 @@ export const adminService = {
   confirmBooking: async (id) => {
     const response = await api.put(`/api/admin/bookings/${id}/confirm`);
     return response.data;
-  },
+  },    
 
  cancelBooking: async (id, reason) => {
   console.log("Cancel Booking", {
@@ -166,6 +166,13 @@ export const adminService = {
 
   checkinBooking: async (id) => {
     const response = await api.put(`/api/admin/bookings/${id}/checkin`);
+    return response.data;
+  },
+
+  demoShiftBookingTime: async (id, minutes) => {
+    const response = await api.post(`/api/admin/demo-tools/bookings/${id}/shift-time`, null, {
+      params: { minutes }
+    });
     return response.data;
   },
 

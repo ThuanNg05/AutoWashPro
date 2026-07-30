@@ -453,36 +453,19 @@ namespace Auto_Wash.Services
                     q.CurrentStage = "Completed";
 
                 // Sync booking status and timestamps
-                if (q.Booking != null && parsedStatus.HasValue && oldStatus != parsedStatus.Value)
-                {
-                    if (parsedStatus.Value == QueueStatus.Washing)
+                    if (parsedStatus.Value == QueueStatus.Completed)
                     {
-                        q.Booking.Status = BookingStatus.Washing;
-                        q.Booking.WashingAt ??= DateTime.Now;
+                        q.Booking.Status = BookingStatus.Completed;
 
                         _context.BookingAuditLogs.Add(new BookingAuditLog
                         {
                             BookingId = q.BookingId!.Value,
-                            Action = "WashingStarted",
-                            Description = "Bắt đầu công đoạn rửa xe.",
+                            Action = "Completed",
+                            Description = "Xe đã hoàn tất các công đoạn dịch vụ.",
                             PerformedBy = "Staff",
                             CreatedAt = DateTime.Now
                         });
                     }
-                    else if (parsedStatus.Value == QueueStatus.Completed)
-                    {
-                        q.Booking.Status = BookingStatus.WaitingCheckout;
-
-                        _context.BookingAuditLogs.Add(new BookingAuditLog
-                        {
-                            BookingId = q.BookingId!.Value,
-                            Action = "WaitingCheckout",
-                            Description = "Xe đã hoàn tất các công đoạn dịch vụ, chờ thanh toán.",
-                            PerformedBy = "Staff",
-                            CreatedAt = DateTime.Now
-                        });
-                    }
-                }
 
                 if (parsedStatus.HasValue && oldStatus != parsedStatus.Value)
                 {

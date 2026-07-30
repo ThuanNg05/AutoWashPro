@@ -326,6 +326,43 @@ export const AdminQueue = () => {
     }
   };
 
+  // DEMO: bỏ qua thời gian chờ rửa/sấy, nhảy thẳng đến bước "Tự động chụp ảnh"
+  // bằng cách lùi CheckInAt về quá khứ đủ xa cho tick nền (2s) xử lý ngay.
+  const handleDemoSkipToCapture = (bookingId, plate) => {
+    const performSkip = async () => {
+      try {
+        const res = await adminService.demoShiftBookingTime(bookingId, -2);
+        if (res && res.success) {
+          if (window.showToast)
+            window.showToast(
+              "DEMO: Đã bỏ qua thời gian chờ, xe sẽ chuyển sang bước chụp ảnh trong giây lát.",
+              "success",
+            );
+          // Tiến trình chỉ thật sự chuyển trạng thái khi background service
+          // (tick mỗi 2s) xử lý xong — refetch ngay sẽ vẫn thấy state cũ,
+          // nên đợi qua ít nhất 1 tick rồi refetch lại (kèm 1 lần dự phòng).
+          setTimeout(fetchQueue, 2500);
+          setTimeout(fetchQueue, 5000);
+        } else {
+          if (window.showToast)
+            window.showToast(res?.message || "Lỗi bỏ qua tiến trình (demo)", "error");
+        }
+      } catch (err) {
+        console.error("Demo skip error", err);
+        const errMsg =
+          err.response?.data?.message || "Lỗi hệ thống khi bỏ qua tiến trình";
+        if (window.showToast) window.showToast(errMsg, "error");
+      }
+    };
+
+    const confirmMsg = `DEMO: Bỏ qua thời gian chờ rửa/sấy xe ${plate}, nhảy thẳng đến bước Tự động chụp ảnh?`;
+    if (window.showConfirm) {
+      window.showConfirm("Bỏ qua tiến trình", confirmMsg, performSkip);
+    } else if (window.confirm(confirmMsg)) {
+      performSkip();
+    }
+  };
+
   // Checkout and clean out queue
   const handleCheckoutVehicle = (queueId, plate) => {
     if (submittingIds.has(queueId)) return;
@@ -1135,11 +1172,7 @@ export const AdminQueue = () => {
       </div>
 
       {loading ? (
-        <div className="d-flex justify-content-center align-items-center py-5">
-          <div className="spinner-border text-info" role="status">
-            <span className="visually-hidden">Đang tải...</span>
-          </div>
-        </div>
+        <div className="py-5"></div>
       ) : (
         <div className="flex-grow-1">
           {!hasAnyItems ? (
@@ -1312,9 +1345,36 @@ export const AdminQueue = () => {
                     </div>
                   </div>
 
-                  <label className="form-label small fw-bold text-muted mb-2">
-                    QUY TRÌNH THỰC HIỆN DỰ KIẾN
-                  </label>
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <label className="form-label small fw-bold text-muted mb-0">
+                      QUY TRÌNH THỰC HIỆN DỰ KIẾN
+                    </label>
+                    {selectedVehicle.statusGroup === "Processing" &&
+                      ["CheckIn", "Washing", "Drying"].includes(
+                        getModalStages(selectedVehicle).find((s) => s.isActive)
+                          ?.stageKey,
+                      ) && (
+                        <button
+                          className="btn btn-sm fw-bold"
+                          style={{
+                            fontSize: "0.62rem",
+                            border: "1px solid #8b5cf6",
+                            color: "#8b5cf6",
+                            background: "transparent",
+                            borderRadius: "8px",
+                          }}
+                          title="Demo: bỏ qua thời gian chờ, nhảy thẳng đến bước Tự động chụp ảnh"
+                          onClick={() =>
+                            handleDemoSkipToCapture(
+                              selectedVehicle.bookingId,
+                              selectedVehicle.licensePlate,
+                            )
+                          }
+                        >
+                          DEMO: BỎ QUA TIẾN TRÌNH
+                        </button>
+                      )}
+                  </div>
                   <div className="d-flex flex-column gap-2 mb-3">
                     {getModalStages(selectedVehicle).map((step, idx) => {
                       // Bước chụp ảnh chờ người demo bấm chụp, nên thay badge
