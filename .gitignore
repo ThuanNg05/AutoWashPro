@@ -84,6 +84,7 @@ gha-creds-*.json
 backend/debug_be.log
 backend/debug_fe.log
 backend/*.log
+backend/*.txt
 
 # Local secrets — never commit
 backend/appsettings.Development.json

@@ -174,8 +174,7 @@ namespace Auto_Wash.Controllers
                 {
                     if (queueStatusEnum == QueueStatus.Waiting) washStep = 0;
                     else if (queueStatusEnum == QueueStatus.Washing) washStep = 1;
-                    else if (queueStatusEnum == QueueStatus.Drying) washStep = 2;
-                    else if (queueStatusEnum == QueueStatus.Completed) washStep = 3;
+                    else if (queueStatusEnum == QueueStatus.Completed) washStep = 2;
                 }
 
                 var bookingTasks = activeBooking.BookingTasks?.OrderBy(t => t.SequenceOrder).ToList();

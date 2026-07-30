@@ -46,18 +46,17 @@ namespace Auto_Wash.Services
                 throw new KeyNotFoundException($"Booking with ID {bookingId} was not found.");
             }
 
-            // Constraint 1: Payment can only be created when Booking.Status == WaitingCheckout
-            if (booking.Status != BookingStatus.WaitingCheckout)
+            // Constraint 1: Payment can only be created when BookingTask WaitingCheckout is InProgress (or Booking.Status == WaitingCheckout)
+            var tasks = await _context.BookingTasks.Where(t => t.BookingId == bookingId).ToListAsync();
+            var waitingCheckoutTask = tasks.FirstOrDefault(t => t.TaskType == "WaitingCheckout");
+            if ((waitingCheckoutTask == null || waitingCheckoutTask.Status != BookingTaskStatus.InProgress) && booking.Status != BookingStatus.WaitingCheckout)
             {
-                throw new InvalidOperationException($"Lịch đặt này đang có trạng thái {booking.Status} và không ở trạng thái Chờ thanh toán.");
+                throw new InvalidOperationException($"Lịch đặt này đang ở công đoạn chưa cho phép thanh toán (WaitingCheckout chưa InProgress).");
             }
 
             // 2. Check if a payment already exists
             var payment = await _context.Payments
                 .FirstOrDefaultAsync(p => p.BookingId == bookingId);
-
-            // Generate a globally unique numeric OrderCode fitting in Int64
-            long orderCode = long.Parse(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString() + (bookingId % 100).ToString("D2"));
 
             if (payment != null)
             {
@@ -67,9 +66,17 @@ namespace Auto_Wash.Services
                     throw new InvalidOperationException("Hóa đơn của lịch đặt này đã được thanh toán thành công trước đó.");
                 }
 
-                // Recycle/update existing payment
+                // Reuse existing Pending payment if valid (Rule 9)
+                if (payment.Status == (int)PaymentStatus.Pending && !string.IsNullOrEmpty(payment.TxnRef))
+                {
+                    _logger.LogInformation("Reusing existing pending payment for booking ID {BookingId}. TxnRef (OrderCode): {TxnRef}", bookingId, payment.TxnRef);
+                    return MapToDto(payment);
+                }
+
+                // Generate a globally unique numeric OrderCode fitting in Int64 if creating/recycling expired
+                long orderCode = long.Parse(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString() + (bookingId % 100).ToString("D2"));
                 payment.TxnRef = orderCode.ToString();
-                payment.PaymentMethod = (int)PaymentMethod.PayOS; // Mapped to PayOS (value 3)
+                payment.PaymentMethod = (int)PaymentMethod.PayOS;
                 payment.Amount = amount;
                 payment.Status = (int)PaymentStatus.Pending;
                 payment.CreatedAt = DateTime.Now;
@@ -81,11 +88,12 @@ namespace Auto_Wash.Services
             }
             else
             {
+                long orderCode = long.Parse(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString() + (bookingId % 100).ToString("D2"));
                 // Create new payment record
                 payment = new Payment
                 {
                     BookingId = bookingId,
-                    PaymentMethod = (int)PaymentMethod.PayOS, // Mapped to PayOS (value 3)
+                    PaymentMethod = (int)PaymentMethod.PayOS,
                     Amount = amount,
                     Status = (int)PaymentStatus.Pending,
                     TxnRef = orderCode.ToString(),
@@ -112,9 +120,11 @@ namespace Auto_Wash.Services
             }
 
             // Gated status check
-            if (booking.Status != BookingStatus.WaitingCheckout)
+            var tasks = await _context.BookingTasks.Where(t => t.BookingId == bookingId).ToListAsync();
+            var waitingCheckoutTask = tasks.FirstOrDefault(t => t.TaskType == "WaitingCheckout");
+            if ((waitingCheckoutTask == null || waitingCheckoutTask.Status != BookingTaskStatus.InProgress) && booking.Status != BookingStatus.WaitingCheckout)
             {
-                throw new InvalidOperationException($"Lịch đặt này đang có trạng thái {booking.Status} và không ở trạng thái Chờ thanh toán.");
+                throw new InvalidOperationException($"Lịch đặt này đang ở công đoạn chưa cho phép thanh toán.");
             }
 
             // Free bookings (100% discount) never reach PayOS — the gateway rejects
@@ -143,13 +153,28 @@ namespace Auto_Wash.Services
                 };
             }
 
+            // Rule 9: If Payment.Pending, reuse existing link without creating another QR
+            var existingPayment = await _context.Payments
+                .FirstOrDefaultAsync(p => p.BookingId == bookingId);
+
+            if (existingPayment != null && existingPayment.Status == (int)PaymentStatus.Pending && !string.IsNullOrEmpty(existingPayment.TxnRef))
+            {
+                long existingOrderCode = long.Parse(existingPayment.TxnRef);
+                _logger.LogInformation("Reusing existing pending payment for booking {BookingId}. OrderCode: {OrderCode}", bookingId, existingOrderCode);
+                return new CreatePaymentResultDto
+                {
+                    IsFree = false,
+                    BookingId = bookingId,
+                    OrderCode = existingOrderCode,
+                    Amount = existingPayment.Amount,
+                    Description = $"Rua xe don hang #BK-{bookingId}"
+                };
+            }
+
             var paymentDto = await CreatePendingPaymentAsync(bookingId, booking.FinalPrice, "127.0.0.1");
 
             long orderCode = long.Parse(paymentDto.TxnRef ?? throw new InvalidOperationException("Transaction reference not generated."));
 
-            // Link is valid for a fixed window (configurable, default 15 min).
-            // PayOS expects a Unix timestamp in seconds; past this instant the
-            // gateway reports the link as Expired.
             var expiredAt = DateTimeOffset.UtcNow.AddMinutes(_payOSSettings.ExpiryMinutes).ToUnixTimeSeconds();
 
             var paymentRequest = new CreatePaymentLinkRequest
@@ -224,100 +249,9 @@ namespace Auto_Wash.Services
                         {
                             payment.PaidAt = DateTime.Now;
                             _logger.LogInformation("Payment updated: PaymentId={PaymentId}, Status=Paid, PaidAt={PaidAt}, TransactionNo={TransactionNo}", payment.PaymentId, payment.PaidAt, transactionNo);
-
-                            var booking = payment.Booking;
-                            if (booking != null)
-                            {
-                                booking.Status = BookingStatus.Completed;
-                                booking.CompletedAt ??= DateTime.Now;
-                                booking.CheckedOutAt ??= DateTime.Now;
-                                booking.CheckedOutBy = "Webhook";
-
-                                _context.BookingAuditLogs.Add(new BookingAuditLog
-                                {
-                                    BookingId = booking.BookingId,
-                                    Action = "Completed",
-                                    Description = "Thanh toán trực tuyến thành công và hoàn tất lịch đặt qua PayOS.",
-                                    PerformedBy = "System",
-                                    CreatedAt = DateTime.Now
-                                });
-                                _logger.LogInformation("Booking updated: BookingId={BookingId}, Status=Completed, CheckedOutAt={CheckedOutAt}", booking.BookingId, booking.CheckedOutAt);
-
-                                var queue = await _context.Queues
-                                    .FirstOrDefaultAsync(q => q.BookingId == booking.BookingId && q.Status != QueueStatus.Cancelled);
-                                if (queue != null)
-                                {
-                                    queue.Status = QueueStatus.Archived;
-                                    queue.CompletedAt ??= DateTime.Now;
-                                    queue.CurrentStage = "Completed";
-                                    _logger.LogInformation("Queue updated: QueueId={QueueId}, Status=Archived", queue.QueueId);
-                                }
-
-                                var customer = booking.Customer;
-                                if (customer != null)
-                                {
-                                    var loyaltyAlreadyAwarded = await _context.LoyaltyTransactions
-                                        .AnyAsync(lt => lt.BookingId == booking.BookingId && lt.TransactionType == LoyaltyTransactionType.Earn);
-
-                                    if (!loyaltyAlreadyAwarded)
-                                    {
-                                        var loyaltyConfig = await _context.LoyaltyConfigs.FirstOrDefaultAsync();
-                                        int pointsPerThousand = loyaltyConfig?.PointsPerThousandVND ?? 1;
-
-                                        var tier = await _context.Tiers.FirstOrDefaultAsync(t => t.TierId == customer.TierId);
-                                        decimal tierMultiplier = tier?.PointMultiplier ?? 1.0m;
-
-                                        int pointsEarned = LoyaltyPointsHelper.ComputeEarnedPoints(booking.FinalPrice, pointsPerThousand, tierMultiplier);
-
-                                        booking.PointsEarned = pointsEarned;
-                                        booking.TierIdSnapshot = customer.TierId;
-                                        booking.PointMultiplierSnapshot = tierMultiplier;
-                                        customer.TotalVisits += 1;
-                                        customer.TotalSpend += booking.FinalPrice;
-                                        customer.RankingBalance += booking.FinalPrice;
-                                        customer.PointBalance += pointsEarned;
-                                        customer.LifetimePoints += pointsEarned;
-                                        customer.LastVisitAt = DateTime.Now;
-
-                                        _context.LoyaltyTransactions.Add(new LoyaltyTransaction
-                                        {
-                                            CustomerId = customer.CustomerId,
-                                            Points = pointsEarned,
-                                            TransactionType = LoyaltyTransactionType.Earn,
-                                            BookingId = booking.BookingId,
-                                            Note = $"Tích điểm thanh toán trực tuyến PayOS: #{booking.BookingId}",
-                                            CreatedAt = DateTime.Now
-                                        });
-
-                                        _context.Notifications.Add(new Notification
-                                        {
-                                            CustomerId = customer.CustomerId,
-                                            Title = "Thanh toán thành công",
-                                            Message = $"Nhận +{pointsEarned} điểm Loyalty.",
-                                            Type = "points",
-                                            IsRead = false,
-                                            CreatedAt = DateTime.Now
-                                        });
-
-                                        _logger.LogInformation("Loyalty awarded: CustomerId={CustomerId}, Points={Points}, TotalSpend={TotalSpend}", customer.CustomerId, pointsEarned, customer.TotalSpend);
-                                    }
-                                }
-
-                                _logger.LogInformation("Invoice generated: InvoiceNumber=INV-BK{BookingId}, Amount={Amount}, TransactionNo={TransactionNo}", booking.BookingId, payment.Amount, transactionNo);
-                            }
                         }
 
                         await _context.SaveChangesAsync();
-                        // Real-time tier UPGRADE now that this paid booking counts as
-                        // Completed in the current review period (doc §4). Mirrors the
-                        // manual checkout path in AdminQueueService; downgrades are left
-                        // to the scheduled semi-annual retention review. Runs after
-                        // SaveChanges so the booking is visible to the spend query.
-                        if (status == (int)PaymentStatus.Paid && payment.Booking?.Customer != null)
-                        {
-                            await _loyaltyTierService.EvaluateUpgradeAsync(payment.Booking.Customer, DateTime.Now);
-                            await _context.SaveChangesAsync();
-                        }
                         await transaction.CommitAsync();
 
                         _logger.LogInformation("UpdatePaymentStatusAsync: Transaction committed successfully for TxnRef {TxnRef}.", txnRef);

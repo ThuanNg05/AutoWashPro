@@ -14,6 +14,7 @@ export const AdminQueue = () => {
   const [queue, setQueue] = useState({
     waitingForCheckIn: [],
     currentlyProcessing: [],
+    waitingCheckout: [],
     completedToday: [],
   });
   const [loading, setLoading] = useState(true);
@@ -40,6 +41,7 @@ export const AdminQueue = () => {
         setQueue({
           waitingForCheckIn: queueRes.waitingForCheckIn || [],
           currentlyProcessing: queueRes.currentlyProcessing || [],
+          waitingCheckout: queueRes.waitingCheckout || [],
           completedToday: queueRes.completedToday || [],
         });
 
@@ -49,6 +51,7 @@ export const AdminQueue = () => {
           const allItems = [
             ...(queueRes.waitingForCheckIn || []),
             ...(queueRes.currentlyProcessing || []),
+            ...(queueRes.waitingCheckout || []),
             ...(queueRes.completedToday || []),
           ];
           const updated = allItems.find(
@@ -63,7 +66,11 @@ export const AdminQueue = () => {
                     (x) => x.queueId === updated.queueId,
                   )
                 ? "Processing"
-                : "Completed";
+                : (queueRes.waitingCheckout || []).some(
+                      (x) => x.queueId === updated.queueId,
+                    )
+                  ? "WaitingCheckout"
+                  : "Completed";
             return {
               ...updated,
               statusGroup,
@@ -96,6 +103,7 @@ export const AdminQueue = () => {
               setQueue({
                 waitingForCheckIn: res.waitingForCheckIn || [],
                 currentlyProcessing: res.currentlyProcessing || [],
+                waitingCheckout: res.waitingCheckout || [],
                 completedToday: res.completedToday || [],
               });
 
@@ -105,6 +113,7 @@ export const AdminQueue = () => {
                 const allItems = [
                   ...(res.waitingForCheckIn || []),
                   ...(res.currentlyProcessing || []),
+                  ...(res.waitingCheckout || []),
                   ...(res.completedToday || []),
                 ];
                 const updated = allItems.find(
@@ -119,7 +128,11 @@ export const AdminQueue = () => {
                           (x) => x.queueId === updated.queueId,
                         )
                       ? "Processing"
-                      : "Completed";
+                      : (res.waitingCheckout || []).some(
+                            (x) => x.queueId === updated.queueId,
+                          )
+                        ? "WaitingCheckout"
+                        : "Completed";
                   return {
                     ...updated,
                     statusGroup,
@@ -322,8 +335,8 @@ export const AdminQueue = () => {
           // Tiến trình chỉ thật sự chuyển trạng thái khi background service
           // (tick mỗi 2s) xử lý xong — refetch ngay sẽ vẫn thấy state cũ,
           // nên đợi qua ít nhất 1 tick rồi refetch lại (kèm 1 lần dự phòng).
-          setTimeout(fetchQueue, 2500);
-          setTimeout(fetchQueue, 5000);
+          setTimeout(fetchQueue, 300);
+          setTimeout(fetchQueue, 1500);
         } else {
           if (window.showToast)
             window.showToast(res?.message || "Lỗi bỏ qua tiến trình (demo)", "error");
@@ -528,14 +541,14 @@ export const AdminQueue = () => {
 
   const waitingCheckoutItems = useMemo(
     () =>
-      completedItems.filter((item) => item.bookingStatus === "WaitingCheckout"),
-    [completedItems],
+      (queue.waitingCheckout || []).map((item) => ({
+        ...item,
+        statusGroup: "WaitingCheckout",
+        mainService: item.services?.[0]?.name || "Standard Car Wash",
+      })),
+    [queue.waitingCheckout],
   );
-  const trueCompletedItems = useMemo(
-    () =>
-      completedItems.filter((item) => item.bookingStatus !== "WaitingCheckout"),
-    [completedItems],
-  );
+  const trueCompletedItems = completedItems;
 
   const stats = useMemo(() => {
     return {
@@ -559,16 +572,22 @@ export const AdminQueue = () => {
     return [];
   }, [processingItems, statusFilter]);
 
-  const filteredCompleted = useMemo(() => {
-    if (statusFilter === "ALL") return completedItems;
-    if (statusFilter === "COMPLETED_TODAY") return trueCompletedItems;
-    if (statusFilter === "WAITING_CHECKOUT") return waitingCheckoutItems;
+  const filteredWaitingCheckout = useMemo(() => {
+    if (statusFilter === "ALL" || statusFilter === "WAITING_CHECKOUT")
+      return waitingCheckoutItems;
     return [];
-  }, [completedItems, trueCompletedItems, waitingCheckoutItems, statusFilter]);
+  }, [waitingCheckoutItems, statusFilter]);
+
+  const filteredCompleted = useMemo(() => {
+    if (statusFilter === "ALL" || statusFilter === "COMPLETED_TODAY")
+      return trueCompletedItems;
+    return [];
+  }, [trueCompletedItems, statusFilter]);
 
   const hasAnyItems =
     filteredWaiting.length > 0 ||
     filteredProcessing.length > 0 ||
+    filteredWaitingCheckout.length > 0 ||
     filteredCompleted.length > 0;
 
   // Get status class for card border
@@ -765,7 +784,37 @@ export const AdminQueue = () => {
         </div>
 
         {/* Action buttons */}
-        <div className="queue-card-actions">
+        <div className="queue-card-actions" style={{ flexDirection: "column", gap: "4px" }}>
+          {item.currentStage === "AutoCapture" && item.customerNotified === false && (
+            <button
+              className="queue-btn w-100"
+              style={{
+                padding: "4px 10px",
+                fontSize: "0.62rem",
+                background: "#f59e0b",
+                color: "#fff",
+                border: "none",
+                fontWeight: 700,
+              }}
+              disabled={sendingPhotoId === item.queueId}
+              onClick={() => setCaptureTarget(item)}
+            >
+              {sendingPhotoId === item.queueId ? (
+                <>
+                  <span
+                    className="spinner-border spinner-border-sm me-1"
+                    style={{ width: "10px", height: "10px" }}
+                  ></span>
+                  ĐANG GỬI...
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-camera-video-fill me-1"></i>
+                  MỞ CAMERA CHỤP
+                </>
+              )}
+            </button>
+          )}
           <button
             className="queue-btn queue-btn-detail w-100"
             onClick={() => setSelectedVehicle(item)}
@@ -777,11 +826,28 @@ export const AdminQueue = () => {
     );
   };
 
+  // Helpers for BookingTask stage checks
+  const isAutoCaptureActive = (item) => {
+    if (item?.progressTracking?.stages?.length > 0) {
+      const stage = item.progressTracking.stages.find((s) => s.stageKey === "AutoCapture");
+      return stage ? stage.isActive : item.currentStage === "AutoCapture";
+    }
+    return item?.currentStage === "AutoCapture";
+  };
+
+  const isWaitingCheckoutActive = (item) => {
+    if (item?.progressTracking?.stages?.length > 0) {
+      const stage = item.progressTracking.stages.find((s) => s.stageKey === "WaitingCheckout");
+      return stage ? stage.isActive : item.currentStage === "WaitingCheckout";
+    }
+    return item?.currentStage === "WaitingCheckout" || item?.bookingStatus === "WaitingCheckout";
+  };
+
   // ── Completed Card (even more compact) ──
   const renderCompletedCard = (item) => {
-    const isWaitingCheckout = item.bookingStatus === "WaitingCheckout";
-    // Rửa xong nhưng chưa gửi ảnh => đang ở bước "Tự động chụp ảnh" (90%).
-    const isCapturing = isWaitingCheckout && item.customerNotified === false;
+    const isWaitingCheckout = isWaitingCheckoutActive(item);
+    const isCapturing = isAutoCaptureActive(item);
+    const progressVal = item.progressTracking?.progress ?? item.progress ?? 100;
     return (
       <div
         key={item.queueId}
@@ -845,7 +911,7 @@ export const AdminQueue = () => {
               className="small fw-bold text-dark"
               style={{ fontSize: "0.68rem" }}
             >
-              {isCapturing ? "90%" : isWaitingCheckout ? "95%" : "100%"}
+              {progressVal}%
             </span>
           </div>
           <div
@@ -859,7 +925,7 @@ export const AdminQueue = () => {
             <div
               className="progress-bar"
               style={{
-                width: isCapturing ? "90%" : isWaitingCheckout ? "95%" : "100%",
+                width: `${progressVal}%`,
                 background: isWaitingCheckout ? "#f59e0b" : "#22c55e",
                 borderRadius: "10px",
               }}
@@ -1154,16 +1220,29 @@ export const AdminQueue = () => {
                 </div>
               )}
 
+              {/* Section: Chờ thanh toán */}
+              {filteredWaitingCheckout.length > 0 && (
+                <div>
+                  {renderSectionHeader(
+                    "fas fa-file-invoice-dollar",
+                    "Chờ thanh toán",
+                    filteredWaitingCheckout.length,
+                    "#FA8C16",
+                  )}
+                  <div className="queue-grid">
+                    {filteredWaitingCheckout.map((item) => renderCompletedCard(item))}
+                  </div>
+                </div>
+              )}
+
               {/* Section: Hoàn tất hôm nay */}
               {filteredCompleted.length > 0 && (
                 <div>
                   {renderSectionHeader(
                     "fas fa-check-circle",
-                    statusFilter === "WAITING_CHECKOUT"
-                      ? "Chờ thanh toán"
-                      : "Hoàn tất dịch vụ",
+                    "Hoàn tất dịch vụ",
                     filteredCompleted.length,
-                    statusFilter === "WAITING_CHECKOUT" ? "#FA8C16" : "#22c55e",
+                    "#22c55e",
                   )}
                   <div className="queue-grid">
                     {filteredCompleted.map((item) => renderCompletedCard(item))}
@@ -1293,7 +1372,7 @@ export const AdminQueue = () => {
                       QUY TRÌNH THỰC HIỆN DỰ KIẾN
                     </label>
                     {selectedVehicle.statusGroup === "Processing" &&
-                      ["CheckIn", "Washing", "Drying"].includes(
+                      ["CheckIn", "Washing", "AddonProcessing"].includes(
                         getModalStages(selectedVehicle).find((s) => s.isActive)
                           ?.stageKey,
                       ) && (
@@ -1473,29 +1552,24 @@ export const AdminQueue = () => {
                   >
                     ĐÓNG
                   </button>
-                  {selectedVehicle.status === "Completed" ||
-                  selectedVehicle.progress >= 100 ||
-                  selectedVehicle.statusGroup === "Completed" ||
-                  selectedVehicle.status === "Archived" ? (
-                    selectedVehicle.status === "Archived" ? (
-                      <button
-                        className="confirm-ok-btn w-50 fw-bold border-0 text-muted"
-                        style={{ background: "#e2e8f0", cursor: "not-allowed" }}
-                        disabled={true}
-                      >
-                        ĐÃ CHECKOUT
-                      </button>
-                    ) : (
-                      <button
-                        className="confirm-ok-btn confirm-btn-cyan w-50 fw-bold border-0 text-dark"
-                        style={{ background: "var(--cyan-electric)" }}
-                        disabled={submittingIds.has(selectedVehicle.queueId)}
-                        onClick={() => handleThanhToan(selectedVehicle)}
-                      >
-                        THANH TOÁN
-                      </button>
-                    )
-                  ) : selectedVehicle.statusGroup === "Processing" ? (
+                  {selectedVehicle.status === "Archived" ? (
+                    <button
+                      className="confirm-ok-btn w-50 fw-bold border-0 text-muted"
+                      style={{ background: "#e2e8f0", cursor: "not-allowed" }}
+                      disabled={true}
+                    >
+                      ĐÃ CHECKOUT
+                    </button>
+                  ) : isWaitingCheckoutActive(selectedVehicle) ? (
+                    <button
+                      className="confirm-ok-btn confirm-btn-cyan w-50 fw-bold border-0 text-dark"
+                      style={{ background: "var(--cyan-electric)" }}
+                      disabled={submittingIds.has(selectedVehicle.queueId)}
+                      onClick={() => handleThanhToan(selectedVehicle)}
+                    >
+                      THANH TOÁN
+                    </button>
+                  ) : selectedVehicle.statusGroup === "Processing" || selectedVehicle.statusGroup === "WaitingCheckout" ? (
                     <button
                       className="confirm-ok-btn confirm-btn-cyan w-50 fw-bold border-0 text-muted"
                       style={{ background: "#e2e8f0", cursor: "not-allowed" }}
