@@ -93,10 +93,10 @@ export const AdminLayout = () => {
             <i className="fas fa-chevron-left"></i>
             <span>Thu gọn menu</span>
           </button>
-          <Link to="/admin/demo-tools" className="sidebar-demo-btn" title="Demo tool: chỉnh database trực tiếp">
+          {/* <Link to="/admin/demo-tools" className="sidebar-demo-btn" title="Demo tool: chỉnh database trực tiếp">
             <i className="fas fa-database"></i>
             <span>Demo Tool</span>
-          </Link>
+          </Link> */}
         </div>
       </nav>
 

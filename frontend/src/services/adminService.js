@@ -169,6 +169,13 @@ export const adminService = {
     return response.data;
   },
 
+  demoShiftBookingTime: async (id, minutes) => {
+    const response = await api.post(`/api/admin/demo-tools/bookings/${id}/shift-time`, null, {
+      params: { minutes }
+    });
+    return response.data;
+  },
+
   rescheduleBooking: async (id, scheduledAt, reason) => {
     const response = await api.put(`/api/admin/bookings/${id}/reschedule`, {
       ScheduledAt: scheduledAt,
