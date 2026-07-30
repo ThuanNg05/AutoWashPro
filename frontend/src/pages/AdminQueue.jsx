@@ -1115,11 +1115,7 @@ export const AdminQueue = () => {
       </div>
 
       {loading ? (
-        <div className="d-flex justify-content-center align-items-center py-5">
-          <div className="spinner-border text-info" role="status">
-            <span className="visually-hidden">Đang tải...</span>
-          </div>
-        </div>
+        <div className="py-5"></div>
       ) : (
         <div className="flex-grow-1">
           {!hasAnyItems ? (

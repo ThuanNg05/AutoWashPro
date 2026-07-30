@@ -119,12 +119,10 @@ namespace Auto_Wash.Controllers
                         id = b.BookingId.ToString(),
                         vehicle = b.Vehicle.LicensePlate,
                         mainService = b.BookingServices.Where(bs => !bs.Service.IsAddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Rửa xe",
-                        status = b.Status == BookingStatus.Pending ? "Pending Confirmation"
-                               : b.Status == BookingStatus.Confirmed ? "Confirmed"
-                               : b.Status == BookingStatus.CheckedIn ? "Checked In"
-                               : b.Status == BookingStatus.Completed ? "Completed"
+                        status = b.Status == BookingStatus.Completed ? "Completed"
                                : b.Status == BookingStatus.Cancelled ? "Cancelled"
-                               : "In Progress",
+                               : b.Status == BookingStatus.NoShow ? "NoShow"
+                               : "Confirmed",
                         queueStatus = b.Queues.FirstOrDefault()?.Status.ToString(),
                         bookingDate = b.ScheduledAt.ToString("yyyy-MM-dd"),
                         bookingTime = b.ScheduledAt.ToString("HH:mm"),
@@ -193,12 +191,10 @@ namespace Auto_Wash.Controllers
                     id = activeBooking.BookingId.ToString(),
                     vehicle = activeBooking.Vehicle.LicensePlate,
                     mainService = mainSvcName,
-                    status = activeBooking.Status == BookingStatus.Pending ? "Pending Confirmation"
-                           : activeBooking.Status == BookingStatus.Confirmed ? "Confirmed"
-                           : activeBooking.Status == BookingStatus.CheckedIn ? "Checked In"
-                           : activeBooking.Status == BookingStatus.Completed ? "Completed"
+                    status = activeBooking.Status == BookingStatus.Completed ? "Completed"
                            : activeBooking.Status == BookingStatus.Cancelled ? "Cancelled"
-                           : "In Progress",
+                           : activeBooking.Status == BookingStatus.NoShow ? "NoShow"
+                           : "Confirmed",
                     bookingDate = activeBooking.ScheduledAt.ToString("yyyy-MM-dd"),
                     bookingTime = activeBooking.ScheduledAt.ToString("HH:mm"),
                     price = activeBooking.FinalPrice,

@@ -64,7 +64,6 @@ namespace Auto_Wash.Controllers
 
         [HttpPost]
         [Route("Login")]
-
         public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Identifier) || string.IsNullOrWhiteSpace(request.Password))
