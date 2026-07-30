@@ -8,7 +8,6 @@ export const queueStatusMapper = {
       case 'CheckIn':
         return 'Đã check-in';
       case 'Washing':
-      case 'FoamWashing':
         return 'Đang rửa xe';
       case 'Drying':
         return 'Đang sấy khô';
@@ -21,7 +20,7 @@ export const queueStatusMapper = {
       case 'NoShow':
         return 'Khách không đến';
       default:
-        return 'Chờ check-in';
+        return status || 'Chờ check-in';
     }
   },
 
@@ -33,7 +32,6 @@ export const queueStatusMapper = {
       case 'CheckedIn':
       case 'CheckIn':
       case 'Washing':
-      case 'FoamWashing':
       case 'Drying':
         return 'bg-primary bg-opacity-10 text-primary';
       case 'Completed':
@@ -56,54 +54,26 @@ export const queueStatusMapper = {
       case 'CheckedIn':
       case 'CheckIn':
         return 'fa-qrcode';
-      case 'Washing':
-      case 'FoamWashing':
-        return 'fa-soap';
-      case 'Drying':
-        return 'fa-wind';
       case 'Completed':
       case 'Archived':
       case 'Checkout':
         return 'fa-check-circle';
       default:
-        return 'fa-hourglass-start';
+        return 'fa-soap';
     }
   },
 
-  getTimelineSteps: (bookingStatus, queueStatus, currentStage) => {
-    const steps = [
-      { id: 'CheckedIn', name: 'Đã check-in' },
-      { id: 'Washing', name: 'Đang rửa' },
-      { id: 'Drying', name: 'Đã sấy khô' },
-      { id: 'WaitingCheckout', name: 'Chờ thanh toán' },
-      { id: 'Completed', name: 'Hoàn tất' }
-    ];
-
-    let activeIndex = -1;
-    
-    if (bookingStatus === 'Completed' || bookingStatus === 'Checkout' || queueStatus === 'Archived' || currentStage === 'Checkout') {
-      activeIndex = 5;
-    } else if (bookingStatus === 'WaitingCheckout' || queueStatus === 'Completed' || currentStage === 'Completed') {
-      activeIndex = 3;
-    } else {
-      const stage = currentStage || '';
-      if (stage === 'CheckIn' || stage === 'CheckedIn' || bookingStatus === 'CheckedIn') {
-        activeIndex = 0;
-      } else if (stage === 'Washing') {
-        activeIndex = 1;
-      } else if (stage === 'Drying') {
-        activeIndex = 2;
-      }
+  getTimelineSteps: (bookingStatus, queueStatus, currentStage, progressTracking) => {
+    if (progressTracking && progressTracking.stages && progressTracking.stages.length > 0) {
+      return progressTracking.stages.map((stage) => ({
+        id: stage.stageKey,
+        name: stage.displayName,
+        isCompleted: stage.isCompleted,
+        isActive: stage.isActive
+      }));
     }
-
-    return steps.map((step, idx) => {
-      const isCompleted = activeIndex !== -1 && idx < activeIndex;
-      const isActive = activeIndex !== -1 && idx === activeIndex;
-      return {
-        name: step.name,
-        isCompleted,
-        isActive
-      };
-    });
+    return [
+      { name: currentStage || 'Đã check-in', isCompleted: false, isActive: true }
+    ];
   }
 };

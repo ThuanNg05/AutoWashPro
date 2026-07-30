@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Auto_Wash.Data.Entities;
 using Auto_Wash.DTOs;
 
@@ -7,167 +8,231 @@ namespace Auto_Wash.Helpers
 {
     public static class BookingWorkflowConfig
     {
-        // Workflow stage durations (in seconds)
         public const int CheckInSeconds = 15;
-        public const int WashingSeconds = 20;
         public const int DryingSeconds = 15;
-        public const int TotalDurationSeconds = 50;
 
-        private static readonly (string Key, string Name)[] OfficialStages = new[]
+        /// <summary>
+        /// Centralized calculation of Total Estimated Minutes for a booking.
+        /// Sums EstimatedMinutesSnapshot (or Service.EstimatedMinutes) across all services.
+        /// </summary>
+        public static int CalculateTotalEstimatedMinutes(IEnumerable<BookingService>? bookingServices, IEnumerable<BookingTask>? tasks = null)
         {
-            ("CheckIn", "Đã check-in"),
-            ("Washing", "Đang rửa"),
-            ("Drying", "Đã sấy khô"),
-            ("AutoCapture", "Tự động chụp ảnh"),
-            ("AutoSendMail", "Tự động gửi mail"),
-            ("WaitingCheckout", "Chờ thanh toán"),
-            ("Completed", "Hoàn tất")
-        };
-
-        public static string GetCurrentStage(double elapsedSeconds)
-        {
-            if (elapsedSeconds < CheckInSeconds)
-                return "CheckIn";
-            if (elapsedSeconds < CheckInSeconds + WashingSeconds)
-                return "Washing";
-            return "Drying";
-        }
-
-        public static int GetStageProgress(string stage)
-        {
-            return stage switch
+            int totalMins = bookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 0;
+            if (totalMins == 0 && tasks != null && tasks.Any())
             {
-                "CheckIn" => 20,
-                "Washing" => 50,
-                "Drying" => 80,
-                "AutoCapture" => 90,
-                "AutoSendMail" => 93,
-                "WaitingCheckout" => 95,
-                "Completed" => 100,
-                _ => 0
-            };
+                totalMins = (int)Math.Ceiling(tasks.Sum(t => t.EstimatedDurationSeconds) / 60.0);
+            }
+            return totalMins > 0 ? totalMins : 50;
         }
 
-        public static BookingProgressDto GetProgressForBooking(Booking? booking, Queue? queue)
+        /// <summary>
+        /// Centralized calculation of Required Slots (assumes 1 slot = 60 minutes).
+        /// RequiredSlots = Ceiling(TotalEstimatedMinutes / 60)
+        /// </summary>
+        public static int CalculateRequiredSlots(int totalEstimatedMinutes)
+        {
+            return Math.Max(1, (int)Math.Ceiling((double)totalEstimatedMinutes / 60.0));
+        }
+
+        /// <summary>
+        /// Centralized calculation of Remaining Seconds based on active + pending BookingTasks.
+        /// </summary>
+        public static int CalculateRemainingSeconds(List<BookingTask>? tasks)
+        {
+            if (tasks == null || tasks.Count == 0) return 0;
+
+            int remaining = 0;
+            var activeTask = tasks.FirstOrDefault(t => t.Status == BookingTaskStatus.InProgress);
+            if (activeTask != null && activeTask.StartedAt.HasValue && activeTask.EstimatedDurationSeconds > 0)
+            {
+                var taskRemaining = activeTask.EstimatedDurationSeconds - (int)(DateTime.Now - activeTask.StartedAt.Value).TotalSeconds;
+                remaining += Math.Max(0, taskRemaining);
+            }
+            remaining += tasks.Where(t => t.Status == BookingTaskStatus.Pending).Sum(t => t.EstimatedDurationSeconds);
+            return remaining;
+        }
+
+        /// <summary>
+        /// Main entry point for progress calculation. Fully driven by BookingTask rows.
+        /// </summary>
+        public static BookingProgressDto GetProgressForBooking(Booking? booking, Queue? queue, List<BookingTask>? tasks = null)
         {
             var dto = new BookingProgressDto();
 
+            if (tasks == null || tasks.Count == 0)
+            {
+                tasks = GenerateFallbackTasksFromBooking(booking);
+            }
+
+            var orderedTasks = tasks.OrderBy(t => t.SequenceOrder).ToList();
+
+            // Terminal / Non-active states
             if (booking != null && booking.CheckedOutAt != null)
             {
-                dto.CurrentStage = "Completed";
+                dto.CurrentStage = "Hoàn tất";
                 dto.Progress = 100;
                 dto.RemainingSeconds = 0;
+                BuildDynamicStages(dto, orderedTasks, allCompleted: true);
+                return dto;
             }
-            else if (queue != null && queue.Status == QueueStatus.Archived)
+
+            if (queue != null && queue.Status == QueueStatus.Archived)
             {
-                dto.CurrentStage = "Completed";
+                dto.CurrentStage = "Hoàn tất";
                 dto.Progress = 100;
                 dto.RemainingSeconds = 0;
+                BuildDynamicStages(dto, orderedTasks, allCompleted: true);
+                return dto;
             }
-            else if (booking != null && booking.Status == BookingStatus.WaitingCheckout)
+
+            if (booking != null && (booking.Status == BookingStatus.Cancelled || booking.Status == BookingStatus.NoShow))
             {
-                // Xe rửa xong nhưng chưa gửi ảnh báo khách => vẫn đang ở bước chụp ảnh.
-                // Gửi mail xong thì cả AutoCapture lẫn AutoSendMail đều được đánh dấu
-                // hoàn thành (bước gửi chạy dưới 1 giây nên không có trạng thái riêng).
-                var captured = booking.WaitingCheckoutEmailSent;
-                dto.CurrentStage = captured ? "WaitingCheckout" : "AutoCapture";
-                dto.Progress = captured ? 95 : 90;
-                dto.RemainingSeconds = 0;
-            }
-            else if (booking != null && booking.Status == BookingStatus.Completed)
-            {
-                dto.CurrentStage = "Completed";
-                dto.Progress = 100;
-                dto.RemainingSeconds = 0;
-            }
-            else if (booking != null && (booking.Status == BookingStatus.Cancelled || booking.Status == BookingStatus.NoShow))
-            {
-                dto.CurrentStage = booking.Status == BookingStatus.NoShow ? "NoShow" : "Cancelled";
+                dto.CurrentStage = booking.Status == BookingStatus.NoShow ? "Khách không đến" : "Đã hủy";
                 dto.Progress = 0;
                 dto.RemainingSeconds = 0;
-
-                if (booking.Status == BookingStatus.NoShow)
+                dto.Stages.Add(new ProgressStageItemDto
                 {
-                    dto.Stages.Add(new ProgressStageItemDto
+                    StageKey = dto.CurrentStage,
+                    DisplayName = booking.Status == BookingStatus.NoShow
+                        ? "Khách không đến (Không phát sinh quy trình xử lý)"
+                        : "Đã hủy lịch hẹn (Không phát sinh quy trình xử lý)",
+                    IsCompleted = false,
+                    IsActive = true
+                });
+                return dto;
+            }
+
+            if (booking != null && booking.Status == BookingStatus.WaitingCheckout)
+            {
+                dto.CurrentStage = "Chờ thanh toán";
+                dto.Progress = 95;
+                dto.RemainingSeconds = 0;
+                BuildDynamicStages(dto, orderedTasks);
+                return dto;
+            }
+
+            if (booking != null && booking.Status == BookingStatus.Completed)
+            {
+                dto.CurrentStage = "Hoàn tất";
+                dto.Progress = 100;
+                dto.RemainingSeconds = 0;
+                BuildDynamicStages(dto, orderedTasks, allCompleted: true);
+                return dto;
+            }
+
+            if (queue != null && queue.Status == QueueStatus.Completed)
+            {
+                dto.CurrentStage = "Hoàn tất";
+                dto.Progress = 100;
+                dto.RemainingSeconds = 0;
+                BuildDynamicStages(dto, orderedTasks, allCompleted: true);
+                return dto;
+            }
+
+            // Active task evaluation
+            var activeTask = orderedTasks.FirstOrDefault(t => t.Status == BookingTaskStatus.InProgress);
+            var timedTasks = orderedTasks.Where(t => t.EstimatedDurationSeconds > 0).ToList();
+            var timedCompleted = timedTasks.Count(t => t.Status == BookingTaskStatus.Completed);
+
+            if (activeTask != null)
+            {
+                dto.CurrentStage = activeTask.DisplayName;
+
+                if (timedTasks.Count > 0)
+                {
+                    double baseProgress = (double)timedCompleted / timedTasks.Count * 100;
+                    if (activeTask.EstimatedDurationSeconds > 0 && activeTask.StartedAt.HasValue)
                     {
-                        StageKey = "NoShow",
-                        DisplayName = "Khách không đến (Không phát sinh quy trình xử lý)",
-                        IsCompleted = false,
-                        IsActive = true
-                    });
+                        var taskElapsed = (DateTime.Now - activeTask.StartedAt.Value).TotalSeconds;
+                        var taskFraction = Math.Min(1.0, taskElapsed / activeTask.EstimatedDurationSeconds);
+                        baseProgress += taskFraction / timedTasks.Count * 100;
+                    }
+                    dto.Progress = Math.Min(95, (int)baseProgress);
                 }
                 else
                 {
-                    dto.Stages.Add(new ProgressStageItemDto
-                    {
-                        StageKey = "Cancelled",
-                        DisplayName = "Đã hủy lịch hẹn (Không phát sinh quy trình xử lý)",
-                        IsCompleted = false,
-                        IsActive = true
-                    });
+                    dto.Progress = (int)((double)orderedTasks.Count(t => t.Status == BookingTaskStatus.Completed) / orderedTasks.Count * 100);
                 }
-                return dto;
-            }
-            else if (queue != null && queue.Status != QueueStatus.Cancelled && queue.Status != QueueStatus.Archived && queue.Status != QueueStatus.Completed)
-            {
-                var elapsed = (DateTime.Now - queue.CheckInAt).TotalSeconds;
-                if (elapsed < 0) elapsed = 0;
-
-                dto.CurrentStage = queue.CurrentStage ?? GetCurrentStage(elapsed);
-                dto.Progress = GetStageProgress(dto.CurrentStage);
-                dto.RemainingSeconds = (int)Math.Max(0, TotalDurationSeconds - elapsed);
-            }
-            else if (queue != null && queue.Status == QueueStatus.Completed)
-            {
-                dto.CurrentStage = "Completed";
-                dto.Progress = 100;
-                dto.RemainingSeconds = 0;
             }
             else
             {
-                // Awaiting check-in
-                dto.CurrentStage = "CheckIn";
+                dto.CurrentStage = orderedTasks.FirstOrDefault()?.DisplayName ?? "Đã check-in";
                 dto.Progress = 0;
-                dto.RemainingSeconds = TotalDurationSeconds;
             }
 
-            // Populate stages checklist dynamically
-            int activeIndex = -1;
-            if (dto.CurrentStage == "Completed")
+            dto.RemainingSeconds = CalculateRemainingSeconds(orderedTasks);
+            BuildDynamicStages(dto, orderedTasks);
+
+            if (queue == null && booking != null && booking.Status != BookingStatus.CheckedIn
+                && booking.Status != BookingStatus.Completed && booking.Status != BookingStatus.Washing)
             {
-                activeIndex = OfficialStages.Length;
-            }
-            else
-            {
-                for (int i = 0; i < OfficialStages.Length; i++)
+                dto.Progress = 0;
+                foreach (var stage in dto.Stages)
                 {
-                    if (OfficialStages[i].Key == dto.CurrentStage)
-                    {
-                        activeIndex = i;
-                        break;
-                    }
+                    stage.IsActive = false;
                 }
-            }
-
-            // For pending/confirmed booking that is not checked in yet, progress is 0, nothing active
-            if (queue == null && booking != null && booking.Status != BookingStatus.CheckedIn && booking.Status != BookingStatus.Completed && booking.Status != BookingStatus.Washing)
-            {
-                activeIndex = -1;
-            }
-
-            for (int i = 0; i < OfficialStages.Length; i++)
-            {
-                var stageKey = OfficialStages[i].Key;
-                dto.Stages.Add(new ProgressStageItemDto
-                {
-                    StageKey = stageKey,
-                    DisplayName = OfficialStages[i].Name,
-                    IsCompleted = activeIndex != -1 && i < activeIndex,
-                    IsActive = activeIndex != -1 && i == activeIndex
-                });
             }
 
             return dto;
+        }
+
+        private static List<BookingTask> GenerateFallbackTasksFromBooking(Booking? booking)
+        {
+            var list = new List<BookingTask>();
+            if (booking == null) return list;
+
+            int seq = 1;
+            list.Add(new BookingTask
+            {
+                TaskType = "CheckIn",
+                DisplayName = "Đã check-in",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 15,
+                Status = BookingTaskStatus.Completed
+            });
+
+            if (booking.BookingServices != null)
+            {
+                foreach (var bs in booking.BookingServices)
+                {
+                    string name = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : (bs.Service?.ServiceName ?? "Dịch vụ");
+                    int mins = bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service?.EstimatedMinutes ?? 30);
+                    bool isAddOn = bs.Service?.IsAddOn ?? false;
+                    list.Add(new BookingTask
+                    {
+                        TaskType = isAddOn ? "AddonProcessing" : "Washing",
+                        DisplayName = isAddOn ? $"{name} (add-on)" : $"Đang rửa - {name}",
+                        SequenceOrder = seq++,
+                        EstimatedDurationSeconds = mins * 60,
+                        Status = BookingTaskStatus.Pending
+                    });
+                }
+            }
+
+            list.Add(new BookingTask
+            {
+                TaskType = "Drying",
+                DisplayName = "Đã sấy khô",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 15,
+                Status = BookingTaskStatus.Pending
+            });
+
+            return list;
+        }
+
+        private static void BuildDynamicStages(BookingProgressDto dto, List<BookingTask> tasks, bool allCompleted = false)
+        {
+            foreach (var task in tasks)
+            {
+                dto.Stages.Add(new ProgressStageItemDto
+                {
+                    StageKey = task.TaskType,
+                    DisplayName = task.DisplayName,
+                    IsCompleted = allCompleted || task.Status == BookingTaskStatus.Completed,
+                    IsActive = !allCompleted && task.Status == BookingTaskStatus.InProgress
+                });
+            }
         }
     }
 }

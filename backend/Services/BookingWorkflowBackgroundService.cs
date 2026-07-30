@@ -71,114 +71,82 @@ namespace Auto_Wash.Services
 
             foreach (var q in activeQueues)
             {
-                var elapsedSeconds = (now - q.CheckInAt).TotalSeconds;
-                if (elapsedSeconds < 0) elapsedSeconds = 0;
+                var tasks = q.BookingId.HasValue
+                    ? await context.BookingTasks
+                        .Where(t => t.BookingId == q.BookingId)
+                        .OrderBy(t => t.SequenceOrder)
+                        .ToListAsync()
+                    : new List<BookingTask>();
 
-                if (elapsedSeconds < BookingWorkflowConfig.CheckInSeconds)
+                if (tasks.Count == 0 && q.BookingId.HasValue)
                 {
-                    if (q.Status == QueueStatus.Waiting)
-                    {
-                        q.CurrentStage = "CheckIn";
-                    }
+                    await AutoGenerateTasksForQueueAsync(q.BookingId.Value, context);
+                    tasks = await context.BookingTasks
+                        .Where(t => t.BookingId == q.BookingId)
+                        .OrderBy(t => t.SequenceOrder)
+                        .ToListAsync();
                 }
-                else if (elapsedSeconds < BookingWorkflowConfig.CheckInSeconds + BookingWorkflowConfig.WashingSeconds)
+
+                if (tasks.Count == 0) continue;
+
+                // --- Dynamic task-based workflow ---
+                var activeTask = tasks.FirstOrDefault(t => t.Status == BookingTaskStatus.InProgress);
+                var nextPending = tasks.Where(t => t.Status == BookingTaskStatus.Pending)
+                    .OrderBy(t => t.SequenceOrder)
+                    .FirstOrDefault();
+
+                if (activeTask != null)
                 {
-                    if (q.Status == QueueStatus.Waiting || q.Status == QueueStatus.Washing)
+                    // Check if active task's estimated duration has elapsed
+                    var taskElapsed = (now - (activeTask.StartedAt ?? now)).TotalSeconds;
+
+                    if (activeTask.EstimatedDurationSeconds > 0
+                        && taskElapsed >= activeTask.EstimatedDurationSeconds)
                     {
-                        q.CurrentStage = "Washing";
-                        if (q.Status != QueueStatus.Washing)
+                        // Complete current task
+                        activeTask.Status = BookingTaskStatus.Completed;
+                        activeTask.CompletedAt = now;
+
+                        // Re-evaluate next pending (after completing current)
+                        nextPending = tasks.Where(t => t.Status == BookingTaskStatus.Pending)
+                            .OrderBy(t => t.SequenceOrder)
+                            .FirstOrDefault();
+
+                        if (nextPending != null)
                         {
-                            q.Status = QueueStatus.Washing;
-                            q.StartedAt ??= q.CheckInAt.AddSeconds(BookingWorkflowConfig.CheckInSeconds);
-                            changed = true;
+                            nextPending.Status = BookingTaskStatus.InProgress;
+                            nextPending.StartedAt = now;
 
-                            if (q.Booking != null && q.Booking.Status != BookingStatus.Washing)
-                            {
-                                q.Booking.Status = BookingStatus.Washing;
-                                q.Booking.WashingAt ??= q.StartedAt;
-
-                                context.BookingAuditLogs.Add(new BookingAuditLog
-                                {
-                                    BookingId = q.BookingId!.Value,
-                                    Action = "WashingStarted",
-                                    Description = "Tự động bắt đầu công đoạn rửa xe.",
-                                    PerformedBy = "System",
-                                    CreatedAt = now
-                                });
-                            }
-
-                            _logger.LogInformation("[AUDIT EVENT] Auto-started washing: QueueId={QueueId}, BookingId={BookingId}, LicensePlate={LicensePlate}, StartedAt={StartedAt}",
-                                q.QueueId, q.BookingId, q.LicensePlate, q.StartedAt);
+                            // Sync Queue status from the new active task
+                            SyncQueueFromTask(q, nextPending, context, now);
                         }
-                    }
-                }
-                else if (elapsedSeconds < BookingWorkflowConfig.TotalDurationSeconds)
-                {
-                    if (q.Status == QueueStatus.Washing || q.Status == QueueStatus.Drying)
-                    {
-                        q.CurrentStage = "Drying";
-                        if (q.Status != QueueStatus.Drying)
+                        else
                         {
-                            q.Status = QueueStatus.Drying;
-                            changed = true;
+                            // All timed tasks completed → finalize to WaitingCheckout
+                            await FinalizeQueueAsync(q, context, now, scope);
                         }
-                    }
-                }
-                else // elapsedSeconds >= BookingWorkflowConfig.TotalDurationSeconds
-                {
-                    q.CurrentStage = "Completed";
-                    if (q.Status != QueueStatus.Completed && q.Status != QueueStatus.Archived)
-                    {
-                        q.Status = QueueStatus.Completed;
-                        q.CompletedAt ??= now;
                         changed = true;
-
-                        if (q.Booking != null && q.Booking.Status != BookingStatus.WaitingCheckout)
-                        {
-                            q.Booking.Status = BookingStatus.WaitingCheckout;
-
-                            context.BookingAuditLogs.Add(new BookingAuditLog
-                            {
-                                BookingId = q.BookingId!.Value,
-                                Action = "WaitingCheckout",
-                                Description = $"Tự động chuyển sang trạng thái chờ thanh toán sau {BookingWorkflowConfig.TotalDurationSeconds} giây.",
-                                PerformedBy = "System",
-                                CreatedAt = now
-                            });
-
-                            context.Notifications.Add(new Notification
-                            {
-                                CustomerId = q.Booking.CustomerId,
-                                Title = "Xe đã hoàn tất dịch vụ",
-                                Message = "Xe đã hoàn tất dịch vụ. Vui lòng đến cửa hàng thanh toán.",
-                                Type = "Booking",
-                                IsRead = false,
-                                CreatedAt = now
-                            });
-
-                            // Không tự gửi email — báo staff ra chụp ảnh rồi mới gửi kèm ảnh
-                            if (!q.Booking.WaitingCheckoutEmailSent)
-                            {
-                                try
-                                {
-                                    var realtimeNotifier = scope.ServiceProvider.GetRequiredService<IBookingRealtimeNotifier>();
-                                    await realtimeNotifier.NotifyWashCompletedAsync(new WashCompletedEvent(
-                                        q.QueueId,
-                                        q.BookingId,
-                                        q.LicensePlate ?? "",
-                                        q.Booking.Customer?.Account?.FullName ?? "Khách hàng"));
-                                    _logger.LogInformation("[REALTIME] WashCompleted notified to staff: QueueId={QueueId}, BookingId={BookingId}", q.QueueId, q.BookingId);
-                                }
-                                catch (Exception notifyEx)
-                                {
-                                    _logger.LogError(notifyEx, "Failed to push WashCompleted event for QueueId={QueueId}", q.QueueId);
-                                }
-                            }
-                        }
-
-                        _logger.LogInformation("[AUDIT EVENT] Auto-waiting-checkout: QueueId={QueueId}, BookingId={BookingId}, LicensePlate={LicensePlate}, CompletedAt={CompletedAt}",
-                            q.QueueId, q.BookingId, q.LicensePlate, q.CompletedAt);
                     }
+                    else if (activeTask.EstimatedDurationSeconds == 0)
+                    {
+                        // Instant tasks (AutoCapture, AutoSendMail, WaitingCheckout) —
+                        // these are completed by the existing WaitingCheckout / email flow,
+                        // not by elapsed time. Just sync the stage display.
+                        q.CurrentStage = activeTask.TaskType;
+                    }
+                    else
+                    {
+                        // Task still in progress — just sync display stage
+                        q.CurrentStage = activeTask.TaskType;
+                    }
+                }
+                else if (nextPending != null)
+                {
+                    // No active task but pending exists → start the next one
+                    nextPending.Status = BookingTaskStatus.InProgress;
+                    nextPending.StartedAt = now;
+                    SyncQueueFromTask(q, nextPending, context, now);
+                    changed = true;
                 }
             }
 
@@ -364,6 +332,227 @@ namespace Auto_Wash.Services
 
             // 4. Semi-annual tier retention / downgrade review (doc §5, §9).
             await ProcessSemiAnnualTierReviewAsync(context, loyaltyTierService, now);
+        }
+        /// <summary>
+        /// Sync Queue.Status and Queue.CurrentStage from the active BookingTask.
+        /// Also syncs Booking.Status and creates audit logs when stage transitions occur.
+        /// </summary>
+        private void SyncQueueFromTask(Queue q, BookingTask task, AutoWashDbContext context, DateTime now)
+        {
+            q.CurrentStage = task.TaskType;
+
+            // Map TaskType → QueueStatus
+            var newQueueStatus = task.TaskType switch
+            {
+                "CheckIn" => QueueStatus.Waiting,
+                "Washing" => QueueStatus.Washing,
+                "AddonProcessing" => QueueStatus.Addon_Processing,
+                "Drying" => QueueStatus.Drying,
+                _ => q.Status // Keep current for AutoCapture, AutoSendMail, WaitingCheckout
+            };
+
+            if (q.Status != newQueueStatus)
+            {
+                q.Status = newQueueStatus;
+                q.StartedAt ??= now;
+
+                // Sync Booking.Status for key transitions
+                if (q.Booking != null && q.BookingId.HasValue)
+                {
+                    if (newQueueStatus == QueueStatus.Washing && q.Booking.Status != BookingStatus.Washing)
+                    {
+                        q.Booking.Status = BookingStatus.Washing;
+                        q.Booking.WashingAt ??= now;
+
+                        context.BookingAuditLogs.Add(new BookingAuditLog
+                        {
+                            BookingId = q.BookingId.Value,
+                            Action = "WashingStarted",
+                            Description = $"Tự động bắt đầu công đoạn: {task.DisplayName}",
+                            PerformedBy = "System",
+                            CreatedAt = now
+                        });
+                    }
+
+                    if (newQueueStatus == QueueStatus.Addon_Processing)
+                    {
+                        context.BookingAuditLogs.Add(new BookingAuditLog
+                        {
+                            BookingId = q.BookingId.Value,
+                            Action = "AddonProcessing",
+                            Description = $"Tự động bắt đầu dịch vụ bổ sung: {task.DisplayName}",
+                            PerformedBy = "System",
+                            CreatedAt = now
+                        });
+                    }
+                }
+
+                _logger.LogInformation("[TASK ADVANCE] QueueId={QueueId}, BookingId={BookingId}, TaskType={TaskType}, DisplayName={DisplayName}",
+                    q.QueueId, q.BookingId, task.TaskType, task.DisplayName);
+            }
+        }
+
+        /// <summary>
+        /// All timed tasks completed → move to Completed/WaitingCheckout.
+        /// Replaces the old "elapsedSeconds >= TotalDurationSeconds" check.
+        /// Preserves all existing notification, email, and realtime push logic.
+        /// </summary>
+        private async Task FinalizeQueueAsync(Queue q, AutoWashDbContext context, DateTime now, IServiceScope scope)
+        {
+            q.CurrentStage = "Completed";
+            q.Status = QueueStatus.Completed;
+            q.CompletedAt ??= now;
+
+            if (q.Booking != null && q.Booking.Status != BookingStatus.WaitingCheckout)
+            {
+                q.Booking.Status = BookingStatus.WaitingCheckout;
+
+                context.BookingAuditLogs.Add(new BookingAuditLog
+                {
+                    BookingId = q.BookingId!.Value,
+                    Action = "WaitingCheckout",
+                    Description = "Tự động chuyển sang trạng thái chờ thanh toán (tất cả công đoạn đã hoàn tất).",
+                    PerformedBy = "System",
+                    CreatedAt = now
+                });
+
+                context.Notifications.Add(new Notification
+                {
+                    CustomerId = q.Booking.CustomerId,
+                    Title = "Xe đã hoàn tất dịch vụ",
+                    Message = "Xe đã hoàn tất dịch vụ. Vui lòng đến cửa hàng thanh toán.",
+                    Type = "Booking",
+                    IsRead = false,
+                    CreatedAt = now
+                });
+
+                // Notify staff to take photo before sending email to customer
+                if (!q.Booking.WaitingCheckoutEmailSent)
+                {
+                    try
+                    {
+                        var realtimeNotifier = scope.ServiceProvider.GetRequiredService<IBookingRealtimeNotifier>();
+                        await realtimeNotifier.NotifyWashCompletedAsync(new WashCompletedEvent(
+                            q.QueueId,
+                            q.BookingId,
+                            q.LicensePlate ?? "",
+                            q.Booking.Customer?.Account?.FullName ?? "Khách hàng"));
+                        _logger.LogInformation("[REALTIME] WashCompleted notified to staff: QueueId={QueueId}, BookingId={BookingId}", q.QueueId, q.BookingId);
+                    }
+                    catch (Exception notifyEx)
+                    {
+                        _logger.LogError(notifyEx, "Failed to push WashCompleted event for QueueId={QueueId}", q.QueueId);
+                    }
+                }
+            }
+
+            _logger.LogInformation("[AUDIT EVENT] Auto-waiting-checkout: QueueId={QueueId}, BookingId={BookingId}, LicensePlate={LicensePlate}, CompletedAt={CompletedAt}",
+                q.QueueId, q.BookingId, q.LicensePlate, q.CompletedAt);
+        }
+
+        private async Task AutoGenerateTasksForQueueAsync(int bookingId, AutoWashDbContext context)
+        {
+            var booking = await context.Bookings
+                .Include(b => b.BookingServices)
+                    .ThenInclude(bs => bs.Service)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null) return;
+
+            bool isDemo = _configuration.GetValue<bool>("BookingWorkflow:DemoMode", true);
+            int multiplier = isDemo ? 1 : 60;
+
+            var tasks = new List<BookingTask>();
+            int seq = 1;
+
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "CheckIn",
+                DisplayName = "Đã check-in",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = isDemo ? 15 : BookingWorkflowConfig.CheckInSeconds,
+                Status = BookingTaskStatus.InProgress,
+                StartedAt = DateTime.Now
+            });
+
+            var baseService = booking.BookingServices?.FirstOrDefault(bs => bs.Service != null && !bs.Service.IsAddOn);
+            if (baseService != null)
+            {
+                int baseMins = baseService.EstimatedMinutesSnapshot > 0 ? baseService.EstimatedMinutesSnapshot : baseService.Service!.EstimatedMinutes;
+                string baseName = !string.IsNullOrWhiteSpace(baseService.ServiceNameSnapshot) ? baseService.ServiceNameSnapshot : baseService.Service!.ServiceName;
+
+                tasks.Add(new BookingTask
+                {
+                    BookingId = bookingId,
+                    BookingServiceId = baseService.BookingServiceId,
+                    TaskType = "Washing",
+                    DisplayName = $"Đang rửa - {baseName}",
+                    SequenceOrder = seq++,
+                    EstimatedDurationSeconds = baseMins * multiplier
+                });
+            }
+
+            var addons = booking.BookingServices?
+                .Where(bs => bs.Service != null && bs.Service.IsAddOn)
+                .OrderBy(bs => bs.BookingServiceId);
+            if (addons != null)
+            {
+                foreach (var addon in addons)
+                {
+                    int addonMins = addon.EstimatedMinutesSnapshot > 0 ? addon.EstimatedMinutesSnapshot : addon.Service!.EstimatedMinutes;
+                    string addonName = !string.IsNullOrWhiteSpace(addon.ServiceNameSnapshot) ? addon.ServiceNameSnapshot : addon.Service!.ServiceName;
+
+                    tasks.Add(new BookingTask
+                    {
+                        BookingId = bookingId,
+                        BookingServiceId = addon.BookingServiceId,
+                        TaskType = "AddonProcessing",
+                        DisplayName = $"{addonName} (add-on)",
+                        SequenceOrder = seq++,
+                        EstimatedDurationSeconds = addonMins * multiplier
+                    });
+                }
+            }
+
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "Drying",
+                DisplayName = "Đã sấy khô",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = BookingWorkflowConfig.DryingSeconds
+            });
+
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "AutoCapture",
+                DisplayName = "Tự động chụp ảnh",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0
+            });
+
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "AutoSendMail",
+                DisplayName = "Tự động gửi mail",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0
+            });
+
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "WaitingCheckout",
+                DisplayName = "Chờ thanh toán",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0
+            });
+
+            context.BookingTasks.AddRange(tasks);
+            await context.SaveChangesAsync();
         }
 
         /// <summary>

@@ -26,3 +26,11 @@
 [2026-07-21 08:10:49] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":220} values={"scheduledat":"2026-07-21T08:30"}
 [2026-07-21 08:11:41] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":220} values={"scheduledat":"2026-07-21T08:20"}
 [2026-07-21 08:26:58] [Information] [UPDATE bookings] by=admin@autowash.com pk={"bookingid":220} values={"scheduledat":"2026-07-21T08:30"}
+[2026-07-30 19:46:30] [Information] [SHIFT bookings] by=admin@autowash.com bookingId=237 minutes=-73 queues=0 flagsReset=True
+[2026-07-30 21:01:43] [Information] [SHIFT bookings] by=admin@autowash.com bookingId=243 minutes=-658 queues=0 flagsReset=True
+[2026-07-30 21:22:37] [Information] [SHIFT bookings] by=admin@autowash.com bookingId=245 minutes=-37 queues=0 flagsReset=True
+[2026-07-30 21:38:50] [Information] [SHIFT bookings] by=admin@autowash.com bookingId=246 minutes=-21 queues=0 flagsReset=True
+[2026-07-30 21:40:01] [Information] [SHIFT bookings] by=admin@autowash.com bookingId=246 minutes=-2 queues=1 flagsReset=False
+[2026-07-30 21:40:14] [Information] [SHIFT bookings] by=admin@autowash.com bookingId=246 minutes=-2 queues=1 flagsReset=False
+[2026-07-30 21:44:16] [Information] [SHIFT bookings] by=admin@autowash.com bookingId=249 minutes=-16 queues=0 flagsReset=False
+[2026-07-30 21:45:12] [Information] [SHIFT bookings] by=admin@autowash.com bookingId=250 minutes=-15 queues=0 flagsReset=False

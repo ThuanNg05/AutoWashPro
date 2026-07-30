@@ -1251,7 +1251,7 @@ export const AdminBookings = () => {
                                   </span>
                                 </td>
                                 <td className="py-2 text-center text-secondary">
-                                  60 phút
+                                  {bookingDetail.mainService?.estimatedMinutes || 50} phút
                                 </td>
                                 <td className="pe-3 py-2 text-end fw-semibold text-dark">
                                   {Number(
@@ -1270,12 +1270,32 @@ export const AdminBookings = () => {
                                 </td>
                               </tr>
                             )}
+                            {bookingDetail.addOnServices && bookingDetail.addOnServices.map((addon) => (
+                              <tr key={addon.serviceId}>
+                                <td className="ps-3 py-2 fw-semibold text-dark" style={{ wordBreak: "break-word", whiteSpace: "normal" }}>
+                                  <i className="fas fa-plus-circle text-info me-1.5"></i>
+                                  {addon.serviceName}{" "}
+                                  <span className="badge bg-light text-secondary small" style={{ fontSize: "0.55rem", padding: "1.5px 4px" }}>Bổ sung</span>
+                                </td>
+                                <td className="py-2 text-center text-secondary">{addon.estimatedMinutes} phút</td>
+                                <td className="pe-3 py-2 text-end fw-semibold text-dark">+{Number(addon.price).toLocaleString()}đ</td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
 
                       {/* Payment Calculations */}
                       <div className="px-1 py-1">
+                        <div
+                          className="d-flex justify-content-between align-items-center mb-1.5 small text-secondary"
+                          style={{ fontSize: "0.78rem" }}
+                        >
+                          <span>Tổng thời lượng:</span>
+                          <span className="fw-bold text-cyan">
+                            {bookingDetail.totalEstimatedMinutes || 50} phút ({bookingDetail.requiredSlots || Math.ceil((bookingDetail.totalEstimatedMinutes || 50)/60)} khung giờ)
+                          </span>
+                        </div>
                         <div
                           className="d-flex justify-content-between align-items-center mb-1.5 small text-secondary"
                           style={{ fontSize: "0.78rem" }}

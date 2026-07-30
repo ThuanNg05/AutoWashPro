@@ -535,6 +535,13 @@ export const CustomerBookings = () => {
         { displayName: 'Khách không đến (No-Show)', isCompleted: false, isActive: true }
       ];
     }
+    if (booking.progressTracking?.stages && booking.progressTracking.stages.length > 0) {
+      return booking.progressTracking.stages.map(s => ({
+        displayName: s.displayName,
+        isCompleted: s.isCompleted,
+        isActive: s.isActive
+      }));
+    }
     return queueStatusMapper.getTimelineSteps(
       booking.status,
       booking.queueStatus,

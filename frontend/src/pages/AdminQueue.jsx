@@ -7,28 +7,9 @@ import "../styles/shared.css";
 import "../styles/admin/bookings.css";
 import "../styles/admin/queue.css";
 
-const STAGE_LABEL_MAP = {
-  CheckIn: "Check-in",
-  CheckedIn: "Check-in",
-  Washing: "Rửa xe",
-  Drying: "Sấy khô",
-  Completed: "Hoàn tất",
-  Checkout: "Hoàn tất",
-  Archived: "Hoàn tất",
-};
-
-const STAGE_COLOR_MAP = {
-  "Check-in": "#f59e0b",
-  "Rửa xe": "#3b82f6",
-  "Sấy khô": "#0ea5e9",
-  "Hoàn tất": "#22c55e",
-  "Chờ check-in": "#94a3b8",
-};
-
 export const AdminQueue = () => {
   const navigate = useNavigate();
-  const getStageLabel = (stage) =>
-    STAGE_LABEL_MAP[stage] || stage || "Chờ check-in";
+  const getStageLabel = (stage) => stage || "Chờ check-in";
 
   const [queue, setQueue] = useState({
     waitingForCheckIn: [],
@@ -496,30 +477,8 @@ export const AdminQueue = () => {
     }
   };
 
-  // Dynamic Service Stages
-  const getServiceStages = (serviceName) => {
-    return ["Check-in", "Rửa xe", "Sấy khô", "Hoàn tất"];
-  };
-
-  const getActiveStageIndex = (item, stages) => {
-    if (item.statusGroup === "Waiting") return 0;
-    if (item.statusGroup === "Completed") return stages.length - 1;
-    if (item.statusGroup === "NoShow") return stages.length - 1;
-
-    const backendStage = item.currentStage;
-    if (backendStage === "CheckIn" || backendStage === "CheckedIn") return 0;
-    if (backendStage === "Washing") return 1;
-    if (backendStage === "Drying") return 2;
-    if (backendStage === "Completed") return 3;
-    return 0;
-  };
-
   const getModalStages = (item) => {
-    if (
-      item.progressTracking &&
-      item.progressTracking.stages &&
-      item.progressTracking.stages.length > 0
-    ) {
+    if (item?.progressTracking?.stages?.length) {
       return item.progressTracking.stages.map((stage) => ({
         stageKey: stage.stageKey,
         name: stage.displayName,
@@ -529,28 +488,11 @@ export const AdminQueue = () => {
         startedAt: stage.startedAt || null,
       }));
     }
-    const stages = getServiceStages(item.mainService || "Standard Car Wash");
-    const activeIndex = getActiveStageIndex(item, stages);
-    return stages.map((stage, idx) => ({
-      stageKey: null,
-      name: stage,
-      isCompleted: idx < activeIndex,
-      isActive: idx === activeIndex,
-      completedAt: null,
-      startedAt: null,
-    }));
+    return [];
   };
 
   const getCurrentStageLabel = (item) => {
-    // Try progressTracking stages first for active stage displayName
-    if (item.progressTracking?.stages?.length) {
-      const active = item.progressTracking.stages.find((s) => s.isActive);
-      if (active) return active.displayName;
-    }
-    // Fallback to currentStage mapping
-    return getStageLabel(
-      item.progressTracking?.currentStage || item.currentStage,
-    );
+    return item.progressTracking?.currentStage || item.currentStage || "Đã check-in";
   };
 
   const waitingItems = useMemo(
@@ -734,13 +676,14 @@ export const AdminQueue = () => {
     }
 
     const stageLabel = getCurrentStageLabel(item);
-    const stageColor = STAGE_COLOR_MAP[stageLabel] || "#94a3b8";
     const isWaiting = item.statusGroup === "Waiting";
-    const statusText = isWaiting ? "CHỜ" : "ĐANG XỬ LÝ";
-    const statusColor = isWaiting ? "#f59e0b" : "#3b82f6";
+    const isCompleted = item.statusGroup === "Completed";
+    const stageColor = isWaiting ? "#f59e0b" : (isCompleted ? "#22c55e" : "#0ea5e9");
+    const statusText = isWaiting ? "CHỜ" : (isCompleted ? "HOÀN TẤT" : "ĐANG XỬ LÝ");
+    const statusColor = isWaiting ? "#f59e0b" : (isCompleted ? "#22c55e" : "#3b82f6");
     const statusBg = isWaiting
       ? "rgba(245,158,11,0.1)"
-      : "rgba(59,130,246,0.1)";
+      : (isCompleted ? "rgba(34,197,94,0.1)" : "rgba(59,130,246,0.1)");
 
     return (
       <div

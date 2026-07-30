@@ -17,6 +17,11 @@ namespace Auto_Wash.Data.Entities
 
         public int PriceSnapshot { get; set; }
 
+        [MaxLength(100)]
+        public string ServiceNameSnapshot { get; set; } = string.Empty;
+
+        public int EstimatedMinutesSnapshot { get; set; }
+
         // Navigation properties
         [ForeignKey("BookingId")]
         public virtual Booking Booking { get; set; } = null!;

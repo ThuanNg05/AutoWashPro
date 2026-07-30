@@ -131,7 +131,7 @@ namespace Auto_Wash.Controllers
                         price = b.FinalPrice,
                         points = b.PointsEarned,
                         hasReview = b.Stars.HasValue,
-                        progressTracking = b.Queues.FirstOrDefault() != null ? BookingWorkflowConfig.GetProgressForBooking(b, b.Queues.FirstOrDefault()) : null
+                        progressTracking = b.Queues.FirstOrDefault() != null ? BookingWorkflowConfig.GetProgressForBooking(b, b.Queues.FirstOrDefault(), b.BookingTasks?.OrderBy(t => t.SequenceOrder).ToList()) : null
                     })
                     .ToList();
 
@@ -180,9 +180,13 @@ namespace Auto_Wash.Controllers
                     else if (queueStatusEnum == QueueStatus.Completed) washStep = 3;
                 }
 
-                var progressTracking = queue != null ? BookingWorkflowConfig.GetProgressForBooking(activeBooking, queue) : null;
-                // Calculate estimated completion time based on workflow config
-                string eta = (queue != null ? queue.CheckInAt : activeBooking.ScheduledAt).AddSeconds(BookingWorkflowConfig.TotalDurationSeconds).ToString("HH:mm:ss");
+                var bookingTasks = activeBooking.BookingTasks?.OrderBy(t => t.SequenceOrder).ToList();
+                var progressTracking = queue != null ? BookingWorkflowConfig.GetProgressForBooking(activeBooking, queue, bookingTasks) : null;
+                
+                int totalMins = BookingWorkflowConfig.CalculateTotalEstimatedMinutes(activeBooking.BookingServices, bookingTasks);
+
+                int remainingSecs = progressTracking?.RemainingSeconds ?? (totalMins * 60);
+                string eta = DateTime.Now.AddSeconds(remainingSecs).ToString("HH:mm:ss");
 
                 var bookingData = new
                 {
@@ -368,13 +372,25 @@ namespace Auto_Wash.Controllers
 
                 var bookings = await _context.Bookings
                     .WhereSlotOccupied()
+                    .Include(b => b.BookingServices)
+                        .ThenInclude(bs => bs.Service)
+                    .Include(b => b.BookingTasks)
                     .Where(b => b.ScheduledAt.Date == parsedDate.Date)
-                    .Select(b => b.ScheduledAt.Hour)
                     .ToListAsync();
 
-                var slotCounts = bookings
-                    .GroupBy(h => h)
-                    .ToDictionary(g => g.Key, g => g.Count());
+                var slotCounts = new Dictionary<int, int>();
+                foreach (var b in bookings)
+                {
+                    int totalMins = BookingWorkflowConfig.CalculateTotalEstimatedMinutes(b.BookingServices, b.BookingTasks);
+                    int requiredSlots = BookingWorkflowConfig.CalculateRequiredSlots(totalMins);
+                    int startH = b.ScheduledAt.Hour;
+
+                    for (int i = 0; i < requiredSlots; i++)
+                    {
+                        int hr = startH + i;
+                        slotCounts[hr] = slotCounts.GetValueOrDefault(hr, 0) + 1;
+                    }
+                }
 
                 var occupiedSlots = slotCounts
                     .Where(kvp => kvp.Value >= maxVehicles)
@@ -385,7 +401,7 @@ namespace Auto_Wash.Controllers
                     t => t,
                     t => {
                         int hr = int.Parse(t.Split(':')[0]);
-                        int count = slotCounts.ContainsKey(hr) ? slotCounts[hr] : 0;
+                        int count = slotCounts.GetValueOrDefault(hr, 0);
                         return Math.Max(0, maxVehicles - count);
                     }
                 );
@@ -414,13 +430,26 @@ namespace Auto_Wash.Controllers
                 var endPoint = startParsed.AddDays(windowDays);
                 var bookings = await _context.Bookings
                     .WhereSlotOccupied()
+                    .Include(b => b.BookingServices)
+                        .ThenInclude(bs => bs.Service)
+                    .Include(b => b.BookingTasks)
                     .Where(b => b.ScheduledAt.Date >= startParsed.Date && b.ScheduledAt.Date <= endPoint.Date)
-                    .Select(b => new { b.ScheduledAt.Date, b.ScheduledAt.Hour })
                     .ToListAsync();
 
-                var grouped = bookings
-                    .GroupBy(b => new { b.Date, b.Hour })
-                    .ToDictionary(g => g.Key, g => g.Count());
+                var slotCounts = new Dictionary<(DateTime Date, int Hour), int>();
+                foreach (var b in bookings)
+                {
+                    int totalMins = BookingWorkflowConfig.CalculateTotalEstimatedMinutes(b.BookingServices, b.BookingTasks);
+                    int requiredSlots = BookingWorkflowConfig.CalculateRequiredSlots(totalMins);
+                    int startH = b.ScheduledAt.Hour;
+                    var bDate = b.ScheduledAt.Date;
+
+                    for (int i = 0; i < requiredSlots; i++)
+                    {
+                        var key = (bDate, startH + i);
+                        slotCounts[key] = slotCounts.GetValueOrDefault(key, 0) + 1;
+                    }
+                }
 
                 int startHour = _configuration.GetValue<int>("BookingCapacityConfig:StartHour", 8);
                 int endHour = _configuration.GetValue<int>("BookingCapacityConfig:EndHour", 23);
@@ -438,8 +467,8 @@ namespace Auto_Wash.Controllers
                             continue;
                         }
 
-                        var key = new { Date = checkDate.Date, Hour = hour };
-                        int count = grouped.ContainsKey(key) ? grouped[key] : 0;
+                        var key = (checkDate.Date, hour);
+                        int count = slotCounts.GetValueOrDefault(key, 0);
                         if (count < maxVehicles)
                         {
                             return Ok(new { success = true, earliestDate = checkDate.ToString("yyyy-MM-dd") });

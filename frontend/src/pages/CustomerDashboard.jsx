@@ -254,13 +254,19 @@ export const CustomerDashboard = () => {
     return "█".repeat(filledChars) + "░".repeat(emptyChars) + ` ${pct}%`;
   };
 
-  const timelineSteps = activeBooking
-    ? queueStatusMapper.getTimelineSteps(
-        activeBooking.status,
-        activeBooking.queueStatus,
-        activeBooking.currentStage,
-      )
-    : [];
+  const timelineSteps = (activeBooking?.progressTracking?.stages && activeBooking.progressTracking.stages.length > 0)
+    ? activeBooking.progressTracking.stages.map(s => ({
+        name: s.displayName,
+        isCompleted: s.isCompleted,
+        isActive: s.isActive
+      }))
+    : (activeBooking
+      ? queueStatusMapper.getTimelineSteps(
+          activeBooking.status,
+          activeBooking.queueStatus,
+          activeBooking.currentStage,
+        )
+      : []);
 
   const totalSteps = timelineSteps.length;
   const activeStepIdx = timelineSteps.findIndex((s) => s.isActive);

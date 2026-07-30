@@ -18,14 +18,16 @@ namespace Auto_Wash.Services
         private readonly AutoWashDbContext _context;
         private readonly LoyaltyTierService _loyaltyTierService;
         private readonly BookingNotificationService _notificationService;
+        private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, DateTime> _lastAdvanceTimes = new();
         private static readonly System.Threading.SemaphoreSlim _positionSemaphore = new(1, 1);
 
-        public AdminQueueService(AutoWashDbContext context, LoyaltyTierService loyaltyTierService, BookingNotificationService notificationService)
+        public AdminQueueService(AutoWashDbContext context, LoyaltyTierService loyaltyTierService, BookingNotificationService notificationService, Microsoft.Extensions.Configuration.IConfiguration configuration)
         {
             _context = context;
             _loyaltyTierService = loyaltyTierService;
             _notificationService = notificationService;
+            _configuration = configuration;
         }
 
         public async Task<GroupedQueueList> GetTodayQueueAsync()
@@ -41,6 +43,8 @@ namespace Auto_Wash.Services
                 .Include(q => q.Booking)
                     .ThenInclude(b => b!.BookingServices)
                         .ThenInclude(bs => bs.Service)
+                .Include(q => q.Booking)
+                    .ThenInclude(b => b!.BookingTasks)
                 .Where(q => q.CheckInAt.Date == today && q.Status != QueueStatus.Cancelled)
                 .ToListAsync();
 
@@ -78,36 +82,39 @@ namespace Auto_Wash.Services
 
                     if (services.Count == 0)
                     {
-                        services.Add(new QueueServiceItem { Name = "Standard Car Wash", Price = 250000 });
+                        services.Add(new QueueServiceItem { Name = "Standard Car Wash", Price = 149000 });
                     }
 
-                    return new QueueListItem
-                    {
-                        QueueId = -b.BookingId,
-                        BookingId = b.BookingId,
-                        LicensePlate = b.Vehicle?.LicensePlate ?? string.Empty,
-                        CustomerName = b.Customer?.Account?.FullName ?? "Khách vãng lai",
-                        Phone = b.Customer?.Account?.Phone ?? string.Empty,
-                        Email = b.Customer?.Account?.Email ?? string.Empty,
-                        TierName = b.Customer?.Tier?.TierName ?? "Member",
-                        TierId = b.Customer?.TierId ?? 1,
-                        Status = "Waiting",
-                        Position = 0,
-                        CheckInAt = b.ScheduledAt,
-                        StaffNote = b.Notes ?? string.Empty,
-                        FinalPrice = b.FinalPrice,
-                        PointsEarned = b.PointsEarned,
-                        Services = services,
-                        QueuePriority = b.Customer?.Tier?.QueuePriority ?? 0,
-                        BookingTime = b.ScheduledAt.ToString("HH:mm"),
-                        EstimatedStart = b.ScheduledAt.ToString("HH:mm:ss"),
-                        EtaCompletion = b.ScheduledAt.AddSeconds(BookingWorkflowConfig.TotalDurationSeconds).ToString("HH:mm:ss"),
-                        CurrentStage = "CheckIn",
-                        Progress = 0,
-                        RemainingSeconds = BookingWorkflowConfig.TotalDurationSeconds,
-                        ProgressTracking = null,
-                        BookingStatus = b.Status.ToString()
-                    };
+                        int bMins = b.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 50;
+                        if (bMins == 0) bMins = 50;
+
+                        return new QueueListItem
+                        {
+                            QueueId = -b.BookingId,
+                            BookingId = b.BookingId,
+                            LicensePlate = b.Vehicle?.LicensePlate ?? string.Empty,
+                            CustomerName = b.Customer?.Account?.FullName ?? "Khách vãng lai",
+                            Phone = b.Customer?.Account?.Phone ?? string.Empty,
+                            Email = b.Customer?.Account?.Email ?? string.Empty,
+                            TierName = b.Customer?.Tier?.TierName ?? "Member",
+                            TierId = b.Customer?.TierId ?? 1,
+                            Status = "Waiting",
+                            Position = 0,
+                            CheckInAt = b.ScheduledAt,
+                            StaffNote = b.Notes ?? string.Empty,
+                            FinalPrice = b.FinalPrice,
+                            PointsEarned = b.PointsEarned,
+                            Services = services,
+                            QueuePriority = b.Customer?.Tier?.QueuePriority ?? 0,
+                            BookingTime = b.ScheduledAt.ToString("HH:mm"),
+                            EstimatedStart = b.ScheduledAt.ToString("HH:mm:ss"),
+                            EtaCompletion = b.ScheduledAt.AddMinutes(bMins).ToString("HH:mm:ss"),
+                            CurrentStage = "CheckIn",
+                            Progress = 0,
+                            RemainingSeconds = bMins * 60,
+                            ProgressTracking = null,
+                            BookingStatus = b.Status.ToString()
+                        };
                 })
                 .OrderBy(item => item.CheckInAt)
                 .ToList();
@@ -130,7 +137,7 @@ namespace Auto_Wash.Services
 
                 if (services.Count == 0)
                 {
-                    services.Add(new QueueServiceItem { Name = "Standard Car Wash", Price = 250000 });
+                    services.Add(new QueueServiceItem { Name = "Standard Car Wash", Price = 149000 });
                 }
 
                 var item = new QueueListItem
@@ -162,7 +169,7 @@ namespace Auto_Wash.Services
                     item.BookingTime = q.Booking != null ? q.Booking.ScheduledAt.ToString("HH:mm") : "Walk-in";
                     item.CheckInTime = q.CheckInAt.ToString("HH:mm:ss");
                     item.CompletedTime = (q.CompletedAt ?? q.CheckInAt).ToString("HH:mm:ss");
-                    item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q);
+                    item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q, q.Booking?.BookingTasks?.OrderBy(t => t.SequenceOrder).ToList());
                     item.CurrentStage = item.ProgressTracking.CurrentStage;
                     item.Progress = item.ProgressTracking.Progress;
                     item.RemainingSeconds = item.ProgressTracking.RemainingSeconds;
@@ -173,12 +180,19 @@ namespace Auto_Wash.Services
                     item.BookingTime = q.Booking != null ? q.Booking.ScheduledAt.ToString("HH:mm") : "Walk-in";
                     item.CheckInTime = q.CheckInAt.ToString("HH:mm:ss");
                     
-                    // Calculate estimated start and ETA based on workflow config
+                    // Calculate estimated start and ETA based on dynamic service durations
                     var estStart = q.CheckInAt;
-                    item.EstimatedStart = estStart.ToString("HH:mm:ss");
-                    item.EtaCompletion = estStart.AddSeconds(BookingWorkflowConfig.TotalDurationSeconds).ToString("HH:mm:ss");
+                    int qMins = q.Booking?.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 0;
+                    if (qMins == 0 && q.Booking?.BookingTasks != null && q.Booking.BookingTasks.Count > 0)
+                    {
+                        qMins = (int)Math.Ceiling(q.Booking.BookingTasks.Sum(t => t.EstimatedDurationSeconds) / 60.0);
+                    }
+                    if (qMins == 0) qMins = 50;
 
-                    item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q);
+                    item.EstimatedStart = estStart.ToString("HH:mm:ss");
+                    item.EtaCompletion = estStart.AddMinutes(qMins).ToString("HH:mm:ss");
+
+                    item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q, q.Booking?.BookingTasks?.OrderBy(t => t.SequenceOrder).ToList());
                     item.CurrentStage = item.ProgressTracking.CurrentStage;
                     item.Progress = item.ProgressTracking.Progress;
                     item.RemainingSeconds = item.ProgressTracking.RemainingSeconds;
@@ -289,6 +303,11 @@ namespace Auto_Wash.Services
 
                         _context.Queues.Add(newQueue);
                         await _context.SaveChangesAsync();
+
+                        // Generate dynamic workflow tasks based on selected services
+                        await GenerateBookingTasksAsync(booking.BookingId);
+                        await _context.SaveChangesAsync();
+
                         await transaction.CommitAsync();
 
                         return (true, "Check-in thành công!", QueueStatus.Waiting.ToString());
@@ -384,6 +403,10 @@ namespace Auto_Wash.Services
                             };
                             booking.Status = BookingStatus.CheckedIn; // CheckedIn / InProgress
                             _context.Queues.Add(q);
+                            await _context.SaveChangesAsync();
+
+                            // Generate dynamic workflow tasks based on selected services
+                            await GenerateBookingTasksAsync(booking.BookingId);
                         }
                         else
                         {
@@ -959,6 +982,124 @@ namespace Auto_Wash.Services
                 };
                 _context.Notifications.Add(notification);
             }
+        }
+
+        /// <summary>
+        /// Generate dynamic BookingTask rows when a booking is checked in.
+        /// Task sequence: CheckIn → Washing (base service) → AddonProcessing (per add-on) → Drying → AutoCapture → AutoSendMail → WaitingCheckout
+        /// </summary>
+        private async Task GenerateBookingTasksAsync(int bookingId)
+        {
+            // Check if tasks already exist (idempotency guard)
+            var existingTasks = await _context.BookingTasks
+                .AnyAsync(t => t.BookingId == bookingId);
+            if (existingTasks) return;
+
+            var booking = await _context.Bookings
+                .Include(b => b.BookingServices)
+                    .ThenInclude(bs => bs.Service)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null) return;
+
+            bool isDemo = _configuration.GetValue<bool>("BookingWorkflow:DemoMode", true);
+            int multiplier = isDemo ? 1 : 60;
+
+            var tasks = new List<BookingTask>();
+            int seq = 1;
+
+            // 1. CheckIn (system task — starts immediately)
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "CheckIn",
+                DisplayName = "Đã check-in",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = isDemo ? 15 : BookingWorkflowConfig.CheckInSeconds,
+                Status = BookingTaskStatus.InProgress,
+                StartedAt = DateTime.Now
+            });
+
+            // 2. Base service → Washing task
+            var baseService = booking.BookingServices
+                .FirstOrDefault(bs => !bs.Service.IsAddOn);
+            if (baseService != null)
+            {
+                int baseMins = baseService.EstimatedMinutesSnapshot > 0 ? baseService.EstimatedMinutesSnapshot : baseService.Service.EstimatedMinutes;
+                string baseName = !string.IsNullOrWhiteSpace(baseService.ServiceNameSnapshot) ? baseService.ServiceNameSnapshot : baseService.Service.ServiceName;
+
+                tasks.Add(new BookingTask
+                {
+                    BookingId = bookingId,
+                    BookingServiceId = baseService.BookingServiceId,
+                    TaskType = "Washing",
+                    DisplayName = $"Đang rửa - {baseName}",
+                    SequenceOrder = seq++,
+                    EstimatedDurationSeconds = baseMins * multiplier
+                });
+            }
+
+            // 3. Add-on services → AddonProcessing tasks
+            var addons = booking.BookingServices
+                .Where(bs => bs.Service.IsAddOn)
+                .OrderBy(bs => bs.BookingServiceId);
+            foreach (var addon in addons)
+            {
+                int addonMins = addon.EstimatedMinutesSnapshot > 0 ? addon.EstimatedMinutesSnapshot : addon.Service.EstimatedMinutes;
+                string addonName = !string.IsNullOrWhiteSpace(addon.ServiceNameSnapshot) ? addon.ServiceNameSnapshot : addon.Service.ServiceName;
+
+                tasks.Add(new BookingTask
+                {
+                    BookingId = bookingId,
+                    BookingServiceId = addon.BookingServiceId,
+                    TaskType = "AddonProcessing",
+                    DisplayName = $"{addonName} (add-on)",
+                    SequenceOrder = seq++,
+                    EstimatedDurationSeconds = addonMins * multiplier
+                });
+            }
+
+            // 4. Drying (system task)
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "Drying",
+                DisplayName = "Đã sấy khô",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = BookingWorkflowConfig.DryingSeconds
+            });
+
+            // 5. AutoCapture (system, instant)
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "AutoCapture",
+                DisplayName = "Tự động chụp ảnh",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0
+            });
+
+            // 6. AutoSendMail (system, instant)
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "AutoSendMail",
+                DisplayName = "Tự động gửi mail",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0
+            });
+
+            // 7. WaitingCheckout (system, manual completion by staff)
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "WaitingCheckout",
+                DisplayName = "Chờ thanh toán",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0
+            });
+
+            _context.BookingTasks.AddRange(tasks);
         }
     }
 
