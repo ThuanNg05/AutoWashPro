@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useStaffNotifications } from '../hooks/useStaffNotifications';
 import { GlobalToastAndConfirm } from '../components/GlobalToastAndConfirm';
 import { GlobalLoader } from '../components/GlobalLoader';
 import '../styles/shared.css';
@@ -21,6 +22,15 @@ export const AdminLayout = () => {
                     location.pathname.startsWith('/admin/services') ? 'services' :
                     location.pathname.startsWith('/admin/transactions') ? 'transactions' :
                     location.pathname.startsWith('/admin/ownership-transfers') ? 'ownership-transfers' : 'dashboard';
+
+  const { unreadBookings, queueInService, popup, dismissPopup } = useStaffNotifications({
+    isOnBookings: activeNav === 'bookings',
+  });
+
+  const handleViewNewBooking = () => {
+    dismissPopup();
+    navigate('/admin/bookings');
+  };
 
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
@@ -61,9 +71,19 @@ export const AdminLayout = () => {
           </Link>
           <Link to="/admin/bookings" className={`sidebar-link ${activeNav === 'bookings' ? 'active' : ''}`}>
             <i className="fas fa-calendar-check"></i> <span>Quản lý đặt lịch</span>
+            {unreadBookings > 0 && (
+              <span className="sidebar-badge" title="Booking mới chưa xem">
+                {unreadBookings > 99 ? '99+' : unreadBookings}
+              </span>
+            )}
           </Link>
           <Link to="/admin/queue" className={`sidebar-link ${activeNav === 'queue' ? 'active' : ''}`}>
             <i className="fas fa-list-ol"></i> <span>Tiến độ dịch vụ</span>
+            {queueInService > 0 && (
+              <span className="sidebar-badge sidebar-badge-info" title="Xe đang trong hàng đợi (đã check-in)">
+                {queueInService > 99 ? '99+' : queueInService}
+              </span>
+            )}
           </Link>
           <Link to="/admin/customers" className={`sidebar-link ${activeNav === 'customers' ? 'active' : ''}`}>
             <i className="fas fa-users"></i> <span>Khách hàng</span>
@@ -104,6 +124,26 @@ export const AdminLayout = () => {
       <div className={`admin-main ${sidebarCollapsed ? 'collapsed' : ''} ${activeNav === 'queue' ? 'admin-main-queue' : ''}`} id="admin-main">
         <Outlet />
       </div>
+
+      {/* Pop-up thông báo booking mới cho staff (nền mờ, nổi bật toàn màn hình) */}
+      {popup && (
+        <div className="confirm-modal-backdrop booking-alert-backdrop show" style={{ display: 'flex' }}>
+          <div className="confirm-modal-card booking-alert-card animate-confirm-in">
+            <div className="booking-alert-icon">
+              <i className="fas fa-calendar-plus"></i>
+            </div>
+            <h5 className="booking-alert-title">Có lịch đặt mới!</h5>
+            <p className="booking-alert-text">
+              Lịch đặt <strong>#BK-{popup.bookingId}</strong>
+              {popup.licensePlate ? <> · biển số <strong>{popup.licensePlate}</strong></> : null} vừa được tạo.
+            </p>
+            <div className="confirm-modal-footer">
+              <button className="confirm-cancel-btn" onClick={dismissPopup}>ĐỂ SAU</button>
+              <button className="confirm-ok-btn confirm-btn-cyan" onClick={handleViewNewBooking}>XEM NGAY</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -128,15 +128,21 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [rangeLoading, setRangeLoading] = useState(false);
 
-  // Fetch Dashboard data
-  const fetchDashboardData = useCallback(async () => {
-    setRangeLoading(true);
+  // Fetch Dashboard data.
+  // background=true: poll nền trên trang đang mở — im lặng, không hiện vòng loading
+  // toàn cục cũng như dòng "Đang tải...". Chỉ lần điều hướng vào trang / bấm Làm mới /
+  // đổi bộ lọc mới hiển thị loader.
+  const fetchDashboardData = useCallback(async (background = false) => {
+    if (!background) setRangeLoading(true);
     try {
-      const res = await adminService.getDashboardStats({
-        fromDate,
-        toDate,
-        groupBy,
-      });
+      const res = await adminService.getDashboardStats(
+        {
+          fromDate,
+          toDate,
+          groupBy,
+        },
+        background ? { skipGlobalLoader: true } : {},
+      );
 
       if (res) {
         setData({
@@ -155,7 +161,7 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error("Lỗi khi tải dữ liệu Business Analytics:", err);
     } finally {
-      setRangeLoading(false);
+      if (!background) setRangeLoading(false);
       setLoading(false);
     }
   }, [fromDate, toDate, groupBy]);
@@ -164,10 +170,11 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, [fetchDashboardData]);
 
-  // Interval refresh for realtime summary (every 15s)
+  // Interval refresh for realtime summary (every 15s) — poll nền, im lặng.
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchDashboardData();
+      if (document.hidden) return;
+      fetchDashboardData(true);
     }, 15000);
     return () => clearInterval(interval);
   }, [fetchDashboardData]);
@@ -261,7 +268,7 @@ export default function AdminDashboard() {
           <button
             type="button"
             className="btn btn-outline-secondary btn-sm rounded-3 px-3 fw-bold"
-            onClick={fetchDashboardData}
+            onClick={() => fetchDashboardData()}
           >
             <i className="fas fa-redo-alt me-1"></i> Làm mới
           </button>

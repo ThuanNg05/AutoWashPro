@@ -515,10 +515,37 @@ export const CustomerBookings = () => {
       case 'No Show':
         return { label: 'Khách không đến', badgeClass: 'bg-danger bg-opacity-15 text-danger fw-bold', icon: 'fa-user-slash' };
       case 'WaitingCheckout':
-        return { label: 'Chờ thanh toán', badgeClass: 'bg-warning bg-opacity-15 text-warning', icon: 'fa-file-invoice-dollar' };
+        return { label: 'Chờ thanh toán', badgeClass: 'bg-warning bg-opacity-25 text-dark', icon: 'fa-file-invoice-dollar' };
       default:
         return { label: 'Đang xử lý', badgeClass: 'bg-secondary bg-opacity-10 text-secondary', icon: 'fa-cog fa-spin' };
     }
+  };
+
+  // Trạng thái hiển thị cho khách. Chỉ hiện 'Hoàn tất' khi đã thanh toán
+  // (status === 'Completed'). Khi rửa xong nhưng CHƯA thanh toán (queueStatus ở
+  // nhóm hoàn tất công đoạn: Completed/Archived/Checkout, hoặc status
+  // 'WaitingCheckout') thì hiển thị 'Chờ thanh toán' để tránh gây hiểu nhầm cho staff.
+  const resolveDisplayStatus = (booking) => {
+    const { status, queueStatus } = booking;
+    if (status === 'Cancelled') return translateStatus('Cancelled');
+    if (status === 'NoShow' || status === 'No Show') return translateStatus('NoShow');
+    if (status === 'Completed') return translateStatus('Completed');
+    if (
+      status === 'WaitingCheckout' ||
+      queueStatus === 'Completed' ||
+      queueStatus === 'Archived' ||
+      queueStatus === 'Checkout'
+    ) {
+      return translateStatus('WaitingCheckout');
+    }
+    if (queueStatus) {
+      return {
+        label: queueStatusMapper.getLabel(queueStatus),
+        badgeClass: queueStatusMapper.getBadgeClass(queueStatus),
+        icon: queueStatusMapper.getIcon(queueStatus),
+      };
+    }
+    return translateStatus(status);
   };
 
   const getDetailTimelineStages = (booking) => {
@@ -608,11 +635,7 @@ export const CustomerBookings = () => {
               ) : (
                 <div className="row g-3">
                   {activeBookings.map((b) => {
-                    const statusInfo = (b.status === 'WaitingCheckout')
-                      ? translateStatus(b.status)
-                      : (b.queueStatus
-                        ? { label: queueStatusMapper.getLabel(b.queueStatus), badgeClass: queueStatusMapper.getBadgeClass(b.queueStatus), icon: queueStatusMapper.getIcon(b.queueStatus) }
-                        : translateStatus(b.status));
+                    const statusInfo = resolveDisplayStatus(b);
                     return (
                       <div key={b.id} className="col-md-6 col-lg-4">
                         <div className={`app-card border border-light p-4 bg-white rounded-4 shadow-sm hover-shadow transition-all ${getStatusBorderClass(b.status)}`} style={{ cursor: 'pointer' }} onClick={() => handleOpenDetail(b.id)}>
@@ -917,24 +940,14 @@ export const CustomerBookings = () => {
                       <div className="col-6 ps-0">
                         <small className="text-secondary d-block mb-1" style={{ fontSize: '0.62rem', fontWeight: 600 }}>THỜI GIAN HẸN</small>
                         <strong className="d-block" style={{ fontSize: '0.82rem' }}>{new Date(detailModalBooking.scheduledAt).toLocaleDateString('vi-VN')}</strong>
-                        <span className="badge bg-cyan bg-opacity-10 text-cyan font-monospace mt-0.5" style={{ fontSize: '0.68rem' }}>
+                        <span className="badge bg-cyan bg-opacity-10 text-dark font-monospace mt-0.5" style={{ fontSize: '0.68rem' }}>
                           {new Date(detailModalBooking.scheduledAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       <div className="col-6 pe-0">
                         <small className="text-secondary d-block mb-1" style={{ fontSize: '0.62rem', fontWeight: 600 }}>TRẠNG THÁI</small>
-                        <span className={`badge px-2.5 py-1.5 rounded-pill small fw-bold d-inline-block mt-0.5 ${
-                          detailModalBooking.status === 'WaitingCheckout'
-                            ? translateStatus(detailModalBooking.status).badgeClass
-                            : (detailModalBooking.queueStatus
-                              ? queueStatusMapper.getBadgeClass(detailModalBooking.queueStatus)
-                              : translateStatus(detailModalBooking.status).badgeClass)
-                        }`} style={{ fontSize: '0.68rem' }}>
-                          {detailModalBooking.status === 'WaitingCheckout'
-                            ? translateStatus(detailModalBooking.status).label
-                            : (detailModalBooking.queueStatus
-                              ? queueStatusMapper.getLabel(detailModalBooking.queueStatus)
-                              : translateStatus(detailModalBooking.status).label)}
+                        <span className={`badge px-2.5 py-1.5 rounded-pill small fw-bold d-inline-block mt-0.5 ${resolveDisplayStatus(detailModalBooking).badgeClass}`} style={{ fontSize: '0.68rem' }}>
+                          {resolveDisplayStatus(detailModalBooking).label}
                         </span>
                       </div>
                       <div className="col-12 border-top pt-1.5 px-0 mt-1.5">
@@ -1001,7 +1014,7 @@ export const CustomerBookings = () => {
                                 </div>
                               </div>
                               {step.isCompleted && <span className="badge bg-success bg-opacity-10 text-success" style={{ fontSize: '0.55rem' }}>Xong</span>}
-                              {step.isActive && <span className="badge bg-info bg-opacity-10 text-cyan animate-pulse" style={{ fontSize: '0.55rem' }}>Đang chạy</span>}
+                              {step.isActive && <span className="badge bg-info bg-opacity-10 text-cyan animate-pulse" style={{ fontSize: '0.55rem' }}>Đang thực hiện</span>}
                               {!step.isCompleted && !step.isActive && <span className="badge bg-light text-muted" style={{ fontSize: '0.55rem' }}>Chờ</span>}
                             </div>
                           ));
@@ -1082,7 +1095,7 @@ export const CustomerBookings = () => {
 
                       {/* Payment Details Card */}
                       {detailModalBooking.status === 'Completed' ? (
-                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem', borderStyle: 'dashed' }}>
+                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem' }}>
                           <div className="d-flex align-items-center justify-content-between mb-1.5">
                             <span className="text-secondary">Trạng thái thanh toán:</span>
                             <span className="badge bg-success bg-opacity-10 text-success fw-bold" style={{ fontSize: '0.65rem', padding: '3px 8px' }}>
@@ -1137,7 +1150,7 @@ export const CustomerBookings = () => {
                           )}
                         </div>
                       ) : (
-                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem', borderStyle: 'dashed' }}>
+                        <div className="border-top pt-2 mt-2" style={{ fontSize: '0.75rem' }}>
                           <div className="d-flex align-items-center justify-content-between mb-0">
                             <span className="text-secondary">Trạng thái thanh toán:</span>
                             <span className="badge bg-warning bg-opacity-10 text-warning fw-bold" style={{ fontSize: '0.65rem', padding: '3px 8px' }}>
@@ -1172,7 +1185,7 @@ export const CustomerBookings = () => {
                               <div className="timeline-marker" style={{ left: '-12.5px', top: '4px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--cyan-electric)', position: 'absolute' }}></div>
                               <div className="d-flex justify-content-between align-items-start ms-2">
                                 <div>
-                                  <strong className="text-dark">{log.action === 'Created' ? 'Khởi tạo' : log.action === 'Confirmed' ? 'Đã duyệt' : log.action === 'CheckedIn' ? 'Đã check-in' : log.action === 'WashingStarted' ? 'Đang rửa' : log.action === 'Completed' ? 'Hoàn thành' : log.action === 'Cancelled' ? 'Đã hủy' : log.action === 'NoShow' ? 'Không đến' : log.action === 'Rescheduled' ? 'Đổi lịch' : log.action}</strong>
+                                  <strong className="text-dark">{log.action === 'CustomerNotified' ? 'Thông báo' : log.action === 'WaitingCheckout' ? 'Chờ thanh toán' : log.action === 'Created' ? 'Khởi tạo' : log.action === 'Confirmed' ? 'Đã duyệt' : log.action === 'CheckedIn' ? 'Đã check-in' : log.action === 'WashingStarted' ? 'Đang rửa' : log.action === 'Completed' ? 'Hoàn thành' : log.action === 'Cancelled' ? 'Đã hủy' : log.action === 'NoShow' ? 'Không đến' : log.action === 'Rescheduled' ? 'Đổi lịch' : log.action}</strong>
                                   <span className="text-secondary d-block mt-0.5" style={{ fontSize: '0.72rem' }}>{log.description}</span>
                                 </div>
                                 <div className="text-end text-muted font-monospace" style={{ fontSize: '0.65rem', minWidth: '80px', paddingLeft: '8px' }}>

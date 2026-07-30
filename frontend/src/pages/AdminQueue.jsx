@@ -1287,7 +1287,7 @@ export const AdminQueue = () => {
                       </div>
                       <div className="col-6 text-end">
                         <span className="text-muted d-block small">
-                          ETA HOÀN THÀNH
+                          DỰ KIẾN HOÀN THÀNH
                         </span>
                         <strong className="text-cyan">
                           {selectedVehicle.etaCompletion}
@@ -1295,7 +1295,7 @@ export const AdminQueue = () => {
                       </div>
                       <div className="col-6 mt-2">
                         <span className="text-muted d-block small">
-                          TIẾN ĐỘ THỜI GIAN
+                          TIẾN ĐỘ
                         </span>
                         <strong className="text-dark">
                           {selectedVehicle.progress}%
