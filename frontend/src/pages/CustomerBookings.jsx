@@ -521,23 +521,22 @@ export const CustomerBookings = () => {
   // nhóm hoàn tất công đoạn: Completed/Archived/Checkout, hoặc status
   // 'WaitingCheckout') thì hiển thị 'Chờ thanh toán' để tránh gây hiểu nhầm cho staff.
   const resolveDisplayStatus = (booking) => {
-    const { status, queueStatus } = booking;
+    const { status } = booking;
     if (status === 'Cancelled') return translateStatus('Cancelled');
     if (status === 'NoShow' || status === 'No Show') return translateStatus('NoShow');
     if (status === 'Completed') return translateStatus('Completed');
     if (
       status === 'WaitingCheckout' ||
-      queueStatus === 'Completed' ||
-      queueStatus === 'Archived' ||
-      queueStatus === 'Checkout'
+      booking.progressTracking?.currentStage === 'WaitingCheckout' ||
+      booking.progressTracking?.currentStage === 'Chờ thanh toán'
     ) {
       return translateStatus('WaitingCheckout');
     }
-    if (queueStatus) {
+    if (booking.progressTracking || booking.queueStatus) {
       return {
-        label: queueStatusMapper.getLabel(queueStatus),
-        badgeClass: queueStatusMapper.getBadgeClass(queueStatus),
-        icon: queueStatusMapper.getIcon(queueStatus),
+        label: queueStatusMapper.getLabel(booking),
+        badgeClass: queueStatusMapper.getBadgeClass(booking),
+        icon: queueStatusMapper.getIcon(booking),
       };
     }
     return translateStatus(status);
@@ -557,11 +556,14 @@ export const CustomerBookings = () => {
         { displayName: 'Khách không đến (No-Show)', isCompleted: false, isActive: true }
       ];
     }
-    return queueStatusMapper.getTimelineSteps(
-      booking.status,
-      booking.queueStatus,
-      booking.progressTracking?.currentStage
-    ).map(s => ({
+    if (booking.progressTracking?.stages && booking.progressTracking.stages.length > 0) {
+      return booking.progressTracking.stages.map(s => ({
+        displayName: s.displayName,
+        isCompleted: s.isCompleted,
+        isActive: s.isActive
+      }));
+    }
+    return queueStatusMapper.getTimelineSteps(booking).map(s => ({
       displayName: s.name,
       isCompleted: s.isCompleted,
       isActive: s.isActive

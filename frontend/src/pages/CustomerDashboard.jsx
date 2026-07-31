@@ -254,13 +254,15 @@ export const CustomerDashboard = () => {
     return "█".repeat(filledChars) + "░".repeat(emptyChars) + ` ${pct}%`;
   };
 
-  const timelineSteps = activeBooking
-    ? queueStatusMapper.getTimelineSteps(
-        activeBooking.status,
-        activeBooking.queueStatus,
-        activeBooking.currentStage,
-      )
-    : [];
+  const timelineSteps = (activeBooking?.progressTracking?.stages && activeBooking.progressTracking.stages.length > 0)
+    ? activeBooking.progressTracking.stages.map(s => ({
+        name: s.displayName,
+        isCompleted: s.isCompleted,
+        isActive: s.isActive
+      }))
+    : (activeBooking
+      ? queueStatusMapper.getTimelineSteps(activeBooking)
+      : []);
 
   const totalSteps = timelineSteps.length;
   const activeStepIdx = timelineSteps.findIndex((s) => s.isActive);
@@ -515,292 +517,285 @@ export const CustomerDashboard = () => {
         <div className="col-lg-8">
           {/* 1. Live Progress Tracker (Active Booking Wash Progress) */}
           {/* 1. Live Progress Tracker (Active Booking Wash Progress) */}
-          {activeBooking &&
-            activeBooking.hasQueue &&
-            (activeBooking.queueStatus === "Completed" ||
-              activeBooking.queueStatus === "Archived") && (
-              <div
-                className="app-card border-0 p-4 mb-4 text-center rounded-4 shadow-sm bg-white"
-                style={{
-                  borderLeft: "4px solid #f59e0b",
-                }}
-              >
-                <div className="text-center mb-3">
-                  <div
-                    className="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning rounded-circle mb-2"
-                    style={{ width: "56px", height: "56px" }}
-                  >
-                    <i className="fas fa-file-invoice-dollar fa-2x"></i>
-                  </div>
-                  <h5 className="fw-bold text-dark mb-1">
-                    🚗 XE ĐÃ HOÀN TẤT DỊCH VỤ
-                  </h5>
-                  <p className="text-secondary small mb-0">
-                    Xe{" "}
-                    <strong className="font-monospace text-dark">
-                      {activeBooking.vehicle}
-                    </strong>{" "}
-                    đã hoàn tất quá trình rửa xe. Vui lòng đến quầy để thanh
-                    toán và nhận xe.
-                  </p>
-                </div>
+          {(() => {
+            const isWaitingCheckout = activeBooking && activeBooking.hasQueue && (
+              activeBooking.progressTracking?.currentStage === "Chờ thanh toán" ||
+              activeBooking.progressTracking?.currentStage === "WaitingCheckout" ||
+              activeBooking.progressTracking?.stages?.find(s => s.stageKey === "WaitingCheckout")?.isActive
+            ) && activeBooking.status !== "Completed" && activeBooking.status !== "Cancelled";
 
+            if (isWaitingCheckout) {
+              return (
                 <div
-                  className="p-3 rounded-4 mb-3 text-start"
-                  style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
-                >
-                  <div className="mb-2.5 d-flex align-items-center gap-2">
-                    <i className="fas fa-info-circle text-warning fs-6"></i>
-                    <span className="small text-secondary">
-                      Dịch vụ chính:
-                    </span>{" "}
-                    <strong className="text-dark small">
-                      {activeBooking.mainService}
-                    </strong>
-                  </div>
-                </div>
-
-                <button
-                  className="btn btn-outline-cyan w-100 py-2.5 font-semibold small"
-                  style={{ borderRadius: "10px", fontSize: "0.78rem" }}
-                  onClick={() => navigate("/customer/bookings")}
-                >
-                  Xem chi tiết lịch hẹn →
-                </button>
-              </div>
-            )}
-
-          {activeBooking &&
-            activeBooking.hasQueue &&
-            activeBooking.queueStatus !== "Completed" && (
-              <div
-                className="app-card border-0 p-4 mb-4 text-start"
-                style={{
-                  borderLeft: "4px solid #0ea5e9",
-                  background: "#ffffff",
-                }}
-              >
-                <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
-                  <div className="d-flex align-items-center gap-2">
-                    <div className="pulse-dot-washing"></div>
-                    <h5
-                      className="fw-bold mb-0 text-dark"
-                      style={{ fontSize: "0.95rem" }}
-                    >
-                      TIẾN ĐỘ RỬA XE TRỰC TIẾP
-                    </h5>
-                  </div>
-                  <span className="badge bg-info bg-opacity-10 text-cyan px-2.5 py-1 rounded-pill small fw-bold">
-                    {activeBooking.mainService || "Dịch vụ chính"}
-                  </span>
-                </div>
-
-                {/* Progress Bar & Stats */}
-                <div
-                  className="p-3.5 rounded-4 mb-4"
+                  className="app-card border-0 p-4 mb-4 text-center rounded-4 shadow-sm bg-white"
                   style={{
-                    background:
-                      "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
-                    border: "1px solid #e2e8f0",
+                    borderLeft: "4px solid #f59e0b",
                   }}
                 >
-                  <div className="row g-3">
-                    <div className="col-6 col-sm-3">
-                      <small
-                        className="text-secondary d-block mb-1"
-                        style={{
-                          fontSize: "0.65rem",
-                          fontWeight: 600,
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        XE ĐANG RỬA
-                      </small>
-                      <strong
-                        className="text-dark font-monospace"
-                        style={{ fontSize: "0.88rem" }}
-                      >
-                        {activeBooking.vehicle}
-                      </strong>
-                    </div>
-                    <div className="col-6 col-sm-3">
-                      <small
-                        className="text-secondary d-block mb-1"
-                        style={{
-                          fontSize: "0.65rem",
-                          fontWeight: 600,
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        CÔNG ĐOẠN HIỆN TẠI
-                      </small>
-                      <strong
-                        className="text-cyan"
-                        style={{ fontSize: "0.85rem" }}
-                      >
-                        {activeBooking.progressTracking?.currentStage ===
-                        "CheckIn"
-                          ? "Check-in"
-                          : activeBooking.progressTracking?.currentStage ===
-                              "Washing"
-                            ? "Rửa xe"
-                            : activeBooking.progressTracking?.currentStage ===
-                                "Drying"
-                              ? "Sấy khô"
-                              : activeBooking.progressTracking?.currentStage ===
-                                  "WaitingCheckout"
-                                ? "Chờ thanh toán"
-                                : activeBooking.progressTracking
-                                      ?.currentStage === "Completed"
-                                  ? "Hoàn tất"
-                                  : activeBooking.progressTracking
-                                      ?.currentStage || "Đang chuẩn bị"}
-                      </strong>
-                    </div>
-                    <div className="col-6 col-sm-3">
-                      <small
-                        className="text-secondary d-block mb-1"
-                        style={{
-                          fontSize: "0.65rem",
-                          fontWeight: 600,
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        THỜI GIAN CÒN LẠI
-                      </small>
-                      <strong
-                        className="text-dark"
-                        style={{ fontSize: "0.85rem" }}
-                      >
-                        <i className="far fa-clock me-1 text-muted"></i>
-                        {activeBooking.progressTracking?.remainingSeconds ??
-                          0}{" "}
-                        giây
-                      </strong>
-                    </div>
-                    <div className="col-6 col-sm-3">
-                      <small
-                        className="text-secondary d-block mb-1"
-                        style={{
-                          fontSize: "0.65rem",
-                          fontWeight: 600,
-                          letterSpacing: "0.5px",
-                        }}
-                      >
-                        GIỜ HOÀN THÀNH (ETA)
-                      </small>
-                      <strong
-                        className="text-success"
-                        style={{ fontSize: "0.85rem" }}
-                      >
-                        <i className="far fa-check-circle me-1 text-success"></i>
-                        {activeBooking.eta || "—"}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {/* Progress bar */}
-                  <div className="mt-3">
-                    <div className="d-flex justify-content-between align-items-center mb-1">
-                      <span
-                        className="small text-secondary"
-                        style={{ fontSize: "0.72rem" }}
-                      >
-                        Tiến trình rửa
-                      </span>
-                      <span
-                        className="small fw-bold text-dark"
-                        style={{ fontSize: "0.72rem" }}
-                      >
-                        {activeBooking.progressTracking?.progress ?? 0}%
-                      </span>
-                    </div>
+                  <div className="text-center mb-3">
                     <div
-                      className="progress"
-                      style={{
-                        height: "8px",
-                        background: "#e2e8f0",
-                        borderRadius: "10px",
-                        overflow: "hidden",
-                      }}
+                      className="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning rounded-circle mb-2"
+                      style={{ width: "56px", height: "56px" }}
                     >
-                      <div
-                        className="progress-bar"
-                        role="progressbar"
-                        style={{
-                          width: `${activeBooking.progressTracking?.progress ?? 0}%`,
-                          borderRadius: "10px",
-                          background:
-                            "linear-gradient(90deg, #0ea5e9 0%, #06b6d4 100%)",
-                        }}
-                      ></div>
+                      <i className="fas fa-file-invoice-dollar fa-2x"></i>
+                    </div>
+                    <h5 className="fw-bold text-dark mb-1">
+                      🚗 XE ĐÃ HOÀN TẤT DỊCH VỤ
+                    </h5>
+                    <p className="text-secondary small mb-0">
+                      Xe{" "}
+                      <strong className="font-monospace text-dark">
+                        {activeBooking.vehicle}
+                      </strong>{" "}
+                      đã hoàn tất quá trình rửa xe. Vui lòng đến quầy để thanh
+                      toán và nhận xe.
+                    </p>
+                  </div>
+
+                  <div
+                    className="p-3 rounded-4 mb-3 text-start"
+                    style={{ background: "#f8fafc", border: "1px solid #e2e8f0" }}
+                  >
+                    <div className="mb-2.5 d-flex align-items-center gap-2">
+                      <i className="fas fa-info-circle text-warning fs-6"></i>
+                      <span className="small text-secondary">
+                        Dịch vụ chính:
+                      </span>{" "}
+                      <strong className="text-dark small">
+                        {activeBooking.mainService}
+                      </strong>
                     </div>
                   </div>
+
+                  <button
+                    className="btn btn-outline-cyan w-100 py-2.5 font-semibold small"
+                    style={{ borderRadius: "10px", fontSize: "0.78rem" }}
+                    onClick={() => navigate("/customer/bookings")}
+                  >
+                    Xem chi tiết lịch hẹn →
+                  </button>
                 </div>
+              );
+            }
 
-                {/* Dynamic Stages checklist */}
-                <div className="d-flex flex-column gap-2">
-                  {(activeBooking.progressTracking?.stages || []).map(
-                    (stage, idx) => {
-                      const isCompleted = stage.isCompleted;
-                      const isActive = stage.isActive;
+            if (activeBooking && activeBooking.hasQueue) {
+              return (
+                <div
+                  className="app-card border-0 p-4 mb-4 text-start"
+                  style={{
+                    borderLeft: "4px solid #0ea5e9",
+                    background: "#ffffff",
+                  }}
+                >
+                  <div className="d-flex align-items-center justify-content-between mb-3 border-bottom pb-2">
+                    <div className="d-flex align-items-center gap-2">
+                      <div className="pulse-dot-washing"></div>
+                      <h5
+                        className="fw-bold mb-0 text-dark"
+                        style={{ fontSize: "0.95rem" }}
+                      >
+                        TIẾN ĐỘ RỬA XE TRỰC TIẾP
+                      </h5>
+                    </div>
+                    <span className="badge bg-info bg-opacity-10 text-cyan px-2.5 py-1 rounded-pill small fw-bold">
+                      {activeBooking.mainService || "Dịch vụ chính"}
+                    </span>
+                  </div>
 
-                      let stepBg = "rgba(15, 23, 42, 0.01)";
-                      let stepBorder = "rgba(15, 23, 42, 0.03)";
-                      let labelClass = "text-muted";
-                      let badgeText = "Chờ";
-                      let badgeClass = "bg-secondary bg-opacity-10 text-muted";
-
-                      if (isCompleted) {
-                        labelClass =
-                          "text-secondary text-decoration-line-through";
-                        badgeText = "Đã xong";
-                        badgeClass = "bg-success bg-opacity-10 text-success";
-                      } else if (isActive) {
-                        stepBg = "rgba(14, 165, 233, 0.03)";
-                        stepBorder = "rgba(14, 165, 233, 0.2)";
-                        labelClass = "text-dark fw-bold";
-                        badgeText = "Đang làm";
-                        badgeClass = "bg-info bg-opacity-10 text-cyan";
-                      }
-
-                      return (
-                        <div
-                          key={idx}
-                          className="d-flex align-items-center justify-content-between p-2.5 rounded-3"
+                  {/* Progress Bar & Stats */}
+                  <div
+                    className="p-3.5 rounded-4 mb-4"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div className="row g-3">
+                      <div className="col-6 col-sm-3">
+                        <small
+                          className="text-secondary d-block mb-1"
                           style={{
-                            background: stepBg,
-                            border: `1px solid ${stepBorder}`,
+                            fontSize: "0.65rem",
+                            fontWeight: 600,
+                            letterSpacing: "0.5px",
                           }}
                         >
-                          <div className="d-flex align-items-center">
-                            {isCompleted ? (
-                              <i className="fas fa-check-circle text-success me-2.5"></i>
-                            ) : isActive ? (
-                              <i className="fas fa-spinner fa-spin text-cyan me-2.5"></i>
-                            ) : (
-                              <i className="far fa-circle text-muted me-2.5"></i>
-                            )}
+                          XE ĐANG RỬA
+                        </small>
+                        <strong
+                          className="text-dark font-monospace"
+                          style={{ fontSize: "0.88rem" }}
+                        >
+                          {activeBooking.vehicle}
+                        </strong>
+                      </div>
+                      <div className="col-6 col-sm-3">
+                        <small
+                          className="text-secondary d-block mb-1"
+                          style={{
+                            fontSize: "0.65rem",
+                            fontWeight: 600,
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          CÔNG ĐOẠN HIỆN TẠI
+                        </small>
+                        <strong
+                          className="text-cyan"
+                          style={{ fontSize: "0.85rem" }}
+                        >
+                          {activeBooking.progressTracking?.currentStage || activeBooking.currentStage || "Đang xử lý"}
+                        </strong>
+                      </div>
+                      <div className="col-6 col-sm-3">
+                        <small
+                          className="text-secondary d-block mb-1"
+                          style={{
+                            fontSize: "0.65rem",
+                            fontWeight: 600,
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          THỜI GIAN CÒN LẠI
+                        </small>
+                        <strong
+                          className="text-dark"
+                          style={{ fontSize: "0.85rem" }}
+                        >
+                          <i className="far fa-clock me-1 text-muted"></i>
+                          {activeBooking.progressTracking?.remainingSeconds ??
+                            0}{" "}
+                          giây
+                        </strong>
+                      </div>
+                      <div className="col-6 col-sm-3">
+                        <small
+                          className="text-secondary d-block mb-1"
+                          style={{
+                            fontSize: "0.65rem",
+                            fontWeight: 600,
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          GIỜ HOÀN THÀNH (ETA)
+                        </small>
+                        <strong
+                          className="text-success"
+                          style={{ fontSize: "0.85rem" }}
+                        >
+                          <i className="far fa-check-circle me-1 text-success"></i>
+                          {activeBooking.eta || "—"}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="mt-3">
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <span
+                          className="small text-secondary"
+                          style={{ fontSize: "0.72rem" }}
+                        >
+                          Tiến trình rửa
+                        </span>
+                        <span
+                          className="small fw-bold text-dark"
+                          style={{ fontSize: "0.72rem" }}
+                        >
+                          {activeBooking.progressTracking?.progress ?? 0}%
+                        </span>
+                      </div>
+                      <div
+                        className="progress"
+                        style={{
+                          height: "8px",
+                          background: "#e2e8f0",
+                          borderRadius: "10px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          className="progress-bar"
+                          role="progressbar"
+                          style={{
+                            width: `${activeBooking.progressTracking?.progress ?? 0}%`,
+                            borderRadius: "10px",
+                            background:
+                              "linear-gradient(90deg, #0ea5e9 0%, #06b6d4 100%)",
+                          }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Stages checklist */}
+                  <div className="d-flex flex-column gap-2">
+                    {(activeBooking.progressTracking?.stages || []).map(
+                      (stage, idx) => {
+                        const isCompleted = stage.isCompleted;
+                        const isActive = stage.isActive;
+
+                        let stepBg = "rgba(15, 23, 42, 0.01)";
+                        let stepBorder = "rgba(15, 23, 42, 0.03)";
+                        let labelClass = "text-muted";
+                        let badgeText = "Chờ";
+                        let badgeClass = "bg-secondary bg-opacity-10 text-muted";
+
+                        if (isCompleted) {
+                          labelClass =
+                            "text-secondary text-decoration-line-through";
+                          badgeText = "Đã xong";
+                          badgeClass = "bg-success bg-opacity-10 text-success";
+                        } else if (isActive) {
+                          stepBg = "rgba(14, 165, 233, 0.03)";
+                          stepBorder = "rgba(14, 165, 233, 0.2)";
+                          labelClass = "text-dark fw-bold";
+                          badgeText = "Đang làm";
+                          badgeClass = "bg-info bg-opacity-10 text-cyan";
+                        }
+
+                        return (
+                          <div
+                            key={idx}
+                            className="d-flex align-items-center justify-content-between p-2.5 rounded-3"
+                            style={{
+                              background: stepBg,
+                              border: `1px solid ${stepBorder}`,
+                            }}
+                          >
+                            <div className="d-flex align-items-center">
+                              {isCompleted ? (
+                                <i className="fas fa-check-circle text-success me-2.5"></i>
+                              ) : isActive ? (
+                                <i className="fas fa-spinner fa-spin text-cyan me-2.5"></i>
+                              ) : (
+                                <i className="far fa-circle text-muted me-2.5"></i>
+                              )}
+                              <span
+                                className={`small ${labelClass}`}
+                                style={{ fontSize: "0.8rem" }}
+                              >
+                                {stage.displayName}
+                              </span>
+                            </div>
                             <span
-                              className={`small ${labelClass}`}
-                              style={{ fontSize: "0.8rem" }}
+                              className={`badge ${badgeClass} px-2.5 py-1 fw-bold`}
+                              style={{ fontSize: "0.62rem", borderRadius: "5px" }}
                             >
-                              {stage.displayName}
+                              {badgeText}
                             </span>
                           </div>
-                          <span
-                            className={`badge ${badgeClass} px-2.5 py-1 fw-bold`}
-                            style={{ fontSize: "0.62rem", borderRadius: "5px" }}
-                          >
-                            {badgeText}
-                          </span>
-                        </div>
-                      );
-                    },
-                  )}
+                        );
+                      },
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            }
+
+            return null;
+          })()}
 
           {/* 2. Recent Activity timeline */}
           <div className="app-card border-0 p-4 mb-4 text-start">

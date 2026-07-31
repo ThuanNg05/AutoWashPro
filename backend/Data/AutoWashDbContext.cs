@@ -33,6 +33,7 @@ namespace Auto_Wash.Data
         public DbSet<OwnershipTransferRequest> OwnershipTransferRequests { get; set; } = null!;
         public DbSet<OwnershipTransferDocument> OwnershipTransferDocuments { get; set; } = null!;
         public DbSet<VehicleOwnershipHistory> VehicleOwnershipHistories { get; set; } = null!;
+        public DbSet<BookingTask> BookingTasks { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -429,17 +430,104 @@ namespace Auto_Wash.Data
             // 21. TierChangeLogs (configured at the end of OnModelCreating to override lowercase convention)
 
             builder.Entity<Service>().HasData(
+                // === MAIN SERVICES (IsAddOn = false) ===
                 new Service
                 {
                     ServiceId = 999,
                     ServiceName = "Standard Car Wash",
-                    Description = "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.",
+                    Description = "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối. Phù hợp cho khách hàng cần rửa xe định kỳ.",
                     Category = ServiceCategory.Basic,
-                    BasePrice = 250000,
-                    EstimatedMinutes = 60,
+                    BasePrice = 149000,
+                    EstimatedMinutes = 50,
                     IsAddOn = false,
                     IsActive = true,
                     IsFeatured = true
+                },
+                new Service
+                {
+                    ServiceId = 1000,
+                    ServiceName = "Premium Car Wash",
+                    Description = "Bao gồm tất cả gói Standard, cộng thêm: Rửa bọt cao cấp, đánh bóng lốp, vệ sinh nội thất sâu, dưỡng da ghế, phục hồi nhựa nội thất, hoàn thiện cao cấp. Phù hợp cho xe sang hoặc khách hàng muốn chăm sóc toàn diện.",
+                    Category = ServiceCategory.Premium,
+                    BasePrice = 299000,
+                    EstimatedMinutes = 90,
+                    IsAddOn = false,
+                    IsActive = true,
+                    IsFeatured = true
+                },
+
+                // === ADD-ON SERVICES (IsAddOn = true) ===
+                new Service
+                {
+                    ServiceId = 1001,
+                    ServiceName = "Wax Coating",
+                    Description = "Phủ lớp sáp bảo vệ bề mặt sơn, tạo độ bóng cao và chống bám bẩn.",
+                    Category = ServiceCategory.AddOn,
+                    BasePrice = 79000,
+                    EstimatedMinutes = 15,
+                    IsAddOn = true,
+                    IsActive = true,
+                    IsFeatured = false
+                },
+                new Service
+                {
+                    ServiceId = 1002,
+                    ServiceName = "Nano Ceramic Spray",
+                    Description = "Phủ ceramic nano tạm thời, tăng khả năng chống nước và bảo vệ sơn xe.",
+                    Category = ServiceCategory.AddOn,
+                    BasePrice = 199000,
+                    EstimatedMinutes = 25,
+                    IsAddOn = true,
+                    IsActive = true,
+                    IsFeatured = false
+                },
+                new Service
+                {
+                    ServiceId = 1003,
+                    ServiceName = "Engine Bay Cleaning",
+                    Description = "Vệ sinh khoang máy an toàn, loại bỏ bụi bẩn và dầu mỡ tích tụ.",
+                    Category = ServiceCategory.AddOn,
+                    BasePrice = 99000,
+                    EstimatedMinutes = 20,
+                    IsAddOn = true,
+                    IsActive = true,
+                    IsFeatured = false
+                },
+                new Service
+                {
+                    ServiceId = 1004,
+                    ServiceName = "Interior Odor Removal",
+                    Description = "Khử mùi hôi nội thất và làm mới không khí cabin xe.",
+                    Category = ServiceCategory.AddOn,
+                    BasePrice = 69000,
+                    EstimatedMinutes = 15,
+                    IsAddOn = true,
+                    IsActive = true,
+                    IsFeatured = false
+                },
+                new Service
+                {
+                    ServiceId = 1005,
+                    ServiceName = "Leather Seat Conditioning",
+                    Description = "Dưỡng ẩm và bảo vệ ghế da, giúp da mềm mại và kéo dài tuổi thọ.",
+                    Category = ServiceCategory.AddOn,
+                    BasePrice = 129000,
+                    EstimatedMinutes = 20,
+                    IsAddOn = true,
+                    IsActive = true,
+                    IsFeatured = false
+                },
+                new Service
+                {
+                    ServiceId = 1006,
+                    ServiceName = "Headlight Restoration",
+                    Description = "Phục hồi đèn pha bị mờ, cải thiện khả năng chiếu sáng và thẩm mỹ.",
+                    Category = ServiceCategory.AddOn,
+                    BasePrice = 159000,
+                    EstimatedMinutes = 25,
+                    IsAddOn = true,
+                    IsActive = true,
+                    IsFeatured = false
                 }
             );
 

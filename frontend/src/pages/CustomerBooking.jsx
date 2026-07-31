@@ -388,7 +388,7 @@ export const CustomerBooking = () => {
   const baseTotal = mainPrice + addonsPrice;
 
   // Estimated total duration in minutes
-  const totalDurationMinutes = (selectedMain ? selectedMain.estimatedMinutes : 60) +
+  const totalDurationMinutes = (selectedMain ? selectedMain.estimatedMinutes : 50) +
     selectedAddons.reduce((sum, addonName) => {
       const addon = addonServices.find(a => a.name === addonName);
       return sum + (addon ? addon.estimatedMinutes : 0);
@@ -926,6 +926,15 @@ export const CustomerBooking = () => {
                   style={{ fontSize: "0.8rem" }}
                 >
                   {bookingTime || "—"}
+                </span>
+              </div>
+              <div className="d-flex justify-content-between align-items-center">
+                <span className="text-muted small">Tổng thời lượng:</span>
+                <span
+                  className="fw-bold text-cyan"
+                  style={{ fontSize: "0.8rem" }}
+                >
+                  {totalDurationMinutes} phút ({Math.ceil(totalDurationMinutes / 60)} khung giờ)
                 </span>
               </div>
             </div>

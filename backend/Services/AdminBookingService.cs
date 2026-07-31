@@ -16,7 +16,7 @@ namespace Auto_Wash.Services
         private readonly AutoWashDbContext _context;
         private readonly BookingNotificationService _bookingNotificationService;
         private readonly IConfiguration _configuration;
-
+            
         public AdminBookingService(AutoWashDbContext context, BookingNotificationService bookingNotificationService, IConfiguration configuration)
         {
             _context = context;
@@ -66,14 +66,42 @@ namespace Auto_Wash.Services
                 .Where(bs => bs.BookingId == bookingId)
                 .ToListAsync();
 
+            var bookingTasks = await _context.BookingTasks
+                .AsNoTracking()
+                .Where(t => t.BookingId == bookingId)
+                .OrderBy(t => t.SequenceOrder)
+                .ToListAsync();
+
+            var queues = await _context.Queues
+                .AsNoTracking()
+                .Where(q => q.BookingId == bookingId)
+                .ToListAsync();
+
             var mainService = bookingServices
                 .Where(bs => !bs.Service.IsAddOn)
                 .Select(bs => new {
                     serviceId = bs.Service.ServiceId,
-                    serviceName = bs.Service.ServiceName,
-                    price = bs.PriceSnapshot
+                    serviceName = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : bs.Service.ServiceName,
+                    price = bs.PriceSnapshot,
+                    estimatedMinutes = bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : bs.Service.EstimatedMinutes
                 })
                 .FirstOrDefault();
+
+            var addOnServices = bookingServices
+                .Where(bs => bs.Service.IsAddOn)
+                .Select(bs => new {
+                    serviceId = bs.Service.ServiceId,
+                    serviceName = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : bs.Service.ServiceName,
+                    price = bs.PriceSnapshot,
+                    estimatedMinutes = bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : bs.Service.EstimatedMinutes
+                })
+                .ToList();
+
+            int totalEstimatedMinutes = BookingWorkflowConfig.CalculateTotalEstimatedMinutes(bookingServices, bookingTasks);
+            int requiredSlots = BookingWorkflowConfig.CalculateRequiredSlots(totalEstimatedMinutes);
+
+            var queue = queues.FirstOrDefault();
+            var progressTracking = BookingWorkflowConfig.GetProgressForBooking(b, queue, bookingTasks);
 
 
 
@@ -160,6 +188,9 @@ namespace Auto_Wash.Services
                     vehicleClass = b.Vehicle.VehicleClass
                 },
                 mainService = mainService,
+                addOnServices = addOnServices,
+                totalEstimatedMinutes = totalEstimatedMinutes,
+                requiredSlots = requiredSlots,
                 voucher = voucher,
                 notes = b.Notes ?? "",
                 scheduledAt = b.ScheduledAt,
@@ -167,6 +198,7 @@ namespace Auto_Wash.Services
                 finalPrice = b.FinalPrice,
                 pointsEarned = b.PointsEarned,
                 status = b.Status.ToString(),
+                queueStatus = queue?.Status.ToString(),
                 cancelReason = b.CancelReason,
                 paidAt = b.Payment?.PaidAt,
                 paymentMethod = b.Payment != null ? ((PaymentMethod)b.Payment.PaymentMethod).ToString() : null,
@@ -175,7 +207,8 @@ namespace Auto_Wash.Services
                 invoice = b.Payment != null && b.Payment.Status == (int)PaymentStatus.Paid ? new { invoiceNumber = $"INV-{b.BookingId}-{b.Payment.PaymentId}", amount = b.Payment.Amount, createdAt = b.Payment.PaidAt ?? b.Payment.CreatedAt } : null,
                 createdAt = b.CreatedAt,
                 timeline = timeline,
-                reschedules = reschedules
+                reschedules = reschedules,
+                progressTracking = progressTracking
             };
         }
 
@@ -497,26 +530,63 @@ namespace Auto_Wash.Services
                     int lockKey2 = newScheduledAt.Hour;
                     await _context.Database.ExecuteSqlRawAsync($"SELECT pg_advisory_xact_lock({lockKey1}, {lockKey2});");
 
-                    int maxVehicles = _configuration.GetValue<int>("BookingCapacityConfig:MaxVehiclesPerSlot", 3);
-                    var slotCount = await _context.Bookings
-                        .WhereSlotOccupied()
-                        .CountAsync(b => b.ScheduledAt.Date == newScheduledAt.Date
-                                      && b.ScheduledAt.Hour == newScheduledAt.Hour
-                                      && b.BookingId != bookingId);
-                    if (slotCount >= maxVehicles)
+                    int reschedMins = booking.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 50;
+                    if (reschedMins == 0) reschedMins = 50;
+                    int reqSlots = (int)Math.Ceiling((double)reschedMins / 60.0);
+                    int startH = newScheduledAt.Hour;
+                    int endH = _configuration.GetValue<int>("BookingCapacityConfig:EndHour", 23);
+                    if (startH + reqSlots - 1 > endH)
                     {
-                        return (false, "Khung giờ này đã đầy. Vui lòng chọn khung giờ khác.");
+                        return (false, $"Thời gian thực hiện dịch vụ ({reschedMins} phút) vượt quá giờ đóng cửa. Vui lòng chọn khung giờ sớm hơn.");
                     }
+                    var reschedHours = Enumerable.Range(startH, reqSlots).ToList();
+
+                    int maxVehicles = _configuration.GetValue<int>("BookingCapacityConfig:MaxVehiclesPerSlot", 3);
 
                     var hasDuplicate = await _context.Bookings
                         .WhereActive()
                         .AnyAsync(b => b.VehicleId == booking.VehicleId
                                     && b.ScheduledAt.Date == newScheduledAt.Date
-                                    && b.ScheduledAt.Hour == newScheduledAt.Hour
+                                    && reschedHours.Contains(b.ScheduledAt.Hour)
                                     && b.BookingId != bookingId);
                     if (hasDuplicate)
                     {
                         return (false, "Phương tiện này đã có lịch hẹn trong khung giờ đã chọn.");
+                    }
+
+                    var activeOnDate = await _context.Bookings
+                        .WhereSlotOccupied()
+                        .Include(b => b.BookingServices)
+                            .ThenInclude(bs => bs.Service)
+                        .Include(b => b.BookingTasks)
+                        .Where(b => b.ScheduledAt.Date == newScheduledAt.Date && b.BookingId != bookingId)
+                        .ToListAsync();
+
+                    var occCounts = new Dictionary<int, int>();
+                    foreach (var eb in activeOnDate)
+                    {
+                        int ebMins = eb.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 0;
+                        if (ebMins == 0 && eb.BookingTasks != null && eb.BookingTasks.Count > 0)
+                        {
+                            ebMins = (int)Math.Ceiling(eb.BookingTasks.Sum(t => t.EstimatedDurationSeconds) / 60.0);
+                        }
+                        if (ebMins == 0) ebMins = 50;
+
+                        int ebSlots = (int)Math.Ceiling((double)ebMins / 60.0);
+                        int ebStart = eb.ScheduledAt.Hour;
+                        for (int s = 0; s < ebSlots; s++)
+                        {
+                            int hr = ebStart + s;
+                            occCounts[hr] = occCounts.GetValueOrDefault(hr, 0) + 1;
+                        }
+                    }
+
+                    foreach (int hr in reschedHours)
+                    {
+                        if (occCounts.GetValueOrDefault(hr, 0) >= maxVehicles)
+                        {
+                            return (false, $"Khung giờ {hr:D2}:00 đã đầy hoặc không đủ chỗ cho tổng thời gian dịch vụ ({reschedMins} phút). Vui lòng chọn khung giờ khác.");
+                        }
                     }
 
                     booking.ScheduledAt = newScheduledAt;

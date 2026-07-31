@@ -18,14 +18,16 @@ namespace Auto_Wash.Services
         private readonly AutoWashDbContext _context;
         private readonly LoyaltyTierService _loyaltyTierService;
         private readonly BookingNotificationService _notificationService;
+        private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, DateTime> _lastAdvanceTimes = new();
         private static readonly System.Threading.SemaphoreSlim _positionSemaphore = new(1, 1);
 
-        public AdminQueueService(AutoWashDbContext context, LoyaltyTierService loyaltyTierService, BookingNotificationService notificationService)
+        public AdminQueueService(AutoWashDbContext context, LoyaltyTierService loyaltyTierService, BookingNotificationService notificationService, Microsoft.Extensions.Configuration.IConfiguration configuration)
         {
             _context = context;
             _loyaltyTierService = loyaltyTierService;
             _notificationService = notificationService;
+            _configuration = configuration;
         }
 
         public async Task<GroupedQueueList> GetTodayQueueAsync()
@@ -41,6 +43,8 @@ namespace Auto_Wash.Services
                 .Include(q => q.Booking)
                     .ThenInclude(b => b!.BookingServices)
                         .ThenInclude(bs => bs.Service)
+                .Include(q => q.Booking)
+                    .ThenInclude(b => b!.BookingTasks)
                 .Where(q => q.CheckInAt.Date == today && q.Status != QueueStatus.Cancelled)
                 .ToListAsync();
 
@@ -78,36 +82,39 @@ namespace Auto_Wash.Services
 
                     if (services.Count == 0)
                     {
-                        services.Add(new QueueServiceItem { Name = "Standard Car Wash", Price = 250000 });
+                        services.Add(new QueueServiceItem { Name = "Standard Car Wash", Price = 149000 });
                     }
 
-                    return new QueueListItem
-                    {
-                        QueueId = -b.BookingId,
-                        BookingId = b.BookingId,
-                        LicensePlate = b.Vehicle?.LicensePlate ?? string.Empty,
-                        CustomerName = b.Customer?.Account?.FullName ?? "Khách vãng lai",
-                        Phone = b.Customer?.Account?.Phone ?? string.Empty,
-                        Email = b.Customer?.Account?.Email ?? string.Empty,
-                        TierName = b.Customer?.Tier?.TierName ?? "Member",
-                        TierId = b.Customer?.TierId ?? 1,
-                        Status = "Waiting",
-                        Position = 0,
-                        CheckInAt = b.ScheduledAt,
-                        StaffNote = b.Notes ?? string.Empty,
-                        FinalPrice = b.FinalPrice,
-                        PointsEarned = b.PointsEarned,
-                        Services = services,
-                        QueuePriority = b.Customer?.Tier?.QueuePriority ?? 0,
-                        BookingTime = b.ScheduledAt.ToString("HH:mm"),
-                        EstimatedStart = b.ScheduledAt.ToString("HH:mm:ss"),
-                        EtaCompletion = b.ScheduledAt.AddSeconds(BookingWorkflowConfig.TotalDurationSeconds).ToString("HH:mm:ss"),
-                        CurrentStage = "CheckIn",
-                        Progress = 0,
-                        RemainingSeconds = BookingWorkflowConfig.TotalDurationSeconds,
-                        ProgressTracking = null,
-                        BookingStatus = b.Status.ToString()
-                    };
+                        int bMins = b.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 50;
+                        if (bMins == 0) bMins = 50;
+
+                        return new QueueListItem
+                        {
+                            QueueId = -b.BookingId,
+                            BookingId = b.BookingId,
+                            LicensePlate = b.Vehicle?.LicensePlate ?? string.Empty,
+                            CustomerName = b.Customer?.Account?.FullName ?? "Khách vãng lai",
+                            Phone = b.Customer?.Account?.Phone ?? string.Empty,
+                            Email = b.Customer?.Account?.Email ?? string.Empty,
+                            TierName = b.Customer?.Tier?.TierName ?? "Member",
+                            TierId = b.Customer?.TierId ?? 1,
+                            Status = "Waiting",
+                            Position = 0,
+                            CheckInAt = b.ScheduledAt,
+                            StaffNote = b.Notes ?? string.Empty,
+                            FinalPrice = b.FinalPrice,
+                            PointsEarned = b.PointsEarned,
+                            Services = services,
+                            QueuePriority = b.Customer?.Tier?.QueuePriority ?? 0,
+                            BookingTime = b.ScheduledAt.ToString("HH:mm"),
+                            EstimatedStart = b.ScheduledAt.ToString("HH:mm:ss"),
+                            EtaCompletion = b.ScheduledAt.AddMinutes(bMins).ToString("HH:mm:ss"),
+                            CurrentStage = "CheckIn",
+                            Progress = 0,
+                            RemainingSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(bMins, _configuration),
+                            ProgressTracking = null,
+                            BookingStatus = b.Status.ToString()
+                        };
                 })
                 .OrderBy(item => item.CheckInAt)
                 .ToList();
@@ -115,6 +122,7 @@ namespace Auto_Wash.Services
             grouped.WaitingForCheckIn = waitingList;
 
             var currentlyProcessing = new List<QueueListItem>();
+            var waitingCheckout = new List<QueueListItem>();
             var completedToday = new List<QueueListItem>();
 
             // Map real queues
@@ -130,7 +138,7 @@ namespace Auto_Wash.Services
 
                 if (services.Count == 0)
                 {
-                    services.Add(new QueueServiceItem { Name = "Standard Car Wash", Price = 250000 });
+                    services.Add(new QueueServiceItem { Name = "Standard Car Wash", Price = 149000 });
                 }
 
                 var item = new QueueListItem
@@ -153,35 +161,58 @@ namespace Auto_Wash.Services
                     PointsEarned = q.Booking?.PointsEarned ?? 0,
                     Services = services,
                     QueuePriority = q.Tier?.QueuePriority ?? 0,
-                    BookingStatus = q.Booking != null ? q.Booking.Status.ToString() : string.Empty
-                    ,CustomerNotified = q.Booking != null ? q.Booking.WaitingCheckoutEmailSent : (bool?)null
+                    BookingStatus = q.Booking != null ? q.Booking.Status.ToString() : string.Empty,
+                    CustomerNotified = q.Booking != null ? q.Booking.WaitingCheckoutEmailSent : (bool?)null
                 };
 
-                if (q.Status == QueueStatus.Archived || q.Status == QueueStatus.Completed)
+                item.BookingTime = q.Booking != null ? q.Booking.ScheduledAt.ToString("HH:mm") : "Walk-in";
+                item.CheckInTime = q.CheckInAt.ToString("HH:mm:ss");
+                item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q, q.Booking?.BookingTasks?.OrderBy(t => t.SequenceOrder).ToList());
+                item.CurrentStage = item.ProgressTracking.CurrentStage;
+                item.Progress = item.ProgressTracking.Progress;
+                item.RemainingSeconds = item.ProgressTracking.RemainingSeconds;
+
+                bool isWaitingCheckout = q.Booking != null && (
+                    q.Booking.Status == BookingStatus.WaitingCheckout ||
+                    item.CurrentStage == "WaitingCheckout" ||
+                    item.CurrentStage == "Chờ thanh toán"
+                );
+
+                bool isArchivedOrCompleted = q.Status == QueueStatus.Archived 
+                    || q.Status == QueueStatus.Completed 
+                    || (q.Booking != null && q.Booking.Status == BookingStatus.Completed);
+
+                if (isWaitingCheckout && !isArchivedOrCompleted)
                 {
-                    item.BookingTime = q.Booking != null ? q.Booking.ScheduledAt.ToString("HH:mm") : "Walk-in";
-                    item.CheckInTime = q.CheckInAt.ToString("HH:mm:ss");
+                    var estStart = q.CheckInAt;
+                    int qMins = q.Booking?.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 0;
+                    if (qMins == 0 && q.Booking?.BookingTasks != null && q.Booking.BookingTasks.Count > 0)
+                    {
+                        qMins = (int)Math.Ceiling(q.Booking.BookingTasks.Sum(t => t.EstimatedDurationSeconds) / 60.0);
+                    }
+                    if (qMins == 0) qMins = 50;
+
+                    item.EstimatedStart = estStart.ToString("HH:mm:ss");
+                    item.EtaCompletion = estStart.AddMinutes(qMins).ToString("HH:mm:ss");
+                    waitingCheckout.Add(item);
+                }
+                else if (isArchivedOrCompleted)
+                {
                     item.CompletedTime = (q.CompletedAt ?? q.CheckInAt).ToString("HH:mm:ss");
-                    item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q);
-                    item.CurrentStage = item.ProgressTracking.CurrentStage;
-                    item.Progress = item.ProgressTracking.Progress;
-                    item.RemainingSeconds = item.ProgressTracking.RemainingSeconds;
                     completedToday.Add(item);
                 }
                 else
                 {
-                    item.BookingTime = q.Booking != null ? q.Booking.ScheduledAt.ToString("HH:mm") : "Walk-in";
-                    item.CheckInTime = q.CheckInAt.ToString("HH:mm:ss");
-                    
-                    // Calculate estimated start and ETA based on workflow config
                     var estStart = q.CheckInAt;
-                    item.EstimatedStart = estStart.ToString("HH:mm:ss");
-                    item.EtaCompletion = estStart.AddSeconds(BookingWorkflowConfig.TotalDurationSeconds).ToString("HH:mm:ss");
+                    int qMins = q.Booking?.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 0;
+                    if (qMins == 0 && q.Booking?.BookingTasks != null && q.Booking.BookingTasks.Count > 0)
+                    {
+                        qMins = (int)Math.Ceiling(q.Booking.BookingTasks.Sum(t => t.EstimatedDurationSeconds) / 60.0);
+                    }
+                    if (qMins == 0) qMins = 50;
 
-                    item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q);
-                    item.CurrentStage = item.ProgressTracking.CurrentStage;
-                    item.Progress = item.ProgressTracking.Progress;
-                    item.RemainingSeconds = item.ProgressTracking.RemainingSeconds;
+                    item.EstimatedStart = estStart.ToString("HH:mm:ss");
+                    item.EtaCompletion = estStart.AddMinutes(qMins).ToString("HH:mm:ss");
                     currentlyProcessing.Add(item);
                 }
             }
@@ -196,6 +227,11 @@ namespace Auto_Wash.Services
             {
                 grouped.CurrentlyProcessing[i].Position = i + 1;
             }
+
+            grouped.WaitingCheckout = waitingCheckout
+                .OrderByDescending(item => item.QueuePriority)
+                .ThenBy(item => item.CheckInAt)
+                .ToList();
 
             grouped.CompletedToday = completedToday
                 .OrderByDescending(item => item.CompletedAt ?? item.CheckInAt)
@@ -289,6 +325,11 @@ namespace Auto_Wash.Services
 
                         _context.Queues.Add(newQueue);
                         await _context.SaveChangesAsync();
+
+                        // Generate dynamic workflow tasks based on selected services
+                        await GenerateBookingTasksAsync(booking.BookingId);
+                        await _context.SaveChangesAsync();
+
                         await transaction.CommitAsync();
 
                         return (true, "Check-in thành công!", QueueStatus.Waiting.ToString());
@@ -384,6 +425,10 @@ namespace Auto_Wash.Services
                             };
                             booking.Status = BookingStatus.CheckedIn; // CheckedIn / InProgress
                             _context.Queues.Add(q);
+                            await _context.SaveChangesAsync();
+
+                            // Generate dynamic workflow tasks based on selected services
+                            await GenerateBookingTasksAsync(booking.BookingId);
                         }
                         else
                         {
@@ -397,8 +442,6 @@ namespace Auto_Wash.Services
                                 q.CurrentStage = "CheckIn";
                             else if (q.Status == QueueStatus.Washing)
                                 q.CurrentStage = "Washing";
-                            else if (q.Status == QueueStatus.Drying)
-                                q.CurrentStage = "Drying";
                             else if (q.Status == QueueStatus.Completed)
                                 q.CurrentStage = "Completed";
                             else if (q.Status == QueueStatus.Archived)
@@ -440,32 +483,29 @@ namespace Auto_Wash.Services
                 if (q.StartedAt == null && q.Status != QueueStatus.Waiting) q.StartedAt = DateTime.Now;
                 if (q.Status == QueueStatus.Completed) q.CompletedAt ??= DateTime.Now;
 
-                // Sync current stage
                 if (q.Status == QueueStatus.Waiting)
                     q.CurrentStage = "CheckIn";
                 else if (q.Status == QueueStatus.Washing)
                     q.CurrentStage = "Washing";
-                else if (q.Status == QueueStatus.Drying)
-                    q.CurrentStage = "Drying";
                 else if (q.Status == QueueStatus.Completed)
                     q.CurrentStage = "Completed";
                 else if (q.Status == QueueStatus.Archived)
                     q.CurrentStage = "Completed";
 
                 // Sync booking status and timestamps
-                    if (parsedStatus.Value == QueueStatus.Completed)
-                    {
-                        q.Booking.Status = BookingStatus.Completed;
+                if (parsedStatus.HasValue && parsedStatus.Value == QueueStatus.Completed && q.Booking != null)
+                {
+                    q.Booking.Status = BookingStatus.WaitingCheckout;
 
-                        _context.BookingAuditLogs.Add(new BookingAuditLog
-                        {
-                            BookingId = q.BookingId!.Value,
-                            Action = "Completed",
-                            Description = "Xe đã hoàn tất các công đoạn dịch vụ.",
-                            PerformedBy = "Staff",
-                            CreatedAt = DateTime.Now
-                        });
-                    }
+                    _context.BookingAuditLogs.Add(new BookingAuditLog
+                    {
+                        BookingId = q.Booking.BookingId,
+                        Action = "Completed",
+                        Description = "Xe đã hoàn tất các công đoạn dịch vụ.",
+                        PerformedBy = "Staff",
+                        CreatedAt = DateTime.Now
+                    });
+                }
 
                 if (parsedStatus.HasValue && oldStatus != parsedStatus.Value)
                 {
@@ -562,14 +602,24 @@ namespace Auto_Wash.Services
             }
 
             var now = DateTime.Now;
-            q.Status = QueueStatus.Archived;
-            q.CompletedAt ??= now;
 
             int finalPrice = 0;
             int pointsEarned = 0;
 
             if (q.Booking != null)
             {
+                // Validate Rule 3: Reject checkout unless WaitingCheckout.Status == InProgress
+                var tasks = await _context.BookingTasks.Where(t => t.BookingId == q.Booking.BookingId).ToListAsync();
+                var waitingCheckoutTask = tasks.FirstOrDefault(t => t.TaskType == "WaitingCheckout");
+                if (waitingCheckoutTask == null || waitingCheckoutTask.Status != BookingTaskStatus.InProgress)
+                {
+                    return (false, "Vehicle has not reached WaitingCheckout.", 0, 0);
+                }
+
+                q.Status = QueueStatus.Archived;
+                q.CompletedAt ??= now;
+                q.CurrentStage = "Completed";
+
                 finalPrice = q.Booking.FinalPrice;
                 pointsEarned = q.Booking.PointsEarned;
 
@@ -577,6 +627,18 @@ namespace Auto_Wash.Services
                 q.Booking.CheckedOutBy = performerName ?? "Staff";
                 q.Booking.Status = BookingStatus.Completed;
                 q.Booking.CompletedAt ??= now;
+
+                waitingCheckoutTask.Status = BookingTaskStatus.Completed;
+                waitingCheckoutTask.CompletedAt = now;
+
+                foreach (var task in tasks)
+                {
+                    if (task.Status != BookingTaskStatus.Completed)
+                    {
+                        task.Status = BookingTaskStatus.Completed;
+                        task.CompletedAt ??= now;
+                    }
+                }
 
                 // Record the at-counter transaction so cash / free checkouts show up
                 // in the payments-based history & revenue stats (issue #51). Online
@@ -736,12 +798,18 @@ namespace Auto_Wash.Services
 
             if (q == null)
                 return (false, "Không tìm thấy xe trong hàng đợi!");
-            if (q.Status != QueueStatus.Completed && q.Status != QueueStatus.Archived)
-                return (false, "Xe chưa hoàn tất dịch vụ, chưa thể gửi ảnh báo khách!");
             if (q.Booking == null)
                 return (false, "Xe vãng lai không có booking/email khách hàng để gửi!");
             if (q.Booking.WaitingCheckoutEmailSent)
                 return (false, "Đã gửi email báo khách trước đó!");
+
+            // Rule 2: Validate AutoCapture.Status == InProgress
+            var tasks = await _context.BookingTasks.Where(t => t.BookingId == q.Booking.BookingId).ToListAsync();
+            var autoCaptureTask = tasks.FirstOrDefault(t => t.TaskType == "AutoCapture");
+            if (autoCaptureTask == null || autoCaptureTask.Status != BookingTaskStatus.InProgress)
+            {
+                return (false, "Quy trình chưa tới công đoạn chụp ảnh (AutoCapture chưa ở trạng thái InProgress).");
+            }
 
             var email = q.Booking.Customer?.Account?.Email ?? "";
             if (string.IsNullOrWhiteSpace(email))
@@ -799,15 +867,40 @@ namespace Auto_Wash.Services
                 return (false, "Gửi email thất bại, vui lòng thử lại!");
             }
 
-            // Gửi thành công mới set cờ chống gửi trùng + ghi audit log
+            // Rule 2: State transitions after successful upload & send mail
+            var now = DateTime.Now;
             q.Booking.WaitingCheckoutEmailSent = true;
+            q.Booking.Status = BookingStatus.WaitingCheckout;
+            q.CurrentStage = "WaitingCheckout";
+
+            if (autoCaptureTask != null)
+            {
+                autoCaptureTask.Status = BookingTaskStatus.Completed;
+                autoCaptureTask.CompletedAt = now;
+            }
+
+            var mailTask = tasks.FirstOrDefault(t => t.TaskType == "AutoSendMail");
+            if (mailTask != null)
+            {
+                mailTask.Status = BookingTaskStatus.Completed;
+                mailTask.StartedAt ??= now;
+                mailTask.CompletedAt = now;
+            }
+
+            var waitingCheckoutTask = tasks.FirstOrDefault(t => t.TaskType == "WaitingCheckout");
+            if (waitingCheckoutTask != null)
+            {
+                waitingCheckoutTask.Status = BookingTaskStatus.InProgress;
+                waitingCheckoutTask.StartedAt = now;
+            }
+
             _context.BookingAuditLogs.Add(new BookingAuditLog
             {
                 BookingId = q.Booking.BookingId,
                 Action = "CustomerNotified",
                 Description = $"Đã gửi email kèm {inlinePhotos.Count} ảnh báo khách xe hoàn tất dịch vụ.",
                 PerformedBy = performedBy,
-                CreatedAt = DateTime.Now
+                CreatedAt = now
             });
             await _context.SaveChangesAsync();
 
@@ -943,12 +1036,121 @@ namespace Auto_Wash.Services
                 _context.Notifications.Add(notification);
             }
         }
+
+        /// <summary>
+        /// Generate dynamic BookingTask rows when a booking is checked in.
+        /// Task sequence: CheckIn → Washing (base service) → AddonProcessing (per add-on) → Drying → AutoCapture → AutoSendMail → WaitingCheckout
+        /// </summary>
+        private async Task GenerateBookingTasksAsync(int bookingId)
+        {
+            // Check if tasks already exist (idempotency guard)
+            var existingTasks = await _context.BookingTasks
+                .AnyAsync(t => t.BookingId == bookingId);
+            if (existingTasks) return;
+
+            var booking = await _context.Bookings
+                .Include(b => b.BookingServices)
+                    .ThenInclude(bs => bs.Service)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null) return;
+
+            var tasks = new List<BookingTask>();
+            int seq = 1;
+
+            // 1. CheckIn (system task — completed upon check-in)
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "CheckIn",
+                DisplayName = "Đã check-in",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(2, _configuration),
+                Status = BookingTaskStatus.Completed,
+                StartedAt = DateTime.Now,
+                CompletedAt = DateTime.Now
+            });
+
+            // 2. Base service → Washing task (starts immediately after check-in)
+            var baseService = booking.BookingServices
+                .FirstOrDefault(bs => !bs.Service.IsAddOn);
+            if (baseService != null)
+            {
+                int baseMins = baseService.EstimatedMinutesSnapshot > 0 ? baseService.EstimatedMinutesSnapshot : baseService.Service.EstimatedMinutes;
+                string baseName = !string.IsNullOrWhiteSpace(baseService.ServiceNameSnapshot) ? baseService.ServiceNameSnapshot : baseService.Service.ServiceName;
+
+                tasks.Add(new BookingTask
+                {
+                    BookingId = bookingId,
+                    BookingServiceId = baseService.BookingServiceId,
+                    TaskType = "Washing",
+                    DisplayName = $"Đang rửa - {baseName}",
+                    SequenceOrder = seq++,
+                    EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(baseMins, _configuration),
+                    Status = BookingTaskStatus.InProgress,
+                    StartedAt = DateTime.Now
+                });
+            }
+
+            // 3. Add-on services → AddonProcessing tasks
+            var addons = booking.BookingServices
+                .Where(bs => bs.Service.IsAddOn)
+                .OrderBy(bs => bs.BookingServiceId);
+            foreach (var addon in addons)
+            {
+                int addonMins = addon.EstimatedMinutesSnapshot > 0 ? addon.EstimatedMinutesSnapshot : addon.Service.EstimatedMinutes;
+                string addonName = !string.IsNullOrWhiteSpace(addon.ServiceNameSnapshot) ? addon.ServiceNameSnapshot : addon.Service.ServiceName;
+
+                tasks.Add(new BookingTask
+                {
+                    BookingId = bookingId,
+                    BookingServiceId = addon.BookingServiceId,
+                    TaskType = "AddonProcessing",
+                    DisplayName = $"{addonName} (add-on)",
+                    SequenceOrder = seq++,
+                    EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(addonMins, _configuration)
+                });
+            }
+
+            // 4. AutoCapture (system, instant)
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "AutoCapture",
+                DisplayName = "Tự động chụp ảnh",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0
+            });
+
+            // 6. AutoSendMail (system, instant)
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "AutoSendMail",
+                DisplayName = "Tự động gửi mail",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0
+            });
+
+            // 7. WaitingCheckout (system, manual completion by staff)
+            tasks.Add(new BookingTask
+            {
+                BookingId = bookingId,
+                TaskType = "WaitingCheckout",
+                DisplayName = "Chờ thanh toán",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0
+            });
+
+            _context.BookingTasks.AddRange(tasks);
+        }
     }
 
     public class GroupedQueueList
     {
         public List<QueueListItem> WaitingForCheckIn { get; set; } = new();
         public List<QueueListItem> CurrentlyProcessing { get; set; } = new();
+        public List<QueueListItem> WaitingCheckout { get; set; } = new();
         public List<QueueListItem> CompletedToday { get; set; } = new();
     }
 

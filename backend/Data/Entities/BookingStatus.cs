@@ -2,15 +2,13 @@ namespace Auto_Wash.Data.Entities
 {
     public enum BookingStatus
     {
+        Pending = 1,
         Confirmed = 2,
-        Completed = 4,
-        Cancelled = 5,
-        NoShow = 7,
-
-        // Legacy compatibility aliases
-        Pending = 2,
-        CheckedIn = 2,
-        Washing = 2,
-        WaitingCheckout = 4
+        CheckedIn = 3,
+        Washing = 4,
+        WaitingCheckout = 5,
+        Completed = 6,
+        Cancelled = 7,
+        NoShow = 8
     }
 }

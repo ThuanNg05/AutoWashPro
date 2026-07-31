@@ -111,6 +111,7 @@ namespace Auto_Wash.Data.Entities
         public virtual RewardRedemption? AppliedRedemption { get; set; }
 
         public virtual ICollection<BookingService> BookingServices { get; set; } = new List<BookingService>();
+        public virtual ICollection<BookingTask> BookingTasks { get; set; } = new List<BookingTask>();
         public virtual ICollection<LoyaltyTransaction> LoyaltyTransactions { get; set; } = new List<LoyaltyTransaction>();
         public virtual ICollection<Queue> Queues { get; set; } = new List<Queue>();
         
