@@ -851,7 +851,7 @@
 
       // ── Completed Card (even more compact) ──
       const renderCompletedCard = (item) => {
-        const isWaitingCheckout = isWaitingCheckoutActive(item);
+        const isWaitingCheckout = item.statusGroup === "WaitingCheckout" ;
         const isCapturing = isAutoCaptureActive(item);
         const progressVal = item.progressTracking?.progress ?? item.progress ?? 100;
         return (
