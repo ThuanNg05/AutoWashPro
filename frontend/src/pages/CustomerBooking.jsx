@@ -704,7 +704,7 @@ export const CustomerBooking = () => {
                             </p>
                             <div className="mt-1">
                               <small className="text-secondary" style={{ fontSize: "0.65rem" }}>
-                                <i className="far fa-clock me-1"></i>+{addon.time}
+                                <i className="far fa-clock me-1"></i>Thời gian: +{addon.time}
                               </small>
                             </div>
                           </div>
