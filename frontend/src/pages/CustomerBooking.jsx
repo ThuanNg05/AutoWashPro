@@ -669,8 +669,8 @@ export const CustomerBooking = () => {
                         <div
                           className={`p-2.5 rounded-3 border d-flex align-items-start gap-2.5 cursor-pointer h-100 transition-all ${
                             isChecked
-                              ? "border-info bg-info bg-opacity-5"
-                              : "border-light bg-white hover-shadow"
+                              ? "border-info bg-info bg-opacity-10 text-cyan shadow-sm"
+                              : "border-light bg-white text-secondary hover-shadow"
                           }`}
                           style={{ cursor: "pointer" }}
                           onClick={() => {
@@ -692,7 +692,7 @@ export const CustomerBooking = () => {
                           </div>
                           <div className="flex-grow-1" style={{ marginTop: "-2px" }}>
                             <div className="d-flex justify-content-between align-items-center">
-                              <strong className="text-dark" style={{ fontSize: "0.78rem" }}>
+                              <strong className={isChecked ? "text-info" : "text-dark"} style={{ fontSize: "0.78rem" }}>
                                 {addon.name}
                               </strong>
                               <span className="text-cyan fw-bold" style={{ fontSize: "0.75rem" }}>
