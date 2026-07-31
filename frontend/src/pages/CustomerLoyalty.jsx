@@ -1194,7 +1194,7 @@ export const CustomerLoyalty = () => {
                                 {isActive && (
                                   <button
                                     className="btn btn-cyan btn-sm fw-bold text-white px-3 py-1.5 rounded-2 shadow-sm hover-lift"
-                                    onClick={() => navigate("/booking")}
+                                    onClick={() => navigate("/customer/booking")}
                                     title="Đặt lịch rửa xe để áp dụng voucher này"
                                   >
                                     <i className="fas fa-calendar-check me-1.5"></i>Đặt lịch ngay
@@ -1398,7 +1398,7 @@ export const CustomerLoyalty = () => {
                   {!successData.isGift && (
                     <button
                       className="btn btn-cyan text-white fw-bold px-4 py-2 rounded-3 shadow-sm hover-lift"
-                      onClick={() => { setSuccessModalOpen(false); navigate("/booking"); }}
+                      onClick={() => { setSuccessModalOpen(false); navigate("/customer/booking"); }}
                     >
                       <i className="fas fa-calendar-check me-1.5"></i> Đặt lịch ngay
                     </button>
