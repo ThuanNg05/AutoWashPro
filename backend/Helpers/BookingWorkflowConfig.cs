@@ -18,7 +18,7 @@ namespace Auto_Wash.Helpers
             bool isDemo = configuration.GetValue<bool>("BookingWorkflow:DemoMode", true);
             if (isDemo)
             {
-                double demoRatio = configuration.GetValue<double>("BookingWorkflow:DemoSecondsPerMinute", 1.5);
+                double demoRatio = configuration.GetValue<double>("BookingWorkflow:DemoSecondsPerMinute", 1.0);
                 return Math.Max(1, (int)Math.Round(estimatedMinutes * demoRatio));
             }
             return estimatedMinutes * 60;
@@ -176,7 +176,7 @@ namespace Auto_Wash.Helpers
             if (booking == null) return list;
 
             int seq = 1;
-            int checkInSec = configuration != null ? CalculateTaskDurationSeconds(2, configuration) : 15;
+            int checkInSec = configuration != null ? CalculateTaskDurationSeconds(2, configuration) : 2;
 
             list.Add(new BookingTask
             {
@@ -195,7 +195,7 @@ namespace Auto_Wash.Helpers
                 {
                     string name = !string.IsNullOrWhiteSpace(baseService.ServiceNameSnapshot) ? baseService.ServiceNameSnapshot : (baseService.Service?.ServiceName ?? "Dịch vụ rửa xe");
                     int mins = baseService.EstimatedMinutesSnapshot > 0 ? baseService.EstimatedMinutesSnapshot : (baseService.Service?.EstimatedMinutes ?? 30);
-                    int serviceSec = configuration != null ? CalculateTaskDurationSeconds(mins, configuration) : mins * 60;
+                    int serviceSec = configuration != null ? CalculateTaskDurationSeconds(mins, configuration) : mins;
 
                     list.Add(new BookingTask
                     {
@@ -203,7 +203,8 @@ namespace Auto_Wash.Helpers
                         DisplayName = $"Đang rửa - {name}",
                         SequenceOrder = seq++,
                         EstimatedDurationSeconds = serviceSec,
-                        Status = BookingTaskStatus.Pending
+                        Status = BookingTaskStatus.InProgress,
+                        StartedAt = DateTime.Now
                     });
                 }
 
@@ -213,7 +214,7 @@ namespace Auto_Wash.Helpers
                 {
                     string name = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : (bs.Service?.ServiceName ?? "Dịch vụ bổ sung");
                     int mins = bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service?.EstimatedMinutes ?? 15);
-                    int serviceSec = configuration != null ? CalculateTaskDurationSeconds(mins, configuration) : mins * 60;
+                    int serviceSec = configuration != null ? CalculateTaskDurationSeconds(mins, configuration) : mins;
 
                     list.Add(new BookingTask
                     {

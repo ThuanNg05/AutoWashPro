@@ -257,10 +257,11 @@ namespace Auto_Wash.Services
 
             // 3. Booking Reminder Check
             var reminderConfig = _configuration.GetSection("BookingReminderConfig");
-            int reminder1Minutes = reminderConfig.GetValue<int>("Reminder1Minutes");
-            int reminder2Minutes = reminderConfig.GetValue<int>("Reminder2Minutes");
-            double reminder1Threshold = reminder1Minutes * 60;
-            double reminder2Threshold = reminder2Minutes * 60;
+            bool useDemoReminder = reminderConfig.GetValue<bool>("UseDemoMode", false);
+            int reminder1Minutes = reminderConfig.GetValue<int>("Reminder1Minutes", 60);
+            int reminder2Minutes = reminderConfig.GetValue<int>("Reminder2Minutes", 30);
+            double reminder1Threshold = useDemoReminder ? reminderConfig.GetValue<double>("Reminder1DemoSeconds", 60) : reminder1Minutes * 60;
+            double reminder2Threshold = useDemoReminder ? reminderConfig.GetValue<double>("Reminder2DemoSeconds", 30) : reminder2Minutes * 60;
 
             var upcomingBookings = await context.Bookings
                 .Include(b => b.Customer)
@@ -494,8 +495,9 @@ namespace Auto_Wash.Services
                 DisplayName = "Đã check-in",
                 SequenceOrder = seq++,
                 EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(2, _configuration),
-                Status = BookingTaskStatus.InProgress,
-                StartedAt = DateTime.Now
+                Status = BookingTaskStatus.Completed,
+                StartedAt = DateTime.Now,
+                CompletedAt = DateTime.Now
             });
 
             var baseService = booking.BookingServices?.FirstOrDefault(bs => bs.Service != null && !bs.Service.IsAddOn);
@@ -511,7 +513,9 @@ namespace Auto_Wash.Services
                     TaskType = "Washing",
                     DisplayName = $"Đang rửa - {baseName}",
                     SequenceOrder = seq++,
-                    EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(baseMins, _configuration)
+                    EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(baseMins, _configuration),
+                    Status = BookingTaskStatus.InProgress,
+                    StartedAt = DateTime.Now
                 });
             }
 

@@ -111,7 +111,7 @@ namespace Auto_Wash.Services
                             EtaCompletion = b.ScheduledAt.AddMinutes(bMins).ToString("HH:mm:ss"),
                             CurrentStage = "CheckIn",
                             Progress = 0,
-                            RemainingSeconds = bMins * 60,
+                            RemainingSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(bMins, _configuration),
                             ProgressTracking = null,
                             BookingStatus = b.Status.ToString()
                         };
@@ -1057,7 +1057,7 @@ namespace Auto_Wash.Services
             var tasks = new List<BookingTask>();
             int seq = 1;
 
-            // 1. CheckIn (system task — starts immediately)
+            // 1. CheckIn (system task — completed upon check-in)
             tasks.Add(new BookingTask
             {
                 BookingId = bookingId,
@@ -1065,11 +1065,12 @@ namespace Auto_Wash.Services
                 DisplayName = "Đã check-in",
                 SequenceOrder = seq++,
                 EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(2, _configuration),
-                Status = BookingTaskStatus.InProgress,
-                StartedAt = DateTime.Now
+                Status = BookingTaskStatus.Completed,
+                StartedAt = DateTime.Now,
+                CompletedAt = DateTime.Now
             });
 
-            // 2. Base service → Washing task
+            // 2. Base service → Washing task (starts immediately after check-in)
             var baseService = booking.BookingServices
                 .FirstOrDefault(bs => !bs.Service.IsAddOn);
             if (baseService != null)
@@ -1084,7 +1085,9 @@ namespace Auto_Wash.Services
                     TaskType = "Washing",
                     DisplayName = $"Đang rửa - {baseName}",
                     SequenceOrder = seq++,
-                    EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(baseMins, _configuration)
+                    EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(baseMins, _configuration),
+                    Status = BookingTaskStatus.InProgress,
+                    StartedAt = DateTime.Now
                 });
             }
 
