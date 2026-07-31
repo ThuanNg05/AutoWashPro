@@ -12,8 +12,8 @@ const TIER_DATA = {
     dbName: "Member",
     multiplier: "x1.0",
     benefits: [
-      "Tích điểm cơ bản cho mỗi lần rửa xe.",
-      "Phục vụ theo thứ tự thông thường."
+      "Tích điểm cơ bản (1.000đ = 10 điểm).",
+      "Phục vụ theo thứ tự tiêu chuẩn."
     ],
     nextTier: "Silver",
     neededPts: 500,
@@ -22,14 +22,14 @@ const TIER_DATA = {
     color: "#94a3b8",
     cardClass: "tier-silver",
     dbName: "Silver",
-    multiplier: "x1.2",
+    multiplier: "x1.25",
     benefits: [
-      "Cộng thêm 20% điểm mỗi lần thanh toán.",
-      "Được ưu tiên rửa xe trước khách thường.",
-      "Voucher giảm 5% khi lên hạng Bạc."
+      "Hệ số tích điểm x1.25 cho mỗi hóa đơn.",
+      "Ưu tiên hàng đợi mức Silver.",
+      "Voucher giảm 5% (tối đa 5.000đ) khi lên hạng Silver."
     ],
     nextTier: "Gold",
-    neededPts: 1000,
+    neededPts: 1500,
   },
   "Gold Member": {
     color: "#ffcf33",
@@ -37,12 +37,12 @@ const TIER_DATA = {
     dbName: "Gold",
     multiplier: "x1.5",
     benefits: [
-      "Cộng thêm 50% điểm mỗi lần thanh toán.",
-      "Vào thẳng khu rửa ưu tiên, không xếp hàng.",
-      "Voucher giảm 10% khi lên hạng Vàng."
+      "Hệ số tích điểm x1.5 cho mỗi hóa đơn.",
+      "Ưu tiên hàng đợi cao cấp.",
+      "Voucher giảm 10% (tối đa 10.000đ) + 01 lượt Đánh bóng lốp khi lên hạng Gold."
     ],
     nextTier: "Platinum",
-    neededPts: 2000,
+    neededPts: 3000,
   },
   "Platinum Member": {
     color: "#0ea5e9",
@@ -50,11 +50,11 @@ const TIER_DATA = {
     dbName: "Platinum",
     multiplier: "x2.0",
     benefits: [
-      "Nhân đôi điểm cho mỗi lần rửa xe.",
-      "Được phục vụ ngay, không phải chờ.",
-      "Voucher giảm 50% khi lên hạng Bạch Kim."
+      "Nhân đôi điểm tích lũy (x2.0).",
+      "Ưu tiên hàng đợi cao nhất, phục vụ ngay.",
+      "Voucher giảm 15% (tối đa 15.000đ) + 01 lượt Rửa xe miễn phí + Quà sinh nhật khi lên hạng Platinum."
     ],
-    nextTier: "Diamond Ultimate",
+    nextTier: "Top Tier",
     neededPts: null,
   },
 };

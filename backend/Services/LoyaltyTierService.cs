@@ -71,8 +71,8 @@ namespace Auto_Wash.Services
             return await _context.Bookings
                 .Where(b => b.CustomerId == customerId
                          && b.Status == BookingStatus.Completed
-                         && b.CompletedAt >= startDate
-                         && b.CompletedAt <= endDate
+                         && b.CreatedAt >= startDate
+                         && b.CreatedAt <= endDate
                          && b.Payment != null
                          && b.Payment.Status == (int)PaymentStatus.Paid)
                 .SumAsync(b => (int?)b.FinalPrice) ?? 0;
@@ -89,7 +89,7 @@ namespace Auto_Wash.Services
         public async Task<int> EvaluateUpgradeAsync(Customer customer, DateTime now)
         {
             var (periodStart, periodEnd) = GetCurrentReviewPeriod(now);
-            int periodSpend = await GetPeriodSpendAsync(customer.CustomerId, periodStart, now);
+            int periodSpend = await GetPeriodSpendAsync(customer.CustomerId, periodStart, periodEnd);
 
             var tiers = await _context.Tiers.OrderBy(t => t.MinRankingBalance).ToListAsync();
             if (tiers.Count == 0) return periodSpend;
@@ -210,12 +210,12 @@ namespace Auto_Wash.Services
             {
                 if (isUpgrade)
                 {
-                    _notificationService.SendTierUpgradeEmailInBackground(
+                    _notificationService?.SendTierUpgradeEmailInBackground(
                         account.Email, account.FullName, fromTier?.TierName ?? "N/A", toTier.TierName);
                 }
                 else
                 {
-                    _notificationService.SendTierDowngradeEmailInBackground(
+                    _notificationService?.SendTierDowngradeEmailInBackground(
                         account.Email, account.FullName, fromTier?.TierName ?? "N/A", toTier.TierName);
                 }
             }

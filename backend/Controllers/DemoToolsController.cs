@@ -483,6 +483,224 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        [HttpGet]
+        [Route("api/admin/demo-tools/audit-db")]
+        public async Task<IActionResult> AuditDatabase()
+        {
+            try
+            {
+                var services = await _context.Services.AsNoTracking().OrderBy(s => s.ServiceId).ToListAsync();
+                var tiers = await _context.Tiers.AsNoTracking().OrderBy(t => t.TierId).ToListAsync();
+                var loyaltyConfig = await _context.LoyaltyConfigs.AsNoTracking().FirstOrDefaultAsync();
+                var rewards = await _context.Rewards.AsNoTracking().OrderBy(r => r.RewardId).ToListAsync();
+                var redemptionsCount = await _context.RewardRedemptions.CountAsync();
+                var referencedRewardIds = await _context.RewardRedemptions
+                    .AsNoTracking()
+                    .Select(rr => rr.RewardId)
+                    .Distinct()
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    auditTime = DateTime.UtcNow,
+                    loyaltyConfig = new
+                    {
+                        configId = loyaltyConfig?.ConfigId,
+                        pointsPerThousandVND = loyaltyConfig?.PointsPerThousandVND
+                    },
+                    servicesCount = services.Count,
+                    services = services.Select(s => new { s.ServiceId, s.ServiceName, s.BasePrice, s.IsAddOn, s.IsActive }),
+                    tiersCount = tiers.Count,
+                    tiers = tiers.Select(t => new { t.TierId, t.TierName, t.MinRankingBalance, t.MaintainBalance, t.PointMultiplier, t.DiscountPercent }),
+                    rewardsCount = rewards.Count,
+                    referencedRewardIds,
+                    totalRedemptionsCount = redemptionsCount,
+                    rewards = rewards.Select(r => new
+                    {
+                        r.RewardId,
+                        r.RewardName,
+                        r.RewardType,
+                        r.PointCost,
+                        r.DiscountValue,
+                        r.MinTierId,
+                        r.ServiceId,
+                        r.ValidDays,
+                        r.IsActive,
+                        r.IsAutomaticReward,
+                        isReferencedInRedemptions = referencedRewardIds.Contains(r.RewardId)
+                    })
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        [HttpPost]
+        [Route("api/admin/demo-tools/sync-refactor-db")]
+        public async Task<IActionResult> SyncRefactorDatabase()
+        {
+            try
+            {
+                // 1. Sync LoyaltyConfig (PointsPerThousandVND = 10)
+                var config = await _context.LoyaltyConfigs.FirstOrDefaultAsync();
+                if (config == null)
+                {
+                    config = new LoyaltyConfig
+                    {
+                        ConfigId = 1,
+                        PointsPerThousandVND = 10,
+                        PointExpiryMonths = 12,
+                        TierReviewDayOfMonth = 1,
+                        RankingWindowYears = 2,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+                    _context.LoyaltyConfigs.Add(config);
+                }
+                else
+                {
+                    config.PointsPerThousandVND = 10;
+                    config.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // 2. Sync Tiers
+                var existingTiers = await _context.Tiers.ToListAsync();
+                var tierDefs = new[]
+                {
+                    new Tier { TierId = 1, TierName = "Member", MinRankingBalance = 0, MaintainBalance = 0, PointMultiplier = 1.00m, DiscountPercent = 0.00m, QueuePriority = 1, BookingWindowDays = 7, SortOrder = 1 },
+                    new Tier { TierId = 2, TierName = "Silver", MinRankingBalance = 50000, MaintainBalance = 30000, PointMultiplier = 1.25m, DiscountPercent = 2.00m, QueuePriority = 2, BookingWindowDays = 14, SortOrder = 2 },
+                    new Tier { TierId = 3, TierName = "Gold", MinRankingBalance = 150000, MaintainBalance = 100000, PointMultiplier = 1.50m, DiscountPercent = 5.00m, QueuePriority = 3, BookingWindowDays = 30, SortOrder = 3 },
+                    new Tier { TierId = 4, TierName = "Platinum", MinRankingBalance = 300000, MaintainBalance = 200000, PointMultiplier = 2.00m, DiscountPercent = 10.00m, QueuePriority = 4, BookingWindowDays = 60, SortOrder = 4 }
+                };
+
+                foreach (var td in tierDefs)
+                {
+                    var t = existingTiers.FirstOrDefault(x => x.TierId == td.TierId || x.TierName.Equals(td.TierName, StringComparison.OrdinalIgnoreCase));
+                    if (t != null)
+                    {
+                        t.TierName = td.TierName;
+                        t.MinRankingBalance = td.MinRankingBalance;
+                        t.MaintainBalance = td.MaintainBalance;
+                        t.PointMultiplier = td.PointMultiplier;
+                        t.DiscountPercent = td.DiscountPercent;
+                        t.QueuePriority = td.QueuePriority;
+                        t.BookingWindowDays = td.BookingWindowDays;
+                        t.SortOrder = td.SortOrder;
+                    }
+                    else
+                    {
+                        _context.Tiers.Add(td);
+                    }
+                }
+
+                // 3. Sync Services (10x Demo scale)
+                var existingServices = await _context.Services.ToListAsync();
+                var serviceDefs = new[]
+                {
+                    new Service { ServiceId = 999, ServiceName = "Standard Car Wash", Description = "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.", Category = ServiceCategory.Basic, BasePrice = 14900, EstimatedMinutes = 50, IsAddOn = false, IsActive = true, IsFeatured = true },
+                    new Service { ServiceId = 1000, ServiceName = "Premium Car Wash", Description = "Bao gồm tất cả gói Standard, cộng thêm: Rửa bọt cao cấp, đánh bóng lốp, vệ sinh nội thất sâu, dưỡng da ghế, phục hồi nhựa nội thất, hoàn thiện cao cấp.", Category = ServiceCategory.Premium, BasePrice = 29900, EstimatedMinutes = 90, IsAddOn = false, IsActive = true, IsFeatured = true },
+                    new Service { ServiceId = 1001, ServiceName = "Wax Coating", Description = "Phủ lớp sáp bảo vệ bề mặt sơn, tạo độ bóng cao và chống bám bẩn.", Category = ServiceCategory.AddOn, BasePrice = 7900, EstimatedMinutes = 15, IsAddOn = true, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1002, ServiceName = "Nano Ceramic Spray", Description = "Phủ ceramic nano tạm thời, tăng khả năng chống nước và bảo vệ sơn xe.", Category = ServiceCategory.AddOn, BasePrice = 19900, EstimatedMinutes = 25, IsAddOn = true, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1003, ServiceName = "Engine Bay Cleaning", Description = "Vệ sinh khoang máy an toàn, loại bỏ bụi bẩn và dầu mỡ tích tụ.", Category = ServiceCategory.AddOn, BasePrice = 9900, EstimatedMinutes = 20, IsAddOn = true, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1004, ServiceName = "Interior Odor Removal", Description = "Khử mùi hôi nội thất và làm mới không khí cabin xe.", Category = ServiceCategory.AddOn, BasePrice = 6900, EstimatedMinutes = 15, IsAddOn = true, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1005, ServiceName = "Leather Seat Conditioning", Description = "Dưỡng ẩm và bảo vệ ghế da, giúp da mềm mại và kéo dài tuổi thọ.", Category = ServiceCategory.AddOn, BasePrice = 12900, EstimatedMinutes = 20, IsAddOn = true, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1006, ServiceName = "Headlight Restoration", Description = "Phục hồi đèn pha bị mờ, cải thiện khả năng chiếu sáng và thẩm mỹ.", Category = ServiceCategory.AddOn, BasePrice = 15900, EstimatedMinutes = 25, IsAddOn = true, IsActive = true, IsFeatured = false }
+                };
+
+                foreach (var sd in serviceDefs)
+                {
+                    var s = existingServices.FirstOrDefault(x => x.ServiceId == sd.ServiceId);
+                    if (s != null)
+                    {
+                        s.ServiceName = sd.ServiceName;
+                        s.Description = sd.Description;
+                        s.Category = sd.Category;
+                        s.BasePrice = sd.BasePrice;
+                        s.EstimatedMinutes = sd.EstimatedMinutes;
+                        s.IsAddOn = sd.IsAddOn;
+                        s.IsActive = sd.IsActive;
+                        s.IsFeatured = sd.IsFeatured;
+                    }
+                    else
+                    {
+                        _context.Services.Add(sd);
+                    }
+                }
+
+                // 4. Safe IN-PLACE Sync for Rewards (Preserving Primary Keys & Foreign Keys)
+                var existingRewards = await _context.Rewards.ToListAsync();
+                var referencedRewardIds = await _context.RewardRedemptions
+                    .Select(rr => rr.RewardId)
+                    .Distinct()
+                    .ToListAsync();
+
+                var newRewardDefs = new[]
+                {
+                    new Reward { RewardId = 1001, RewardName = "Voucher 1.000đ", Description = "Voucher giảm trực tiếp 1.000đ cho hóa đơn dịch vụ", PointCost = 500, RewardType = "DiscountMoney", DiscountValue = 1000, ValidDays = 30, IsActive = true, IsAutomaticReward = false },
+                    new Reward { RewardId = 1002, RewardName = "Voucher 2.000đ", Description = "Voucher giảm trực tiếp 2.000đ cho hóa đơn dịch vụ", PointCost = 1000, RewardType = "DiscountMoney", DiscountValue = 2000, ValidDays = 30, IsActive = true, IsAutomaticReward = false },
+                    new Reward { RewardId = 1003, RewardName = "Voucher 5.000đ", Description = "Voucher giảm trực tiếp 5.000đ cho hóa đơn dịch vụ", PointCost = 2500, RewardType = "DiscountMoney", DiscountValue = 5000, ValidDays = 30, IsActive = true, IsAutomaticReward = false },
+                    new Reward { RewardId = 1004, RewardName = "Voucher 10.000đ", Description = "Voucher giảm trực tiếp 10.000đ cho hóa đơn dịch vụ", PointCost = 5000, RewardType = "DiscountMoney", DiscountValue = 10000, ValidDays = 30, IsActive = true, IsAutomaticReward = false },
+                    new Reward { RewardId = 1005, RewardName = "Giảm giá 5%", Description = "Voucher giảm giá 5% (tối đa 5.000đ) cho hóa đơn dịch vụ", PointCost = 3500, RewardType = "DiscountPercent", DiscountValue = 5, ValidDays = 30, IsActive = true, IsAutomaticReward = false },
+                    new Reward { RewardId = 1006, RewardName = "Giảm giá 10%", Description = "Voucher giảm giá 10% (tối đa 10.000đ) cho hóa đơn dịch vụ", PointCost = 7000, RewardType = "DiscountPercent", DiscountValue = 10, ValidDays = 30, IsActive = true, IsAutomaticReward = false },
+                    new Reward { RewardId = 1007, RewardName = "Quà Nâng Hạng Silver (Voucher 5%)", Description = "Voucher giảm 5% (tối đa 5.000đ) mừng nâng hạng Silver", PointCost = 0, RewardType = "UpgradeReward", DiscountValue = 5, MinTierId = 2, ValidDays = 60, IsActive = true, IsAutomaticReward = true },
+                    new Reward { RewardId = 1008, RewardName = "Quà Nâng Hạng Gold (Voucher 10% + Tire Shine)", Description = "Voucher giảm 10% (tối đa 10.000đ) + 01 lượt đánh bóng lốp mừng nâng hạng Gold", PointCost = 0, RewardType = "UpgradeReward", DiscountValue = 10, MinTierId = 3, ValidDays = 60, IsActive = true, IsAutomaticReward = true },
+                    new Reward { RewardId = 1009, RewardName = "Quà Nâng Hạng Platinum (Voucher 15% + Standard Wash + Birthday Gift)", Description = "Voucher giảm 15% (tối đa 15.000đ) + 01 lượt rửa xe miễn phí + Quà sinh nhật độc quyền mừng nâng hạng Platinum", PointCost = 0, RewardType = "UpgradeReward", DiscountValue = 15, MinTierId = 4, ValidDays = 90, IsActive = true, IsAutomaticReward = true },
+                    new Reward { RewardId = 1010, RewardName = "Mũ bảo hiểm AutoWash", Description = "Mũ bảo hiểm nửa đầu in logo AutoWash cao cấp", PointCost = 500, RewardType = "PhysicalGift", ValidDays = 60, StockLimit = 50, IsActive = true, IsAutomaticReward = false },
+                    new Reward { RewardId = 1011, RewardName = "Rửa xe tiêu chuẩn miễn phí", Description = "Voucher miễn phí dịch vụ Rửa xe tiêu chuẩn (Standard Wash)", PointCost = 1000, RewardType = "Free_Wash", ServiceId = 999, ValidDays = 30, IsActive = true, IsAutomaticReward = false }
+                };
+
+                var targetIds = newRewardDefs.Select(r => r.RewardId).ToHashSet();
+
+                // 4a. Update existing rewards by ID or Insert if missing
+                foreach (var rd in newRewardDefs)
+                {
+                    var r = existingRewards.FirstOrDefault(x => x.RewardId == rd.RewardId);
+                    if (r != null)
+                    {
+                        r.RewardName = rd.RewardName;
+                        r.Description = rd.Description;
+                        r.PointCost = rd.PointCost;
+                        r.RewardType = rd.RewardType;
+                        r.DiscountValue = rd.DiscountValue;
+                        r.MinTierId = rd.MinTierId;
+                        r.ServiceId = rd.ServiceId;
+                        r.ValidDays = rd.ValidDays;
+                        r.StockLimit = rd.StockLimit;
+                        r.IsActive = rd.IsActive;
+                        r.IsAutomaticReward = rd.IsAutomaticReward;
+                    }
+                    else
+                    {
+                        _context.Rewards.Add(rd);
+                    }
+                }
+
+                // 4b. Deactivate or safely delete old obsolete rewards not in newRewardDefs
+                foreach (var oldR in existingRewards.Where(x => !targetIds.Contains(x.RewardId)))
+                {
+                    if (referencedRewardIds.Contains(oldR.RewardId))
+                    {
+                        // FK Constraint protection: deactivate so it won't break historical redemptions
+                        oldR.IsActive = false;
+                    }
+                    else
+                    {
+                        _context.Rewards.Remove(oldR);
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, message = "Đã đồng bộ dữ liệu PostgreSQL thành công!" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         private static void AddSearchParameter(DbCommand cmd, string whereClause, string? search)
         {
             if (string.IsNullOrEmpty(whereClause)) return;

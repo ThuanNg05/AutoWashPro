@@ -254,6 +254,7 @@ namespace Auto_Wash.Services
                             {
                                 payment.Booking.Status = BookingStatus.Completed;
                                 payment.Booking.CheckedOutAt = now;
+                                payment.Booking.CompletedAt = now;
 
                                 var queue = await _context.Queues
                                     .FirstOrDefaultAsync(q => q.BookingId == payment.BookingId && q.Status != QueueStatus.Cancelled);
@@ -273,12 +274,76 @@ namespace Auto_Wash.Services
                                     legacyTask.Status = BookingTaskStatus.Completed;
                                     legacyTask.CompletedAt = now;
                                 }
+
+                                // ── LOYALTY POINTS AWARDING, SPEND TRACKING & TIER UPGRADE ──
+                                var customer = payment.Booking.Customer;
+                                if (customer != null)
+                                {
+                                    bool alreadyAwarded = await _context.LoyaltyTransactions
+                                        .AnyAsync(lt => lt.BookingId == payment.BookingId && lt.TransactionType == LoyaltyTransactionType.Earn);
+
+                                    if (!alreadyAwarded)
+                                    {
+                                        var tier = await _context.Tiers.FindAsync(customer.TierId);
+                                        decimal multiplier = tier?.PointMultiplier ?? 1.0m;
+                                        var loyaltyConfig = await _context.LoyaltyConfigs.FirstOrDefaultAsync();
+                                        int pointsPerThousand = loyaltyConfig?.PointsPerThousandVND ?? 10;
+
+                                        int pointsEarned = LoyaltyPointsHelper.ComputeEarnedPoints(payment.Amount, pointsPerThousand, multiplier);
+                                        payment.Booking.PointsEarned = pointsEarned;
+                                        payment.Booking.TierIdSnapshot = customer.TierId;
+                                        payment.Booking.PointMultiplierSnapshot = multiplier;
+
+                                        // 1. Update Customer Loyalty & Spend Balances
+                                        customer.TotalVisits += 1;
+                                        customer.TotalSpend += payment.Amount;
+                                        customer.RankingBalance += payment.Amount;
+                                        customer.PointBalance += pointsEarned;
+                                        customer.LifetimePoints += pointsEarned;
+                                        customer.LastVisitAt = now;
+
+                                        // 2. Insert LoyaltyTransaction (EARN)
+                                        _context.LoyaltyTransactions.Add(new LoyaltyTransaction
+                                        {
+                                            CustomerId = customer.CustomerId,
+                                            Points = pointsEarned,
+                                            TransactionType = LoyaltyTransactionType.Earn,
+                                            BookingId = payment.BookingId,
+                                            Amount = payment.Amount,
+                                            Note = $"Tích điểm thanh toán dịch vụ rửa xe đơn hàng #{payment.BookingId}",
+                                            CreatedAt = now
+                                        });
+
+                                        // 3. Insert In-App Notification
+                                        _context.Notifications.Add(new Notification
+                                        {
+                                            CustomerId = customer.CustomerId,
+                                            Title = "Thanh toán thành công & Tích điểm!",
+                                            Message = $"Đơn hàng #{payment.BookingId} đã thanh toán thành công {payment.Amount:N0}đ. Bạn đã được cộng +{pointsEarned} điểm Loyalty!",
+                                            Type = "Loyalty",
+                                            IsRead = false,
+                                            CreatedAt = now
+                                        });
+
+                                        _logger.LogInformation("Loyalty awarded for PaymentId={PaymentId}, BookingId={BookingId}: +{PointsEarned} pts, TotalSpend={TotalSpend}đ",
+                                            payment.PaymentId, payment.BookingId, pointsEarned, customer.TotalSpend);
+                                    }
+                                }
                             }
 
                             _logger.LogInformation("Payment updated: PaymentId={PaymentId}, Status=Paid, PaidAt={PaidAt}, TransactionNo={TransactionNo}", payment.PaymentId, payment.PaidAt, transactionNo);
                         }
 
+                        // 1. Commit completed booking and payment to DB first so period spend SQL query sees full spend
                         await _context.SaveChangesAsync();
+
+                        // 2. Evaluate tier upgrade with fully committed DB spend
+                        if (payment.Booking?.Customer != null && _loyaltyTierService != null)
+                        {
+                            await _loyaltyTierService.EvaluateUpgradeAsync(payment.Booking.Customer, DateTime.Now);
+                            await _context.SaveChangesAsync();
+                        }
+
                         await transaction.CommitAsync();
 
                         _logger.LogInformation("UpdatePaymentStatusAsync: Transaction committed successfully for TxnRef {TxnRef}.", txnRef);
