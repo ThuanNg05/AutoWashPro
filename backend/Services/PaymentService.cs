@@ -247,7 +247,34 @@ namespace Auto_Wash.Services
 
                         if (status == (int)PaymentStatus.Paid)
                         {
-                            payment.PaidAt = DateTime.Now;
+                            var now = DateTime.Now;
+                            payment.PaidAt = now;
+
+                            if (payment.Booking != null)
+                            {
+                                payment.Booking.Status = BookingStatus.Completed;
+                                payment.Booking.CheckedOutAt = now;
+
+                                var queue = await _context.Queues
+                                    .FirstOrDefaultAsync(q => q.BookingId == payment.BookingId && q.Status != QueueStatus.Cancelled);
+                                if (queue != null)
+                                {
+                                    queue.Status = QueueStatus.Archived;
+                                    queue.CurrentStage = "Completed";
+                                    queue.CompletedAt = now;
+                                }
+
+                                var legacyTask = await _context.BookingTasks
+                                    .FirstOrDefaultAsync(t => t.BookingId == payment.BookingId
+                                                           && t.TaskType == "WaitingCheckout"
+                                                           && t.Status != BookingTaskStatus.Completed);
+                                if (legacyTask != null)
+                                {
+                                    legacyTask.Status = BookingTaskStatus.Completed;
+                                    legacyTask.CompletedAt = now;
+                                }
+                            }
+
                             _logger.LogInformation("Payment updated: PaymentId={PaymentId}, Status=Paid, PaidAt={PaidAt}, TransactionNo={TransactionNo}", payment.PaymentId, payment.PaidAt, transactionNo);
                         }
 

@@ -16,7 +16,7 @@ namespace Auto_Wash.Services
         private readonly AutoWashDbContext _context;
         private readonly BookingNotificationService _bookingNotificationService;
         private readonly IConfiguration _configuration;
-
+            
         public AdminBookingService(AutoWashDbContext context, BookingNotificationService bookingNotificationService, IConfiguration configuration)
         {
             _context = context;

@@ -165,6 +165,27 @@ export const WebcamCaptureModal = ({
     </button>
   );
 
+  const fileInputRef = useRef(null);
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Ảnh không đúng định dạng (Chỉ hỗ trợ JPG, PNG, WEBP)!");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Dung lượng ảnh vượt quá 5MB!");
+      return;
+    }
+
+    if (preview) URL.revokeObjectURL(preview.url);
+    setError("");
+    setPreview({ url: URL.createObjectURL(file), file });
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -173,13 +194,31 @@ export const WebcamCaptureModal = ({
       maxWidth="560px"
       footer={footer}
     >
-      {error ? (
-        <div className="alert alert-warning mb-0" style={{ fontSize: "0.82rem" }}>
-          <i className="bi bi-exclamation-triangle-fill me-1"></i>
-          {error}
-          <div className="mt-1 text-secondary" style={{ fontSize: "0.75rem" }}>
-            Bạn có thể đóng cửa sổ này và dùng nút "TẢI ẢNH LÊN" để chọn ảnh có sẵn.
+      {error && !preview ? (
+        <div className="alert alert-warning mb-0 p-3" style={{ fontSize: "0.85rem" }}>
+          <div className="d-flex align-items-center mb-1.5">
+            <i className="bi bi-exclamation-triangle-fill text-warning me-2 fs-5"></i>
+            <span className="fw-bold text-dark">{error}</span>
           </div>
+          <p className="text-secondary mb-0" style={{ fontSize: "0.8rem", lineHeight: "1.5" }}>
+            Bạn có thể{" "}
+            <span
+              role="button"
+              className="text-primary text-decoration-underline fw-bold"
+              style={{ cursor: "pointer" }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              tải ảnh từ máy
+            </span>{" "}
+            để chọn ảnh có sẵn.
+          </p>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/jpeg,image/png,image/webp"
+            style={{ display: "none" }}
+            onChange={handleFileSelect}
+          />
         </div>
       ) : (
         <>

@@ -91,8 +91,7 @@ namespace Auto_Wash.Services
                     var extraTasks = new List<BookingTask>
                     {
                         new BookingTask { BookingId = q.BookingId.Value, TaskType = "AutoCapture", DisplayName = "Tự động chụp ảnh", SequenceOrder = ++lastSeq, EstimatedDurationSeconds = 0, Status = BookingTaskStatus.Pending },
-                        new BookingTask { BookingId = q.BookingId.Value, TaskType = "AutoSendMail", DisplayName = "Tự động gửi mail", SequenceOrder = ++lastSeq, EstimatedDurationSeconds = 0, Status = BookingTaskStatus.Pending },
-                        new BookingTask { BookingId = q.BookingId.Value, TaskType = "WaitingCheckout", DisplayName = "Chờ thanh toán", SequenceOrder = ++lastSeq, EstimatedDurationSeconds = 0, Status = BookingTaskStatus.Pending }
+                        new BookingTask { BookingId = q.BookingId.Value, TaskType = "AutoSendMail", DisplayName = "Tự động gửi mail", SequenceOrder = ++lastSeq, EstimatedDurationSeconds = 0, Status = BookingTaskStatus.Pending }
                     };
                     context.BookingTasks.AddRange(extraTasks);
                     await context.SaveChangesAsync();
@@ -116,9 +115,9 @@ namespace Auto_Wash.Services
                         changed = true;
                     }
 
-                    // Instant / Manual tasks (AutoCapture, AutoSendMail, WaitingCheckout)
-                    // Worker must STOP and wait for staff photo upload or manual checkout.
-                    if (activeTask.TaskType == "AutoCapture" || activeTask.TaskType == "AutoSendMail" || activeTask.TaskType == "WaitingCheckout")
+                    // Instant / Manual tasks (AutoCapture, AutoSendMail)
+                    // Worker must STOP and wait for staff photo upload or email notification.
+                    if (activeTask.TaskType == "AutoCapture" || activeTask.TaskType == "AutoSendMail")
                     {
                         q.CurrentStage = activeTask.TaskType;
                         continue;
@@ -429,50 +428,7 @@ namespace Auto_Wash.Services
             q.CurrentStage = "Completed";
             q.CompletedAt ??= now;
 
-            if (q.Booking != null && q.Booking.Status != BookingStatus.WaitingCheckout)
-            {
-                q.Booking.Status = BookingStatus.WaitingCheckout;
-
-                context.BookingAuditLogs.Add(new BookingAuditLog
-                {
-                    BookingId = q.BookingId!.Value,
-                    Action = "WaitingCheckout",
-                    Description = "Tự động chuyển sang trạng thái chờ thanh toán (tất cả công đoạn đã hoàn tất).",
-                    PerformedBy = "System",
-                    CreatedAt = now
-                });
-
-                context.Notifications.Add(new Notification
-                {
-                    CustomerId = q.Booking.CustomerId,
-                    Title = "Xe đã hoàn tất dịch vụ",
-                    Message = "Xe đã hoàn tất dịch vụ. Vui lòng đến cửa hàng thanh toán.",
-                    Type = "Booking",
-                    IsRead = false,
-                    CreatedAt = now
-                });
-
-                // Notify staff to take photo before sending email to customer
-                if (!q.Booking.WaitingCheckoutEmailSent)
-                {
-                    try
-                    {
-                        var realtimeNotifier = scope.ServiceProvider.GetRequiredService<IBookingRealtimeNotifier>();
-                        await realtimeNotifier.NotifyWashCompletedAsync(new WashCompletedEvent(
-                            q.QueueId,
-                            q.BookingId,
-                            q.LicensePlate ?? "",
-                            q.Booking.Customer?.Account?.FullName ?? "Khách hàng"));
-                        _logger.LogInformation("[REALTIME] WashCompleted notified to staff: QueueId={QueueId}, BookingId={BookingId}", q.QueueId, q.BookingId);
-                    }
-                    catch (Exception notifyEx)
-                    {
-                        _logger.LogError(notifyEx, "Failed to push WashCompleted event for QueueId={QueueId}", q.QueueId);
-                    }
-                }
-            }
-
-            _logger.LogInformation("[AUDIT EVENT] Auto-waiting-checkout: QueueId={QueueId}, BookingId={BookingId}, LicensePlate={LicensePlate}, CompletedAt={CompletedAt}",
+            _logger.LogInformation("[AUDIT EVENT] Wash workflow finished: QueueId={QueueId}, BookingId={BookingId}, LicensePlate={LicensePlate}, CompletedAt={CompletedAt}",
                 q.QueueId, q.BookingId, q.LicensePlate, q.CompletedAt);
         }
 
@@ -555,15 +511,6 @@ namespace Auto_Wash.Services
                 BookingId = bookingId,
                 TaskType = "AutoSendMail",
                 DisplayName = "Tự động gửi mail",
-                SequenceOrder = seq++,
-                EstimatedDurationSeconds = 0
-            });
-
-            tasks.Add(new BookingTask
-            {
-                BookingId = bookingId,
-                TaskType = "WaitingCheckout",
-                DisplayName = "Chờ thanh toán",
                 SequenceOrder = seq++,
                 EstimatedDurationSeconds = 0
             });

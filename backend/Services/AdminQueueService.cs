@@ -173,13 +173,14 @@ namespace Auto_Wash.Services
                 item.RemainingSeconds = item.ProgressTracking.RemainingSeconds;
 
                 bool isWaitingCheckout = q.Booking != null && (
-                    (q.Booking.BookingTasks != null && q.Booking.BookingTasks.Any(t => t.TaskType == "WaitingCheckout" && t.Status == BookingTaskStatus.InProgress)) ||
                     q.Booking.Status == BookingStatus.WaitingCheckout ||
                     item.CurrentStage == "WaitingCheckout" ||
                     item.CurrentStage == "Chờ thanh toán"
                 );
 
-                bool isArchivedOrCompleted = q.Status == QueueStatus.Archived || (q.Booking != null && q.Booking.Status == BookingStatus.Completed && q.Booking.CheckedOutAt != null);
+                bool isArchivedOrCompleted = q.Status == QueueStatus.Archived 
+                    || q.Status == QueueStatus.Completed 
+                    || (q.Booking != null && q.Booking.Status == BookingStatus.Completed);
 
                 if (isWaitingCheckout && !isArchivedOrCompleted)
                 {
