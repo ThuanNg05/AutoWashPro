@@ -61,10 +61,9 @@ namespace Auto_Wash.Services
                 .Include(q => q.Booking)
                     .ThenInclude(b => b!.Customer)
                         .ThenInclude(c => c.Tier)
-                .Where(q => q.CheckInAt.Date == today 
-                         && q.Status != QueueStatus.Completed 
-                         && q.Status != QueueStatus.Cancelled 
-                         && q.Status != QueueStatus.Archived)
+                .Where(q => q.Status != QueueStatus.Cancelled 
+                         && q.Status != QueueStatus.Archived
+                         && (q.Booking == null || q.Booking.CheckedOutAt == null))
                 .ToListAsync();
 
             bool changed = false;
@@ -86,6 +85,20 @@ namespace Auto_Wash.Services
                         .OrderBy(t => t.SequenceOrder)
                         .ToListAsync();
                 }
+                else if (q.BookingId.HasValue && tasks.Count > 0 && !tasks.Any(t => t.TaskType == "AutoCapture"))
+                {
+                    int lastSeq = tasks.Max(t => t.SequenceOrder);
+                    var extraTasks = new List<BookingTask>
+                    {
+                        new BookingTask { BookingId = q.BookingId.Value, TaskType = "AutoCapture", DisplayName = "Tự động chụp ảnh", SequenceOrder = ++lastSeq, EstimatedDurationSeconds = 0, Status = BookingTaskStatus.Pending },
+                        new BookingTask { BookingId = q.BookingId.Value, TaskType = "AutoSendMail", DisplayName = "Tự động gửi mail", SequenceOrder = ++lastSeq, EstimatedDurationSeconds = 0, Status = BookingTaskStatus.Pending },
+                        new BookingTask { BookingId = q.BookingId.Value, TaskType = "WaitingCheckout", DisplayName = "Chờ thanh toán", SequenceOrder = ++lastSeq, EstimatedDurationSeconds = 0, Status = BookingTaskStatus.Pending }
+                    };
+                    context.BookingTasks.AddRange(extraTasks);
+                    await context.SaveChangesAsync();
+                    tasks.AddRange(extraTasks);
+                    tasks = tasks.OrderBy(t => t.SequenceOrder).ToList();
+                }
 
                 if (tasks.Count == 0) continue;
 
@@ -97,17 +110,31 @@ namespace Auto_Wash.Services
 
                 if (activeTask != null)
                 {
+                    if (!activeTask.StartedAt.HasValue)
+                    {
+                        activeTask.StartedAt = now;
+                        changed = true;
+                    }
+
+                    // Instant / Manual tasks (AutoCapture, AutoSendMail, WaitingCheckout)
+                    // Worker must STOP and wait for staff photo upload or manual checkout.
+                    if (activeTask.TaskType == "AutoCapture" || activeTask.TaskType == "AutoSendMail" || activeTask.TaskType == "WaitingCheckout")
+                    {
+                        q.CurrentStage = activeTask.TaskType;
+                        continue;
+                    }
+
                     // Check if active task's estimated duration has elapsed
-                    var taskElapsed = (now - (activeTask.StartedAt ?? now)).TotalSeconds;
+                    var taskElapsed = (now - activeTask.StartedAt.Value).TotalSeconds;
 
                     if (activeTask.EstimatedDurationSeconds > 0
                         && taskElapsed >= activeTask.EstimatedDurationSeconds)
                     {
-                        // Complete current task
+                        // Complete current timed task (e.g. CheckIn, Washing, AddonProcessing, Drying)
                         activeTask.Status = BookingTaskStatus.Completed;
                         activeTask.CompletedAt = now;
 
-                        // Re-evaluate next pending (after completing current)
+                        // Transition to next pending task
                         nextPending = tasks.Where(t => t.Status == BookingTaskStatus.Pending)
                             .OrderBy(t => t.SequenceOrder)
                             .FirstOrDefault();
@@ -116,27 +143,22 @@ namespace Auto_Wash.Services
                         {
                             nextPending.Status = BookingTaskStatus.InProgress;
                             nextPending.StartedAt = now;
+                            q.CurrentStage = nextPending.TaskType;
 
-                            // Sync Queue status from the new active task
+                            // Sync Queue status if applicable for earlier stages
                             SyncQueueFromTask(q, nextPending, context, now);
                         }
-                        else
-                        {
-                            // All timed tasks completed → finalize to WaitingCheckout
-                            await FinalizeQueueAsync(q, context, now, scope);
-                        }
+
                         changed = true;
-                    }
-                    else if (activeTask.EstimatedDurationSeconds == 0)
-                    {
-                        // Instant tasks (AutoCapture, AutoSendMail, WaitingCheckout) —
-                        // these are completed by the existing WaitingCheckout / email flow,
-                        // not by elapsed time. Just sync the stage display.
-                        q.CurrentStage = activeTask.TaskType;
+
+                        // Runtime transition log (Rule 10)
+                        var tracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q, tasks);
+                        _logger.LogInformation("[WORKFLOW TRANSITION] BookingId={BookingId}, QueueId={QueueId}, PrevTask={PrevTask}, NextTask={NextTask}, BookingStatus={BookingStatus}, QueueStatus={QueueStatus}, CurrentStage={CurrentStage}, Progress={Progress}%, RemainingSeconds={RemainingSeconds}s",
+                            q.BookingId, q.QueueId, activeTask.TaskType, nextPending?.TaskType ?? "None", q.Booking?.Status, q.Status, tracking.CurrentStage, tracking.Progress, tracking.RemainingSeconds);
                     }
                     else
                     {
-                        // Task still in progress — just sync display stage
+                        // Task still in progress — sync display stage
                         q.CurrentStage = activeTask.TaskType;
                     }
                 }
@@ -145,8 +167,13 @@ namespace Auto_Wash.Services
                     // No active task but pending exists → start the next one
                     nextPending.Status = BookingTaskStatus.InProgress;
                     nextPending.StartedAt = now;
+                    q.CurrentStage = nextPending.TaskType;
                     SyncQueueFromTask(q, nextPending, context, now);
                     changed = true;
+
+                    var tracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q, tasks);
+                    _logger.LogInformation("[WORKFLOW TRANSITION] BookingId={BookingId}, QueueId={QueueId}, PrevTask=None, NextTask={NextTask}, BookingStatus={BookingStatus}, QueueStatus={QueueStatus}, CurrentStage={CurrentStage}, Progress={Progress}%, RemainingSeconds={RemainingSeconds}s",
+                        q.BookingId, q.QueueId, nextPending.TaskType, q.Booking?.Status, q.Status, tracking.CurrentStage, tracking.Progress, tracking.RemainingSeconds);
                 }
             }
 
@@ -347,7 +374,6 @@ namespace Auto_Wash.Services
                 "CheckIn" => QueueStatus.Waiting,
                 "Washing" => QueueStatus.Washing,
                 "AddonProcessing" => QueueStatus.Addon_Processing,
-                "Drying" => QueueStatus.Drying,
                 _ => q.Status // Keep current for AutoCapture, AutoSendMail, WaitingCheckout
             };
 
@@ -400,7 +426,6 @@ namespace Auto_Wash.Services
         private async Task FinalizeQueueAsync(Queue q, AutoWashDbContext context, DateTime now, IServiceScope scope)
         {
             q.CurrentStage = "Completed";
-            q.Status = QueueStatus.Completed;
             q.CompletedAt ??= now;
 
             if (q.Booking != null && q.Booking.Status != BookingStatus.WaitingCheckout)
@@ -459,9 +484,6 @@ namespace Auto_Wash.Services
 
             if (booking == null) return;
 
-            bool isDemo = _configuration.GetValue<bool>("BookingWorkflow:DemoMode", true);
-            int multiplier = isDemo ? 1 : 60;
-
             var tasks = new List<BookingTask>();
             int seq = 1;
 
@@ -471,7 +493,7 @@ namespace Auto_Wash.Services
                 TaskType = "CheckIn",
                 DisplayName = "Đã check-in",
                 SequenceOrder = seq++,
-                EstimatedDurationSeconds = isDemo ? 15 : BookingWorkflowConfig.CheckInSeconds,
+                EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(2, _configuration),
                 Status = BookingTaskStatus.InProgress,
                 StartedAt = DateTime.Now
             });
@@ -489,7 +511,7 @@ namespace Auto_Wash.Services
                     TaskType = "Washing",
                     DisplayName = $"Đang rửa - {baseName}",
                     SequenceOrder = seq++,
-                    EstimatedDurationSeconds = baseMins * multiplier
+                    EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(baseMins, _configuration)
                 });
             }
 
@@ -510,19 +532,10 @@ namespace Auto_Wash.Services
                         TaskType = "AddonProcessing",
                         DisplayName = $"{addonName} (add-on)",
                         SequenceOrder = seq++,
-                        EstimatedDurationSeconds = addonMins * multiplier
+                        EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(addonMins, _configuration)
                     });
                 }
             }
-
-            tasks.Add(new BookingTask
-            {
-                BookingId = bookingId,
-                TaskType = "Drying",
-                DisplayName = "Đã sấy khô",
-                SequenceOrder = seq++,
-                EstimatedDurationSeconds = BookingWorkflowConfig.DryingSeconds
-            });
 
             tasks.Add(new BookingTask
             {

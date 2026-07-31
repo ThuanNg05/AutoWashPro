@@ -12,7 +12,6 @@ namespace Auto_Wash.Helpers
                 QueueStatus.LPR_Scan => "Đang quét biển số",
                 QueueStatus.Washing => "Đang rửa xe",
                 QueueStatus.Addon_Processing => "Đang xử lý dịch vụ bổ sung",
-                QueueStatus.Drying => "Đang sấy khô",
                 QueueStatus.Completed => "Hoàn tất",
                 QueueStatus.Archived => "Đã giao xe",
                 QueueStatus.Cancelled => "Đã hủy",

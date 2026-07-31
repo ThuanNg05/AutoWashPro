@@ -122,6 +122,7 @@ namespace Auto_Wash.Services
             grouped.WaitingForCheckIn = waitingList;
 
             var currentlyProcessing = new List<QueueListItem>();
+            var waitingCheckout = new List<QueueListItem>();
             var completedToday = new List<QueueListItem>();
 
             // Map real queues
@@ -160,27 +161,28 @@ namespace Auto_Wash.Services
                     PointsEarned = q.Booking?.PointsEarned ?? 0,
                     Services = services,
                     QueuePriority = q.Tier?.QueuePriority ?? 0,
-                    BookingStatus = q.Booking != null ? q.Booking.Status.ToString() : string.Empty
-                    ,CustomerNotified = q.Booking != null ? q.Booking.WaitingCheckoutEmailSent : (bool?)null
+                    BookingStatus = q.Booking != null ? q.Booking.Status.ToString() : string.Empty,
+                    CustomerNotified = q.Booking != null ? q.Booking.WaitingCheckoutEmailSent : (bool?)null
                 };
 
-                if (q.Status == QueueStatus.Archived || q.Status == QueueStatus.Completed)
+                item.BookingTime = q.Booking != null ? q.Booking.ScheduledAt.ToString("HH:mm") : "Walk-in";
+                item.CheckInTime = q.CheckInAt.ToString("HH:mm:ss");
+                item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q, q.Booking?.BookingTasks?.OrderBy(t => t.SequenceOrder).ToList());
+                item.CurrentStage = item.ProgressTracking.CurrentStage;
+                item.Progress = item.ProgressTracking.Progress;
+                item.RemainingSeconds = item.ProgressTracking.RemainingSeconds;
+
+                bool isWaitingCheckout = q.Booking != null && (
+                    (q.Booking.BookingTasks != null && q.Booking.BookingTasks.Any(t => t.TaskType == "WaitingCheckout" && t.Status == BookingTaskStatus.InProgress)) ||
+                    q.Booking.Status == BookingStatus.WaitingCheckout ||
+                    item.CurrentStage == "WaitingCheckout" ||
+                    item.CurrentStage == "Chờ thanh toán"
+                );
+
+                bool isArchivedOrCompleted = q.Status == QueueStatus.Archived || (q.Booking != null && q.Booking.Status == BookingStatus.Completed && q.Booking.CheckedOutAt != null);
+
+                if (isWaitingCheckout && !isArchivedOrCompleted)
                 {
-                    item.BookingTime = q.Booking != null ? q.Booking.ScheduledAt.ToString("HH:mm") : "Walk-in";
-                    item.CheckInTime = q.CheckInAt.ToString("HH:mm:ss");
-                    item.CompletedTime = (q.CompletedAt ?? q.CheckInAt).ToString("HH:mm:ss");
-                    item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q, q.Booking?.BookingTasks?.OrderBy(t => t.SequenceOrder).ToList());
-                    item.CurrentStage = item.ProgressTracking.CurrentStage;
-                    item.Progress = item.ProgressTracking.Progress;
-                    item.RemainingSeconds = item.ProgressTracking.RemainingSeconds;
-                    completedToday.Add(item);
-                }
-                else
-                {
-                    item.BookingTime = q.Booking != null ? q.Booking.ScheduledAt.ToString("HH:mm") : "Walk-in";
-                    item.CheckInTime = q.CheckInAt.ToString("HH:mm:ss");
-                    
-                    // Calculate estimated start and ETA based on dynamic service durations
                     var estStart = q.CheckInAt;
                     int qMins = q.Booking?.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 0;
                     if (qMins == 0 && q.Booking?.BookingTasks != null && q.Booking.BookingTasks.Count > 0)
@@ -191,11 +193,25 @@ namespace Auto_Wash.Services
 
                     item.EstimatedStart = estStart.ToString("HH:mm:ss");
                     item.EtaCompletion = estStart.AddMinutes(qMins).ToString("HH:mm:ss");
+                    waitingCheckout.Add(item);
+                }
+                else if (isArchivedOrCompleted)
+                {
+                    item.CompletedTime = (q.CompletedAt ?? q.CheckInAt).ToString("HH:mm:ss");
+                    completedToday.Add(item);
+                }
+                else
+                {
+                    var estStart = q.CheckInAt;
+                    int qMins = q.Booking?.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 0;
+                    if (qMins == 0 && q.Booking?.BookingTasks != null && q.Booking.BookingTasks.Count > 0)
+                    {
+                        qMins = (int)Math.Ceiling(q.Booking.BookingTasks.Sum(t => t.EstimatedDurationSeconds) / 60.0);
+                    }
+                    if (qMins == 0) qMins = 50;
 
-                    item.ProgressTracking = BookingWorkflowConfig.GetProgressForBooking(q.Booking, q, q.Booking?.BookingTasks?.OrderBy(t => t.SequenceOrder).ToList());
-                    item.CurrentStage = item.ProgressTracking.CurrentStage;
-                    item.Progress = item.ProgressTracking.Progress;
-                    item.RemainingSeconds = item.ProgressTracking.RemainingSeconds;
+                    item.EstimatedStart = estStart.ToString("HH:mm:ss");
+                    item.EtaCompletion = estStart.AddMinutes(qMins).ToString("HH:mm:ss");
                     currentlyProcessing.Add(item);
                 }
             }
@@ -210,6 +226,11 @@ namespace Auto_Wash.Services
             {
                 grouped.CurrentlyProcessing[i].Position = i + 1;
             }
+
+            grouped.WaitingCheckout = waitingCheckout
+                .OrderByDescending(item => item.QueuePriority)
+                .ThenBy(item => item.CheckInAt)
+                .ToList();
 
             grouped.CompletedToday = completedToday
                 .OrderByDescending(item => item.CompletedAt ?? item.CheckInAt)
@@ -420,8 +441,6 @@ namespace Auto_Wash.Services
                                 q.CurrentStage = "CheckIn";
                             else if (q.Status == QueueStatus.Washing)
                                 q.CurrentStage = "Washing";
-                            else if (q.Status == QueueStatus.Drying)
-                                q.CurrentStage = "Drying";
                             else if (q.Status == QueueStatus.Completed)
                                 q.CurrentStage = "Completed";
                             else if (q.Status == QueueStatus.Archived)
@@ -463,32 +482,29 @@ namespace Auto_Wash.Services
                 if (q.StartedAt == null && q.Status != QueueStatus.Waiting) q.StartedAt = DateTime.Now;
                 if (q.Status == QueueStatus.Completed) q.CompletedAt ??= DateTime.Now;
 
-                // Sync current stage
                 if (q.Status == QueueStatus.Waiting)
                     q.CurrentStage = "CheckIn";
                 else if (q.Status == QueueStatus.Washing)
                     q.CurrentStage = "Washing";
-                else if (q.Status == QueueStatus.Drying)
-                    q.CurrentStage = "Drying";
                 else if (q.Status == QueueStatus.Completed)
                     q.CurrentStage = "Completed";
                 else if (q.Status == QueueStatus.Archived)
                     q.CurrentStage = "Completed";
 
                 // Sync booking status and timestamps
-                    if (parsedStatus.Value == QueueStatus.Completed)
-                    {
-                        q.Booking.Status = BookingStatus.Completed;
+                if (parsedStatus.HasValue && parsedStatus.Value == QueueStatus.Completed && q.Booking != null)
+                {
+                    q.Booking.Status = BookingStatus.WaitingCheckout;
 
-                        _context.BookingAuditLogs.Add(new BookingAuditLog
-                        {
-                            BookingId = q.BookingId!.Value,
-                            Action = "Completed",
-                            Description = "Xe đã hoàn tất các công đoạn dịch vụ.",
-                            PerformedBy = "Staff",
-                            CreatedAt = DateTime.Now
-                        });
-                    }
+                    _context.BookingAuditLogs.Add(new BookingAuditLog
+                    {
+                        BookingId = q.Booking.BookingId,
+                        Action = "Completed",
+                        Description = "Xe đã hoàn tất các công đoạn dịch vụ.",
+                        PerformedBy = "Staff",
+                        CreatedAt = DateTime.Now
+                    });
+                }
 
                 if (parsedStatus.HasValue && oldStatus != parsedStatus.Value)
                 {
@@ -585,14 +601,24 @@ namespace Auto_Wash.Services
             }
 
             var now = DateTime.Now;
-            q.Status = QueueStatus.Archived;
-            q.CompletedAt ??= now;
 
             int finalPrice = 0;
             int pointsEarned = 0;
 
             if (q.Booking != null)
             {
+                // Validate Rule 3: Reject checkout unless WaitingCheckout.Status == InProgress
+                var tasks = await _context.BookingTasks.Where(t => t.BookingId == q.Booking.BookingId).ToListAsync();
+                var waitingCheckoutTask = tasks.FirstOrDefault(t => t.TaskType == "WaitingCheckout");
+                if (waitingCheckoutTask == null || waitingCheckoutTask.Status != BookingTaskStatus.InProgress)
+                {
+                    return (false, "Vehicle has not reached WaitingCheckout.", 0, 0);
+                }
+
+                q.Status = QueueStatus.Archived;
+                q.CompletedAt ??= now;
+                q.CurrentStage = "Completed";
+
                 finalPrice = q.Booking.FinalPrice;
                 pointsEarned = q.Booking.PointsEarned;
 
@@ -600,6 +626,18 @@ namespace Auto_Wash.Services
                 q.Booking.CheckedOutBy = performerName ?? "Staff";
                 q.Booking.Status = BookingStatus.Completed;
                 q.Booking.CompletedAt ??= now;
+
+                waitingCheckoutTask.Status = BookingTaskStatus.Completed;
+                waitingCheckoutTask.CompletedAt = now;
+
+                foreach (var task in tasks)
+                {
+                    if (task.Status != BookingTaskStatus.Completed)
+                    {
+                        task.Status = BookingTaskStatus.Completed;
+                        task.CompletedAt ??= now;
+                    }
+                }
 
                 // Record the at-counter transaction so cash / free checkouts show up
                 // in the payments-based history & revenue stats (issue #51). Online
@@ -759,12 +797,18 @@ namespace Auto_Wash.Services
 
             if (q == null)
                 return (false, "Không tìm thấy xe trong hàng đợi!");
-            if (q.Status != QueueStatus.Completed && q.Status != QueueStatus.Archived)
-                return (false, "Xe chưa hoàn tất dịch vụ, chưa thể gửi ảnh báo khách!");
             if (q.Booking == null)
                 return (false, "Xe vãng lai không có booking/email khách hàng để gửi!");
             if (q.Booking.WaitingCheckoutEmailSent)
                 return (false, "Đã gửi email báo khách trước đó!");
+
+            // Rule 2: Validate AutoCapture.Status == InProgress
+            var tasks = await _context.BookingTasks.Where(t => t.BookingId == q.Booking.BookingId).ToListAsync();
+            var autoCaptureTask = tasks.FirstOrDefault(t => t.TaskType == "AutoCapture");
+            if (autoCaptureTask == null || autoCaptureTask.Status != BookingTaskStatus.InProgress)
+            {
+                return (false, "Quy trình chưa tới công đoạn chụp ảnh (AutoCapture chưa ở trạng thái InProgress).");
+            }
 
             var email = q.Booking.Customer?.Account?.Email ?? "";
             if (string.IsNullOrWhiteSpace(email))
@@ -822,15 +866,40 @@ namespace Auto_Wash.Services
                 return (false, "Gửi email thất bại, vui lòng thử lại!");
             }
 
-            // Gửi thành công mới set cờ chống gửi trùng + ghi audit log
+            // Rule 2: State transitions after successful upload & send mail
+            var now = DateTime.Now;
             q.Booking.WaitingCheckoutEmailSent = true;
+            q.Booking.Status = BookingStatus.WaitingCheckout;
+            q.CurrentStage = "WaitingCheckout";
+
+            if (autoCaptureTask != null)
+            {
+                autoCaptureTask.Status = BookingTaskStatus.Completed;
+                autoCaptureTask.CompletedAt = now;
+            }
+
+            var mailTask = tasks.FirstOrDefault(t => t.TaskType == "AutoSendMail");
+            if (mailTask != null)
+            {
+                mailTask.Status = BookingTaskStatus.Completed;
+                mailTask.StartedAt ??= now;
+                mailTask.CompletedAt = now;
+            }
+
+            var waitingCheckoutTask = tasks.FirstOrDefault(t => t.TaskType == "WaitingCheckout");
+            if (waitingCheckoutTask != null)
+            {
+                waitingCheckoutTask.Status = BookingTaskStatus.InProgress;
+                waitingCheckoutTask.StartedAt = now;
+            }
+
             _context.BookingAuditLogs.Add(new BookingAuditLog
             {
                 BookingId = q.Booking.BookingId,
                 Action = "CustomerNotified",
                 Description = $"Đã gửi email kèm {inlinePhotos.Count} ảnh báo khách xe hoàn tất dịch vụ.",
                 PerformedBy = performedBy,
-                CreatedAt = DateTime.Now
+                CreatedAt = now
             });
             await _context.SaveChangesAsync();
 
@@ -985,9 +1054,6 @@ namespace Auto_Wash.Services
 
             if (booking == null) return;
 
-            bool isDemo = _configuration.GetValue<bool>("BookingWorkflow:DemoMode", true);
-            int multiplier = isDemo ? 1 : 60;
-
             var tasks = new List<BookingTask>();
             int seq = 1;
 
@@ -998,7 +1064,7 @@ namespace Auto_Wash.Services
                 TaskType = "CheckIn",
                 DisplayName = "Đã check-in",
                 SequenceOrder = seq++,
-                EstimatedDurationSeconds = isDemo ? 15 : BookingWorkflowConfig.CheckInSeconds,
+                EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(2, _configuration),
                 Status = BookingTaskStatus.InProgress,
                 StartedAt = DateTime.Now
             });
@@ -1018,7 +1084,7 @@ namespace Auto_Wash.Services
                     TaskType = "Washing",
                     DisplayName = $"Đang rửa - {baseName}",
                     SequenceOrder = seq++,
-                    EstimatedDurationSeconds = baseMins * multiplier
+                    EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(baseMins, _configuration)
                 });
             }
 
@@ -1038,21 +1104,11 @@ namespace Auto_Wash.Services
                     TaskType = "AddonProcessing",
                     DisplayName = $"{addonName} (add-on)",
                     SequenceOrder = seq++,
-                    EstimatedDurationSeconds = addonMins * multiplier
+                    EstimatedDurationSeconds = BookingWorkflowConfig.CalculateTaskDurationSeconds(addonMins, _configuration)
                 });
             }
 
-            // 4. Drying (system task)
-            tasks.Add(new BookingTask
-            {
-                BookingId = bookingId,
-                TaskType = "Drying",
-                DisplayName = "Đã sấy khô",
-                SequenceOrder = seq++,
-                EstimatedDurationSeconds = BookingWorkflowConfig.DryingSeconds
-            });
-
-            // 5. AutoCapture (system, instant)
+            // 4. AutoCapture (system, instant)
             tasks.Add(new BookingTask
             {
                 BookingId = bookingId,
@@ -1090,6 +1146,7 @@ namespace Auto_Wash.Services
     {
         public List<QueueListItem> WaitingForCheckIn { get; set; } = new();
         public List<QueueListItem> CurrentlyProcessing { get; set; } = new();
+        public List<QueueListItem> WaitingCheckout { get; set; } = new();
         public List<QueueListItem> CompletedToday { get; set; } = new();
     }
 

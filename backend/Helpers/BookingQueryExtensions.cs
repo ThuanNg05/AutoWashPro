@@ -11,7 +11,10 @@ namespace Auto_Wash.Helpers
         /// </summary>
         public static IQueryable<Booking> WhereSlotOccupied(this IQueryable<Booking> query)
         {
-            return query.Where(b => b.Status == BookingStatus.Confirmed);
+            return query.Where(b => b.Status == BookingStatus.Pending
+                                 || b.Status == BookingStatus.Confirmed
+                                 || b.Status == BookingStatus.CheckedIn
+                                 || b.Status == BookingStatus.Washing);
         }
     
         /// <summary>
@@ -19,7 +22,10 @@ namespace Auto_Wash.Helpers
         /// </summary>
         public static IQueryable<Booking> WhereActive(this IQueryable<Booking> query)
         {
-            return query.Where(b => b.Status == BookingStatus.Confirmed);
+            return query.Where(b => b.Status != BookingStatus.Completed
+                                 && b.Status != BookingStatus.Cancelled
+                                 && b.Status != BookingStatus.NoShow
+                                 && b.CheckedOutAt == null);
         }
     }
 }

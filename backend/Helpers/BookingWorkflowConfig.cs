@@ -3,13 +3,26 @@ using System.Collections.Generic;
 using System.Linq;
 using Auto_Wash.Data.Entities;
 using Auto_Wash.DTOs;
+using Microsoft.Extensions.Configuration;
 
 namespace Auto_Wash.Helpers
 {
     public static class BookingWorkflowConfig
     {
-        public const int CheckInSeconds = 15;
-        public const int DryingSeconds = 15;
+        /// <summary>
+        /// Single source of truth for task duration calculation.
+        /// Scales estimated minutes into seconds based on DemoMode and DemoSecondsPerMinute.
+        /// </summary>
+        public static int CalculateTaskDurationSeconds(int estimatedMinutes, IConfiguration configuration)
+        {
+            bool isDemo = configuration.GetValue<bool>("BookingWorkflow:DemoMode", true);
+            if (isDemo)
+            {
+                double demoRatio = configuration.GetValue<double>("BookingWorkflow:DemoSecondsPerMinute", 1.5);
+                return Math.Max(1, (int)Math.Round(estimatedMinutes * demoRatio));
+            }
+            return estimatedMinutes * 60;
+        }
 
         /// <summary>
         /// Centralized calculation of Total Estimated Minutes for a booking.
@@ -102,16 +115,11 @@ namespace Auto_Wash.Helpers
                 return dto;
             }
 
-            if (booking != null && booking.Status == BookingStatus.WaitingCheckout)
-            {
-                dto.CurrentStage = "Chờ thanh toán";
-                dto.Progress = 95;
-                dto.RemainingSeconds = 0;
-                BuildDynamicStages(dto, orderedTasks);
-                return dto;
-            }
+            // Only treat as fully completed if CheckedOutAt is set OR all tasks in BookingTask are completed
+            bool isFullyCompleted = (booking != null && booking.CheckedOutAt.HasValue) ||
+                                    (orderedTasks.Count > 0 && orderedTasks.All(t => t.Status == BookingTaskStatus.Completed));
 
-            if (booking != null && booking.Status == BookingStatus.Completed)
+            if (isFullyCompleted)
             {
                 dto.CurrentStage = "Hoàn tất";
                 dto.Progress = 100;
@@ -120,101 +128,131 @@ namespace Auto_Wash.Helpers
                 return dto;
             }
 
-            if (queue != null && queue.Status == QueueStatus.Completed)
-            {
-                dto.CurrentStage = "Hoàn tất";
-                dto.Progress = 100;
-                dto.RemainingSeconds = 0;
-                BuildDynamicStages(dto, orderedTasks, allCompleted: true);
-                return dto;
-            }
-
-            // Active task evaluation
+            // Active task evaluation driven strictly by BookingTask
             var activeTask = orderedTasks.FirstOrDefault(t => t.Status == BookingTaskStatus.InProgress);
-            var timedTasks = orderedTasks.Where(t => t.EstimatedDurationSeconds > 0).ToList();
-            var timedCompleted = timedTasks.Count(t => t.Status == BookingTaskStatus.Completed);
+            int completedCount = orderedTasks.Count(t => t.Status == BookingTaskStatus.Completed);
+            int totalTasksCount = Math.Max(1, orderedTasks.Count);
 
             if (activeTask != null)
             {
                 dto.CurrentStage = activeTask.DisplayName;
-
-                if (timedTasks.Count > 0)
+                double activeFraction = 0.0;
+                if (activeTask.EstimatedDurationSeconds > 0 && activeTask.StartedAt.HasValue)
                 {
-                    double baseProgress = (double)timedCompleted / timedTasks.Count * 100;
-                    if (activeTask.EstimatedDurationSeconds > 0 && activeTask.StartedAt.HasValue)
-                    {
-                        var taskElapsed = (DateTime.Now - activeTask.StartedAt.Value).TotalSeconds;
-                        var taskFraction = Math.Min(1.0, taskElapsed / activeTask.EstimatedDurationSeconds);
-                        baseProgress += taskFraction / timedTasks.Count * 100;
-                    }
-                    dto.Progress = Math.Min(95, (int)baseProgress);
+                    var taskElapsed = (DateTime.Now - activeTask.StartedAt.Value).TotalSeconds;
+                    activeFraction = Math.Min(1.0, Math.Max(0.0, taskElapsed / activeTask.EstimatedDurationSeconds));
                 }
-                else
+                else if (activeTask.TaskType == "WaitingCheckout")
                 {
-                    dto.Progress = (int)((double)orderedTasks.Count(t => t.Status == BookingTaskStatus.Completed) / orderedTasks.Count * 100);
+                    activeFraction = 0.5;
                 }
+                double baseProgress = ((completedCount + activeFraction) / totalTasksCount) * 100;
+                dto.Progress = Math.Min(99, (int)baseProgress);
+            }
+            else if (completedCount == orderedTasks.Count && orderedTasks.Count > 0)
+            {
+                dto.CurrentStage = "Hoàn tất";
+                dto.Progress = 100;
+                dto.RemainingSeconds = 0;
+                BuildDynamicStages(dto, orderedTasks, allCompleted: true);
+                return dto;
             }
             else
             {
-                dto.CurrentStage = orderedTasks.FirstOrDefault()?.DisplayName ?? "Đã check-in";
-                dto.Progress = 0;
+                var nextPending = orderedTasks.FirstOrDefault(t => t.Status == BookingTaskStatus.Pending);
+                dto.CurrentStage = nextPending?.DisplayName ?? orderedTasks.FirstOrDefault()?.DisplayName ?? "Đã check-in";
+                dto.Progress = (int)(((double)completedCount / totalTasksCount) * 100);
             }
 
             dto.RemainingSeconds = CalculateRemainingSeconds(orderedTasks);
             BuildDynamicStages(dto, orderedTasks);
 
-            if (queue == null && booking != null && booking.Status != BookingStatus.CheckedIn
-                && booking.Status != BookingStatus.Completed && booking.Status != BookingStatus.Washing)
-            {
-                dto.Progress = 0;
-                foreach (var stage in dto.Stages)
-                {
-                    stage.IsActive = false;
-                }
-            }
-
             return dto;
         }
 
-        private static List<BookingTask> GenerateFallbackTasksFromBooking(Booking? booking)
+        private static List<BookingTask> GenerateFallbackTasksFromBooking(Booking? booking, IConfiguration? configuration = null)
         {
             var list = new List<BookingTask>();
             if (booking == null) return list;
 
             int seq = 1;
+            int checkInSec = configuration != null ? CalculateTaskDurationSeconds(2, configuration) : 15;
+
             list.Add(new BookingTask
             {
                 TaskType = "CheckIn",
                 DisplayName = "Đã check-in",
                 SequenceOrder = seq++,
-                EstimatedDurationSeconds = 15,
+                EstimatedDurationSeconds = checkInSec,
                 Status = BookingTaskStatus.Completed
             });
 
             if (booking.BookingServices != null)
             {
-                foreach (var bs in booking.BookingServices)
+                // Base service -> Washing
+                var baseService = booking.BookingServices.FirstOrDefault(bs => bs.Service != null && !bs.Service.IsAddOn);
+                if (baseService != null)
                 {
-                    string name = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : (bs.Service?.ServiceName ?? "Dịch vụ");
-                    int mins = bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service?.EstimatedMinutes ?? 30);
-                    bool isAddOn = bs.Service?.IsAddOn ?? false;
+                    string name = !string.IsNullOrWhiteSpace(baseService.ServiceNameSnapshot) ? baseService.ServiceNameSnapshot : (baseService.Service?.ServiceName ?? "Dịch vụ rửa xe");
+                    int mins = baseService.EstimatedMinutesSnapshot > 0 ? baseService.EstimatedMinutesSnapshot : (baseService.Service?.EstimatedMinutes ?? 30);
+                    int serviceSec = configuration != null ? CalculateTaskDurationSeconds(mins, configuration) : mins * 60;
+
                     list.Add(new BookingTask
                     {
-                        TaskType = isAddOn ? "AddonProcessing" : "Washing",
-                        DisplayName = isAddOn ? $"{name} (add-on)" : $"Đang rửa - {name}",
+                        TaskType = "Washing",
+                        DisplayName = $"Đang rửa - {name}",
                         SequenceOrder = seq++,
-                        EstimatedDurationSeconds = mins * 60,
+                        EstimatedDurationSeconds = serviceSec,
+                        Status = BookingTaskStatus.Pending
+                    });
+                }
+
+                // Add-ons -> AddonProcessing
+                var addons = booking.BookingServices.Where(bs => bs.Service != null && bs.Service.IsAddOn).OrderBy(bs => bs.BookingServiceId);
+                foreach (var bs in addons)
+                {
+                    string name = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : (bs.Service?.ServiceName ?? "Dịch vụ bổ sung");
+                    int mins = bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service?.EstimatedMinutes ?? 15);
+                    int serviceSec = configuration != null ? CalculateTaskDurationSeconds(mins, configuration) : mins * 60;
+
+                    list.Add(new BookingTask
+                    {
+                        TaskType = "AddonProcessing",
+                        DisplayName = $"{name} (add-on)",
+                        SequenceOrder = seq++,
+                        EstimatedDurationSeconds = serviceSec,
                         Status = BookingTaskStatus.Pending
                     });
                 }
             }
 
+            // AutoCapture
             list.Add(new BookingTask
             {
-                TaskType = "Drying",
-                DisplayName = "Đã sấy khô",
+                TaskType = "AutoCapture",
+                DisplayName = "Tự động chụp ảnh",
                 SequenceOrder = seq++,
-                EstimatedDurationSeconds = 15,
+                EstimatedDurationSeconds = 0,
+                Status = BookingTaskStatus.Pending
+            });
+
+            // AutoSendMail
+            list.Add(new BookingTask
+            {
+                TaskType = "AutoSendMail",
+                DisplayName = "Tự động gửi mail",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0,
+                Status = BookingTaskStatus.Pending
+            });
+
+            // WaitingCheckout
+            list.Add(new BookingTask
+            {
+                TaskType = "WaitingCheckout",
+                DisplayName = "Chờ thanh toán",
+                SequenceOrder = seq++,
+                EstimatedDurationSeconds = 0,
                 Status = BookingTaskStatus.Pending
             });
 

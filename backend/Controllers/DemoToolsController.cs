@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Auto_Wash.Data;
+using Auto_Wash.Data.Entities;
 using Auto_Wash.Helpers;
 
 namespace Auto_Wash.Controllers
@@ -348,6 +349,39 @@ namespace Auto_Wash.Controllers
                     q.CheckInAt += shift;
                     if (q.StartedAt.HasValue) q.StartedAt += shift;
                     if (q.CompletedAt.HasValue) q.CompletedAt += shift;
+                }
+
+                // Update BookingTask rows for single source of truth workflow
+                var tasks = await _context.BookingTasks
+                    .Where(t => t.BookingId == id)
+                    .OrderBy(t => t.SequenceOrder)
+                    .ToListAsync();
+
+                foreach (var task in tasks)
+                {
+                    if (task.StartedAt.HasValue) task.StartedAt += shift;
+                    if (task.CompletedAt.HasValue) task.CompletedAt += shift;
+                }
+
+                if (minutes < 0)
+                {
+                    var activeTimedTask = tasks.FirstOrDefault(t => t.Status == BookingTaskStatus.InProgress && (t.TaskType == "CheckIn" || t.TaskType == "Washing" || t.TaskType == "AddonProcessing"));
+                    if (activeTimedTask != null)
+                    {
+                        activeTimedTask.Status = BookingTaskStatus.Completed;
+                        activeTimedTask.CompletedAt = DateTime.Now;
+
+                        var nextPendingTask = tasks.FirstOrDefault(t => t.Status == BookingTaskStatus.Pending);
+                        if (nextPendingTask != null)
+                        {
+                            nextPendingTask.Status = BookingTaskStatus.InProgress;
+                            nextPendingTask.StartedAt = DateTime.Now;
+                            foreach (var q in queues)
+                            {
+                                q.CurrentStage = nextPendingTask.TaskType;
+                            }
+                        }
+                    }
                 }
 
                 await _context.SaveChangesAsync();
