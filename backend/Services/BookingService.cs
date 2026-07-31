@@ -360,7 +360,15 @@ namespace Auto_Wash.Services
 
                         if (redemption.Reward.RewardType == "DiscountPercent" || redemption.Reward.RewardType == "UpgradeReward")
                         {
-                            promoDiscount = (int)(calculatedBasePrice * (redemption.Reward.DiscountValue ?? 0) / 100);
+                            decimal discPct = redemption.Reward.DiscountValue ?? 0;
+                            promoDiscount = (int)Math.Round(calculatedBasePrice * discPct / 100m);
+
+                            // Enforce maximum discount cap based on BusinessSettings
+                            int maxCap = BusinessSettings.GetMaxDiscountCap(discPct);
+                            if (promoDiscount > maxCap)
+                            {
+                                promoDiscount = maxCap;
+                            }
                         }
                         else
                         {

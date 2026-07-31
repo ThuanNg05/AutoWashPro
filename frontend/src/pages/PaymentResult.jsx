@@ -70,9 +70,9 @@ export const PaymentResult = () => {
           try {
             const loyalty = await customerService.getLoyaltyStatus();
             if (loyalty && updateUser) {
-              updateUser({
-                points: loyalty.currentPoints ?? loyalty.points,
-                tier: loyalty.tierName ?? loyalty.tier,
+                updateUser({
+                    points: loyalty.status?.points ?? 0,
+                    tier: loyalty.status?.tierName ?? "Member",
               });
             }
           } catch (loyaltyErr) {

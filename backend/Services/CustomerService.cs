@@ -13,10 +13,12 @@ namespace Auto_Wash.Services
     public class CustomerService
     {
         private readonly AutoWashDbContext _context;
+        private readonly LoyaltyTierService _loyaltyTierService;
 
-        public CustomerService(AutoWashDbContext context)
+        public CustomerService(AutoWashDbContext context, LoyaltyTierService loyaltyTierService)
         {
             _context = context;
+            _loyaltyTierService = loyaltyTierService;
         }
 
         public async Task<bool> UpdateProfileAsync(int accountId, string fullName, string? phone)
@@ -238,14 +240,14 @@ namespace Auto_Wash.Services
             var now = DateTime.Now;
             var query = _context.Rewards
                 .Include(r => r.Service)
-                .Where(r => !r.IsAutomaticReward)
+                .Where(r => r.IsActive && !r.IsAutomaticReward)
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(category) && category != "All")
             {
                 if (category == "Voucher")
                 {
-                    query = query.Where(r => r.RewardType == "DiscountPercent" || r.RewardType == "DiscountFixed");
+                    query = query.Where(r => r.RewardType == "Voucher" || r.RewardType == "DiscountMoney" || r.RewardType == "DiscountPercent");
                 }
                 else if (category == "FreeService")
                 {
@@ -421,13 +423,19 @@ namespace Auto_Wash.Services
             var customer = await _context.Customers.FirstOrDefaultAsync(c => c.CustomerId == customerId);
             if (customer == null) return null;
 
-            // Read-only: compute current-period spend without modifying any state.
+            // Auto-evaluate tier upgrade to guarantee customer is promoted the moment spend qualifies
+            if (_loyaltyTierService != null)
+            {
+                await _loyaltyTierService.EvaluateUpgradeAsync(customer, now);
+                await _context.SaveChangesAsync();
+            }
+
             var (periodStart, periodEnd) = LoyaltyTierService.GetCurrentReviewPeriod(now);
             int periodSpend = await _context.Bookings
                 .Where(b => b.CustomerId == customerId
                          && b.Status == BookingStatus.Completed
-                         && b.CompletedAt >= periodStart
-                         && b.CompletedAt <= now
+                         && b.CreatedAt >= periodStart
+                         && b.CreatedAt <= periodEnd
                          && b.Payment != null
                          && b.Payment.Status == (int)PaymentStatus.Paid)
                 .SumAsync(b => (int?)b.FinalPrice) ?? 0;
@@ -451,6 +459,7 @@ namespace Auto_Wash.Services
                 periodStart = periodStart.ToString("yyyy-MM-dd"),
                 periodEnd = periodEnd.ToString("yyyy-MM-dd"),
                 periodSpend = periodSpend,
+                windowedSpend = periodSpend,
                 currentTierMin = current.MinRankingBalance,
                 nextTierName = next?.TierName,
                 nextTierMin = next?.MinRankingBalance,

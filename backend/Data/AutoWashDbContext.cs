@@ -429,15 +429,79 @@ namespace Auto_Wash.Data
 
             // 21. TierChangeLogs (configured at the end of OnModelCreating to override lowercase convention)
 
+            // 21. Seed Tiers & LoyaltyConfig
+            builder.Entity<Tier>().HasData(
+                new Tier
+                {
+                    TierId = 1,
+                    TierName = "Member",
+                    MinRankingBalance = 0,
+                    MaintainBalance = 0,
+                    BookingWindowDays = 7,
+                    QueuePriority = 1,
+                    PointMultiplier = 1.00m,
+                    DiscountPercent = 0.00m,
+                    SortOrder = 1
+                },
+                new Tier
+                {
+                    TierId = 2,
+                    TierName = "Silver",
+                    MinRankingBalance = 50000,
+                    MaintainBalance = 30000,
+                    BookingWindowDays = 14,
+                    QueuePriority = 2,
+                    PointMultiplier = 1.25m,
+                    DiscountPercent = 2.00m,
+                    SortOrder = 2
+                },
+                new Tier
+                {
+                    TierId = 3,
+                    TierName = "Gold",
+                    MinRankingBalance = 150000,
+                    MaintainBalance = 100000,
+                    BookingWindowDays = 30,
+                    QueuePriority = 3,
+                    PointMultiplier = 1.50m,
+                    DiscountPercent = 5.00m,
+                    SortOrder = 3
+                },
+                new Tier
+                {
+                    TierId = 4,
+                    TierName = "Platinum",
+                    MinRankingBalance = 300000,
+                    MaintainBalance = 200000,
+                    BookingWindowDays = 60,
+                    QueuePriority = 4,
+                    PointMultiplier = 2.00m,
+                    DiscountPercent = 10.00m,
+                    SortOrder = 4
+                }
+            );
+
+            builder.Entity<LoyaltyConfig>().HasData(
+                new LoyaltyConfig
+                {
+                    ConfigId = 1,
+                    PointsPerThousandVND = 10,
+                    PointExpiryMonths = 12,
+                    TierReviewDayOfMonth = 1,
+                    RankingWindowYears = 2,
+                    UpdatedAt = DateTime.UtcNow
+                }
+            );
+
             builder.Entity<Service>().HasData(
                 // === MAIN SERVICES (IsAddOn = false) ===
                 new Service
                 {
                     ServiceId = 999,
                     ServiceName = "Standard Car Wash",
-                    Description = "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối. Phù hợp cho khách hàng cần rửa xe định kỳ.",
+                    Description = "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.",
                     Category = ServiceCategory.Basic,
-                    BasePrice = 149000,
+                    BasePrice = 14900,
                     EstimatedMinutes = 50,
                     IsAddOn = false,
                     IsActive = true,
@@ -447,9 +511,9 @@ namespace Auto_Wash.Data
                 {
                     ServiceId = 1000,
                     ServiceName = "Premium Car Wash",
-                    Description = "Bao gồm tất cả gói Standard, cộng thêm: Rửa bọt cao cấp, đánh bóng lốp, vệ sinh nội thất sâu, dưỡng da ghế, phục hồi nhựa nội thất, hoàn thiện cao cấp. Phù hợp cho xe sang hoặc khách hàng muốn chăm sóc toàn diện.",
+                    Description = "Bao gồm tất cả gói Standard, cộng thêm: Rửa bọt cao cấp, đánh bóng lốp, vệ sinh nội thất sâu, dưỡng da ghế, phục hồi nhựa nội thất, hoàn thiện cao cấp.",
                     Category = ServiceCategory.Premium,
-                    BasePrice = 299000,
+                    BasePrice = 29900,
                     EstimatedMinutes = 90,
                     IsAddOn = false,
                     IsActive = true,
@@ -463,7 +527,7 @@ namespace Auto_Wash.Data
                     ServiceName = "Wax Coating",
                     Description = "Phủ lớp sáp bảo vệ bề mặt sơn, tạo độ bóng cao và chống bám bẩn.",
                     Category = ServiceCategory.AddOn,
-                    BasePrice = 79000,
+                    BasePrice = 7900,
                     EstimatedMinutes = 15,
                     IsAddOn = true,
                     IsActive = true,
@@ -475,7 +539,7 @@ namespace Auto_Wash.Data
                     ServiceName = "Nano Ceramic Spray",
                     Description = "Phủ ceramic nano tạm thời, tăng khả năng chống nước và bảo vệ sơn xe.",
                     Category = ServiceCategory.AddOn,
-                    BasePrice = 199000,
+                    BasePrice = 19900,
                     EstimatedMinutes = 25,
                     IsAddOn = true,
                     IsActive = true,
@@ -487,7 +551,7 @@ namespace Auto_Wash.Data
                     ServiceName = "Engine Bay Cleaning",
                     Description = "Vệ sinh khoang máy an toàn, loại bỏ bụi bẩn và dầu mỡ tích tụ.",
                     Category = ServiceCategory.AddOn,
-                    BasePrice = 99000,
+                    BasePrice = 9900,
                     EstimatedMinutes = 20,
                     IsAddOn = true,
                     IsActive = true,
@@ -499,7 +563,7 @@ namespace Auto_Wash.Data
                     ServiceName = "Interior Odor Removal",
                     Description = "Khử mùi hôi nội thất và làm mới không khí cabin xe.",
                     Category = ServiceCategory.AddOn,
-                    BasePrice = 69000,
+                    BasePrice = 6900,
                     EstimatedMinutes = 15,
                     IsAddOn = true,
                     IsActive = true,
@@ -511,7 +575,7 @@ namespace Auto_Wash.Data
                     ServiceName = "Leather Seat Conditioning",
                     Description = "Dưỡng ẩm và bảo vệ ghế da, giúp da mềm mại và kéo dài tuổi thọ.",
                     Category = ServiceCategory.AddOn,
-                    BasePrice = 129000,
+                    BasePrice = 12900,
                     EstimatedMinutes = 20,
                     IsAddOn = true,
                     IsActive = true,
@@ -523,7 +587,7 @@ namespace Auto_Wash.Data
                     ServiceName = "Headlight Restoration",
                     Description = "Phục hồi đèn pha bị mờ, cải thiện khả năng chiếu sáng và thẩm mỹ.",
                     Category = ServiceCategory.AddOn,
-                    BasePrice = 159000,
+                    BasePrice = 15900,
                     EstimatedMinutes = 25,
                     IsAddOn = true,
                     IsActive = true,
@@ -532,12 +596,62 @@ namespace Auto_Wash.Data
             );
 
             builder.Entity<Reward>().HasData(
+                // Money Vouchers
                 new Reward
                 {
                     RewardId = 1001,
+                    RewardName = "Voucher 1.000đ",
+                    Description = "Voucher giảm trực tiếp 1.000đ cho hóa đơn dịch vụ",
+                    PointCost = 500,
+                    RewardType = "DiscountMoney",
+                    DiscountValue = 1000,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1002,
+                    RewardName = "Voucher 2.000đ",
+                    Description = "Voucher giảm trực tiếp 2.000đ cho hóa đơn dịch vụ",
+                    PointCost = 1000,
+                    RewardType = "DiscountMoney",
+                    DiscountValue = 2000,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1003,
+                    RewardName = "Voucher 5.000đ",
+                    Description = "Voucher giảm trực tiếp 5.000đ cho hóa đơn dịch vụ",
+                    PointCost = 2500,
+                    RewardType = "DiscountMoney",
+                    DiscountValue = 5000,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1004,
+                    RewardName = "Voucher 10.000đ",
+                    Description = "Voucher giảm trực tiếp 10.000đ cho hóa đơn dịch vụ",
+                    PointCost = 5000,
+                    RewardType = "DiscountMoney",
+                    DiscountValue = 10000,
+                    ValidDays = 30,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                // Percentage Vouchers
+                new Reward
+                {
+                    RewardId = 1005,
                     RewardName = "Giảm giá 5%",
-                    Description = "Voucher giảm giá 5% cho hóa đơn dịch vụ",
-                    PointCost = 200,
+                    Description = "Voucher giảm giá 5% (tối đa 5.000đ) cho hóa đơn dịch vụ",
+                    PointCost = 3500,
                     RewardType = "DiscountPercent",
                     DiscountValue = 5,
                     ValidDays = 30,
@@ -546,55 +660,60 @@ namespace Auto_Wash.Data
                 },
                 new Reward
                 {
-                    RewardId = 1002,
+                    RewardId = 1006,
                     RewardName = "Giảm giá 10%",
-                    Description = "Voucher giảm giá 10% cho hóa đơn dịch vụ",
-                    PointCost = 400,
+                    Description = "Voucher giảm giá 10% (tối đa 10.000đ) cho hóa đơn dịch vụ",
+                    PointCost = 7000,
                     RewardType = "DiscountPercent",
                     DiscountValue = 10,
                     ValidDays = 30,
                     IsActive = true,
                     IsAutomaticReward = false
                 },
+                // Tier Upgrade Rewards (Automatic)
                 new Reward
                 {
-                    RewardId = 1003,
-                    RewardName = "Giảm giá 15%",
-                    Description = "Voucher giảm giá 15% cho hóa đơn dịch vụ",
-                    PointCost = 600,
-                    RewardType = "DiscountPercent",
+                    RewardId = 1007,
+                    RewardName = "Quà Nâng Hạng Silver (Voucher 5%)",
+                    Description = "Voucher giảm 5% (tối đa 5.000đ) mừng nâng hạng Silver",
+                    PointCost = 0,
+                    RewardType = "UpgradeReward",
+                    DiscountValue = 5,
+                    MinTierId = 2,
+                    ValidDays = 60,
+                    IsActive = true,
+                    IsAutomaticReward = true
+                },
+                new Reward
+                {
+                    RewardId = 1008,
+                    RewardName = "Quà Nâng Hạng Gold (Voucher 10% + Tire Shine)",
+                    Description = "Voucher giảm 10% (tối đa 10.000đ) + 01 lượt đánh bóng lốp mừng nâng hạng Gold",
+                    PointCost = 0,
+                    RewardType = "UpgradeReward",
+                    DiscountValue = 10,
+                    MinTierId = 3,
+                    ValidDays = 60,
+                    IsActive = true,
+                    IsAutomaticReward = true
+                },
+                new Reward
+                {
+                    RewardId = 1009,
+                    RewardName = "Quà Nâng Hạng Platinum (Voucher 15% + Standard Wash + Birthday Gift)",
+                    Description = "Voucher giảm 15% (tối đa 15.000đ) + 01 lượt rửa xe miễn phí + Quà sinh nhật độc quyền mừng nâng hạng Platinum",
+                    PointCost = 0,
+                    RewardType = "UpgradeReward",
                     DiscountValue = 15,
-                    ValidDays = 30,
+                    MinTierId = 4,
+                    ValidDays = 90,
                     IsActive = true,
-                    IsAutomaticReward = false
+                    IsAutomaticReward = true
                 },
+                // Physical Gift & Free Wash
                 new Reward
                 {
-                    RewardId = 1004,
-                    RewardName = "Giảm giá 20%",
-                    Description = "Voucher giảm giá 20% cho hóa đơn dịch vụ",
-                    PointCost = 800,
-                    RewardType = "DiscountPercent",
-                    DiscountValue = 20,
-                    ValidDays = 30,
-                    IsActive = true,
-                    IsAutomaticReward = false
-                },
-                new Reward
-                {
-                    RewardId = 1005,
-                    RewardName = "Rửa xe miễn phí",
-                    Description = "Voucher miễn phí dịch vụ Rửa xe tiêu chuẩn",
-                    PointCost = 1000,
-                    RewardType = "Free_Wash",
-                    ServiceId = 999,
-                    ValidDays = 30,
-                    IsActive = true,
-                    IsAutomaticReward = false
-                },
-                new Reward
-                {
-                    RewardId = 1006,
+                    RewardId = 1010,
                     RewardName = "Mũ bảo hiểm AutoWash",
                     Description = "Mũ bảo hiểm nửa đầu in logo AutoWash cao cấp",
                     PointCost = 500,
@@ -602,6 +721,18 @@ namespace Auto_Wash.Data
                     ValidDays = 60,
                     StockLimit = 50,
                     RedeemedCount = 0,
+                    IsActive = true,
+                    IsAutomaticReward = false
+                },
+                new Reward
+                {
+                    RewardId = 1011,
+                    RewardName = "Rửa xe tiêu chuẩn miễn phí",
+                    Description = "Voucher miễn phí dịch vụ Rửa xe tiêu chuẩn (Standard Wash)",
+                    PointCost = 1000,
+                    RewardType = "Free_Wash",
+                    ServiceId = 999,
+                    ValidDays = 30,
                     IsActive = true,
                     IsAutomaticReward = false
                 }
