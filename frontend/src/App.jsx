@@ -26,6 +26,7 @@ const AdminServices = lazy(() => import('./pages/AdminServices'));
 const AdminBookings = lazy(() => import('./pages/AdminBookings'));
 const AdminTransactions = lazy(() => import('./pages/AdminTransactions'));
 const AdminDemoTools = lazy(() => import('./pages/AdminDemoTools'));
+const AdminRebook = lazy(() => import('./pages/AdminRebook'));
 const PaymentResult = lazy(() => import('./pages/PaymentResult'));
 const PaymentCheckout = lazy(() => import('./pages/PaymentCheckout'));
 const AdminOwnershipTransfers = lazy(() => import('./pages/AdminOwnershipTransfers'));
@@ -91,6 +92,7 @@ function App() {
             <Route path="services" element={<AdminServices />} />
             <Route path="transactions" element={<AdminTransactions />} />
             <Route path="demo-tools" element={<AdminDemoTools />} />
+            <Route path="rebook" element={<AdminRebook />} />
             <Route path="ownership-transfers" element={<AdminOwnershipTransfers />} />
           </Route>
 

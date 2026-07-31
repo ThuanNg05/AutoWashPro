@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
@@ -21,6 +22,67 @@ namespace Auto_Wash.Controllers
             var role = HttpContext.Session.GetString("UserRole");
             return string.Equals(role, "admin", StringComparison.OrdinalIgnoreCase) ||
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Ngữ cảnh cho trang staff đặt lại lịch hộ khách (tên khách, số ngày đặt trước
+        // theo hạng, danh sách xe). Mở qua tab mới sau khi mô phỏng lỗi hệ thống.
+        [HttpGet]
+        [Route("api/admin/bookings/rebook-context")]
+        public async Task<IActionResult> GetRebookContext([FromQuery] int customerId)
+        {
+            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+
+            try
+            {
+                var context = await _adminBookingService.GetRebookContextAsync(customerId);
+                if (context == null)
+                {
+                    return NotFound(new { success = false, message = "Không tìm thấy khách hàng." });
+                }
+                return Ok(new { success = true, context });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // Staff đặt lịch hộ một khách hàng cụ thể — tái dùng toàn bộ validation của
+        // luồng đặt lịch khách hàng (slot capacity, khung ngày theo hạng, lịch dở dang).
+        [HttpPost]
+        [Route("api/admin/bookings/create-for-customer")]
+        public async Task<IActionResult> CreateForCustomer([FromBody] StaffCreateBookingDto request)
+        {
+            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+
+            if (request == null || request.CustomerId <= 0)
+            {
+                return BadRequest(new { success = false, message = "Dữ liệu đặt lịch không hợp lệ." });
+            }
+
+            try
+            {
+                var dto = new CreateBookingDto
+                {
+                    LicensePlate = request.LicensePlate,
+                    MainServiceName = request.MainServiceName,
+                    AddOnServiceNames = request.AddOnServiceNames ?? new List<string>(),
+                    BookingDate = request.BookingDate,
+                    BookingTime = request.BookingTime,
+                    Notes = request.Notes
+                };
+
+                var result = await _adminBookingService.CreateBookingForCustomerAsync(request.CustomerId, dto);
+                if (!result.success)
+                {
+                    return BadRequest(new { success = false, message = result.message });
+                }
+                return Ok(new { success = true, bookingId = result.bookingId });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
         }
 
         [HttpGet]

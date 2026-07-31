@@ -16,12 +16,80 @@ namespace Auto_Wash.Services
         private readonly AutoWashDbContext _context;
         private readonly BookingNotificationService _bookingNotificationService;
         private readonly IConfiguration _configuration;
-            
-        public AdminBookingService(AutoWashDbContext context, BookingNotificationService bookingNotificationService, IConfiguration configuration)
+        private readonly BookingService _bookingService;
+
+        public AdminBookingService(AutoWashDbContext context, BookingNotificationService bookingNotificationService, IConfiguration configuration, BookingService bookingService)
         {
             _context = context;
             _bookingNotificationService = bookingNotificationService;
             _configuration = configuration;
+            _bookingService = bookingService;
+        }
+
+        /// <summary>
+        /// Ngữ cảnh cho trang staff đặt lại lịch hộ khách: tên khách, số ngày được đặt
+        /// trước theo hạng thành viên (Tier.BookingWindowDays) và danh sách xe kèm cờ
+        /// đang có lịch dở dang để chặn đặt trùng.
+        /// </summary>
+        public async Task<object?> GetRebookContextAsync(int customerId)
+        {
+            var customer = await _context.Customers
+                .Include(c => c.Account)
+                .Include(c => c.Tier)
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+            if (customer == null) return null;
+
+            int bookingWindowDays = customer.Tier?.BookingWindowDays ?? 7;
+
+            var vehicles = await _context.Vehicles
+                .Where(v => v.CustomerId == customerId)
+                .ToListAsync();
+
+            var vehicleList = new List<object>();
+            foreach (var v in vehicles)
+            {
+                bool hasActiveBooking = await _context.Bookings
+                    .WhereActive()
+                    .AnyAsync(b => b.VehicleId == v.VehicleId);
+
+                vehicleList.Add(new
+                {
+                    vehicleId = v.VehicleId,
+                    licensePlate = v.LicensePlate,
+                    brand = v.Brand,
+                    model = v.Model,
+                    vehicleClass = v.VehicleClass,
+                    hasActiveBooking
+                });
+            }
+
+            return new
+            {
+                customerId = customer.CustomerId,
+                customerName = customer.Account?.FullName ?? "Khách hàng",
+                tierName = customer.Tier?.TierName ?? "",
+                bookingWindowDays,
+                vehicles = vehicleList
+            };
+        }
+
+        /// <summary>
+        /// Staff đặt lịch hộ một khách hàng cụ thể. Nạp khách theo customerId rồi gọi lại
+        /// đúng luồng CreateBookingAsync để tái dùng toàn bộ validation (slot capacity,
+        /// khung ngày theo hạng, lịch dở dang...).
+        /// </summary>
+        public async Task<(bool success, string message, int bookingId)> CreateBookingForCustomerAsync(int customerId, CreateBookingDto request)
+        {
+            var customer = await _context.Customers
+                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+
+            if (customer == null)
+            {
+                return (false, "Không tìm thấy khách hàng.", 0);
+            }
+
+            return await _bookingService.CreateBookingAsync(customer, request);
         }
 
         public async Task<List<object>> GetAdminBookingsAsync()

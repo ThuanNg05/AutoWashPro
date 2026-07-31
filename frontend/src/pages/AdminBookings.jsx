@@ -20,9 +20,12 @@ export const AdminBookings = () => {
   const [loading, setLoading] = useState(true);
   
   // Filters
+  // Mặc định: tất cả trạng thái + ngày hôm nay -> khi vào trang hiển thị đúng
+  // danh sách đặt lịch của hôm nay (trước đây default 'WAITING_CHECKIN' không khớp
+  // option nào trong dropdown nên trông như "Tất cả" mà danh sách lại rỗng).
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('WAITING_CHECKIN');
-  const [dateFilter, setDateFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [dateFilter, setDateFilter] = useState(() => new Date().toLocaleDateString('sv-SE'));
   
   // Drawer State
   const [selectedBookingId, setSelectedBookingId] = useState(null);
