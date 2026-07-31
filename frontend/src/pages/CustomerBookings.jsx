@@ -496,7 +496,7 @@ export const CustomerBookings = () => {
     switch (status) {
       case 'Pending':
       case 'Pending Confirmation':
-        return { label: 'Chờ xác nhận', badgeClass: 'bg-warning bg-opacity-15 text-warning', icon: 'fa-hourglass-start' };
+        return { label: 'Chờ xác nhận', badgeClass: 'bg-warning bg-opacity-10 text-warning', icon: 'fa-hourglass-start' };
       case 'Confirmed':
         return { label: 'Đã xác nhận', badgeClass: 'bg-primary bg-opacity-10 text-primary', icon: 'fa-calendar-check' };
       case 'CheckedIn':
@@ -508,7 +508,7 @@ export const CustomerBookings = () => {
         return { label: 'Đã hủy', badgeClass: 'bg-danger bg-opacity-10 text-danger', icon: 'fa-times-circle' };
       case 'NoShow':
       case 'No Show':
-        return { label: 'Khách không đến', badgeClass: 'bg-danger bg-opacity-15 text-danger fw-bold', icon: 'fa-user-slash' };
+        return { label: 'Khách không đến', badgeClass: 'bg-danger bg-opacity-10 text-danger fw-bold', icon: 'fa-user-slash' };
       case 'WaitingCheckout':
         return { label: 'Chờ thanh toán', badgeClass: 'bg-warning bg-opacity-25 text-dark', icon: 'fa-file-invoice-dollar' };
       default:

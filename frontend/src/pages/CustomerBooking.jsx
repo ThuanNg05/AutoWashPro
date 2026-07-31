@@ -681,15 +681,6 @@ export const CustomerBooking = () => {
                             }
                           }}
                         >
-                          <div className="form-check m-0 mt-0.5 pointer-events-none">
-                            <input
-                              type="checkbox"
-                              className="form-check-input"
-                              checked={isChecked}
-                              readOnly
-                              style={{ cursor: "pointer" }}
-                            />
-                          </div>
                           <div className="flex-grow-1" style={{ marginTop: "-2px" }}>
                             <div className="d-flex justify-content-between align-items-center">
                               <strong className={isChecked ? "text-info" : "text-dark"} style={{ fontSize: "0.78rem" }}>
