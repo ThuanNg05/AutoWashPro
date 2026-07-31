@@ -1145,13 +1145,18 @@ export const AdminBookings = () => {
                         <label className="form-label small fw-bold text-muted mb-1">
                           CHỌN GIỜ MỚI *
                         </label>
-                        <input
-                          type="time"
-                          className="form-control bg-white border py-2 text-dark fw-bold"
-                          style={{ fontSize: "0.82rem" }}
+                        <select
+                          className="form-select bg-white border py-2 text-dark fw-bold"
+                          style={{ fontSize: "0.82rem", borderRadius: "8px" }}
                           value={rescheduleTime}
                           onChange={(e) => setRescheduleTime(e.target.value)}
-                        />
+                        >
+                          {timeSlots.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div className="col-12 mt-2">
                         <label className="form-label small fw-bold text-muted mb-1">
