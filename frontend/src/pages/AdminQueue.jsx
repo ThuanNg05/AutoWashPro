@@ -357,6 +357,47 @@
         }
       };
 
+      // DEMO: mô phỏng hệ thống rửa xe gặp sự cố khi đang rửa -> dừng tiến trình,
+      // hủy lịch (không thu phí), gửi email cho khách và mở tab đặt lại lịch.
+      const handleDemoSystemError = (vehicle) => {
+        const { queueId, licensePlate } = vehicle;
+        const performError = async () => {
+          try {
+            const res = await adminService.simulateSystemError(queueId);
+            if (res && res.success) {
+              if (window.showToast)
+                window.showToast(
+                  "DEMO: Hệ thống lỗi — đã dừng tiến trình, hủy lịch (không thu phí) và gửi email cho khách.",
+                  "success",
+                );
+              setSelectedVehicle(null);
+              fetchQueue();
+              // Mở tab mới để staff đặt lại lịch cho khách trong slot hợp lệ tiếp theo
+              const params = new URLSearchParams({
+                customerId: String(res.customerId),
+                plate: res.licensePlate || licensePlate || "",
+              });
+              window.open(`/admin/rebook?${params.toString()}`, "_blank");
+            } else {
+              if (window.showToast)
+                window.showToast(res?.message || "Lỗi mô phỏng sự cố hệ thống", "error");
+            }
+          } catch (err) {
+            console.error("Simulate system error failed", err);
+            const errMsg =
+              err.response?.data?.message || "Lỗi hệ thống khi mô phỏng sự cố";
+            if (window.showToast) window.showToast(errMsg, "error");
+          }
+        };
+
+        const confirmMsg = `DEMO: Mô phỏng hệ thống gặp lỗi khi đang rửa xe ${licensePlate}? Tiến trình sẽ DỪNG, lịch bị HỦY (không thu phí), gửi email cho khách và mở tab đặt lại lịch.`;
+        if (window.showConfirm) {
+          window.showConfirm("Mô phỏng lỗi hệ thống", confirmMsg, performError);
+        } else if (window.confirm(confirmMsg)) {
+          performError();
+        }
+      };
+
       // Checkout and clean out queue
       const handleCheckoutVehicle = (queueId, plate) => {
         if (submittingIds.has(queueId)) return;
@@ -1382,25 +1423,41 @@
                             getModalStages(selectedVehicle).find((s) => s.isActive)
                               ?.stageKey,
                           ) && (
-                            <button
-                              className="btn btn-sm fw-bold"
-                              style={{
-                                fontSize: "0.62rem",
-                                border: "1px solid #8b5cf6",
-                                color: "#8b5cf6",
-                                background: "transparent",
-                                borderRadius: "8px",
-                              }}
-                              title="Demo: bỏ qua thời gian chờ, nhảy thẳng đến bước Tự động chụp ảnh"
-                              onClick={() =>
-                                handleDemoSkipToCapture(
-                                  selectedVehicle.bookingId,
-                                  selectedVehicle.licensePlate,
-                                )
-                              }
-                            >
-                              DEMO: BỎ QUA TIẾN TRÌNH
-                            </button>
+                            <div className="d-flex gap-1">
+                              <button
+                                className="btn btn-sm fw-bold"
+                                style={{
+                                  fontSize: "0.62rem",
+                                  border: "1px solid #8b5cf6",
+                                  color: "#8b5cf6",
+                                  background: "transparent",
+                                  borderRadius: "8px",
+                                }}
+                                title="Demo: bỏ qua thời gian chờ, nhảy thẳng đến bước Tự động chụp ảnh"
+                                onClick={() =>
+                                  handleDemoSkipToCapture(
+                                    selectedVehicle.bookingId,
+                                    selectedVehicle.licensePlate,
+                                  )
+                                }
+                              >
+                                DEMO: BỎ QUA TIẾN TRÌNH
+                              </button>
+                              <button
+                                className="btn btn-sm fw-bold"
+                                style={{
+                                  fontSize: "0.62rem",
+                                  border: "1px solid #ef4444",
+                                  color: "#ef4444",
+                                  background: "transparent",
+                                  borderRadius: "8px",
+                                }}
+                                title="Demo: mô phỏng hệ thống lỗi — dừng tiến trình, hủy lịch (không thu phí), gửi email và mở tab đặt lại lịch"
+                                onClick={() => handleDemoSystemError(selectedVehicle)}
+                              >
+                                DEMO: HỆ THỐNG LỖI
+                              </button>
+                            </div>
                           )}
                       </div>
                       <div className="d-flex flex-column gap-2 mb-3">

@@ -3,6 +3,35 @@
    AutoWash Pro — SWP391 FPT University
    ============================================================ */
 
+/* ── Khung danh sách có thanh cuộn dọc bên trong ──────────────
+   Dùng cho danh sách lịch sử chăm sóc xe & danh sách quản lý lịch hẹn,
+   để phần header/tab phía trên luôn hiển thị, chỉ cuộn phần danh sách. */
+.history-scroll-area {
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 6px;
+}
+/* Khi vùng scroll là flex-column (danh sách card), ngăn flex bóp chiều cao card:
+   giữ nguyên chiều cao tự nhiên của từng card, vùng chỉ cuộn dọc.
+   (Với ngữ cảnh block như col-12 ở CustomerBookings thì rule này vô hại.) */
+.history-scroll-area > * {
+    flex-shrink: 0;
+}
+.history-scroll-area::-webkit-scrollbar {
+    width: 8px;
+}
+.history-scroll-area::-webkit-scrollbar-track {
+    background: transparent;
+}
+.history-scroll-area::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 8px;
+}
+.history-scroll-area::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
 /* ── Survey Stars ─────────────────────────────────────────── */
 .survey-star {
     background: none; border: none;

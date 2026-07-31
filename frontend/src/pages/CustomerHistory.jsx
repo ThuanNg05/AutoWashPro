@@ -293,11 +293,11 @@ export const CustomerHistory = () => {
                   LỊCH SỬ CHĂM SÓC XE ({history.length})
                 </h5>
 
-                <div className="d-flex flex-column gap-3">
+                <div className="d-flex flex-column gap-3 history-scroll-area">
                   {history.length === 0 ? (
                     <div className="text-center py-5 text-muted">
-                      <div className="empty-state-icon mb-3">
-                        <i className="fas fa-history fa-2x"></i>
+                      <div className="empty-state-icon mb-3 mx-auto" style={{ width: "56px", height: "56px" }}>
+                        <i className="fas fa-history fa-lg"></i>
                       </div>
                       <h5 className="fw-bold mb-2">
                         Bạn chưa có giao dịch hoàn thành nào
@@ -519,8 +519,8 @@ export const CustomerHistory = () => {
 
                   {transactions.length === 0 ? (
                     <div className="text-center py-5 text-muted">
-                      <div className="empty-state-icon mb-3">
-                        <i className="fas fa-receipt fa-2x"></i>
+                      <div className="empty-state-icon mb-3 mx-auto" style={{ width: "56px", height: "56px" }}>
+                        <i className="fas fa-receipt fa-lg"></i>
                       </div>
                       <h5 className="fw-bold mb-2">Chưa có giao dịch nào</h5>
                       <p className="small mb-0">

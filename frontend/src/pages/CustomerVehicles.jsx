@@ -23,6 +23,36 @@ const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
 const MAX_FILES = 5;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+// Validate định dạng biển số Ô TÔ — mirror LicensePlateHelper.IsValidVietnameseLicensePlate ở backend.
+// Sau khi chuẩn hoá (bỏ khoảng trắng/-/. và viết hoa): [2 số tỉnh][1 chữ series][4-5 số].
+// (4 số cho xe đời cũ, 5 số cho xe hiện nay.)
+// Series ô tô dùng 1 trong 20 chữ A B C D E F G H K L M N P S T U V X Y Z (nền xanh (i)
+// dùng tập con 11 chữ A..M) -> char class [A-HK-NPS-VX-Z], loại I, J, O, Q, R, W.
+// Ngoại lệ: series "LD" (2 chữ) cho xe doanh nghiệp liên doanh/có vốn nước ngoài (VD 50LD25689).
+// Chỉ chấp nhận series 1 chữ (hoặc "LD") nên loại xe mô tô (series 2 ký tự) và CD/RM.
+const VN_PROVINCE_CODES = new Set([
+  '11', '12', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27',
+  '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38', '40', '41', '43', '47', '48',
+  '49', '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', '60', '61', '62', '63', '64',
+  '65', '66', '67', '68', '69', '70', '71', '72', '73', '74', '75', '76', '77', '78', '79', '80',
+  '81', '82', '83', '84', '85', '86', '88', '89', '90', '92', '93', '94', '95', '97', '98', '99',
+]);
+
+const normalizeVnPlate = (plate) => (plate || '').trim().toUpperCase().replace(/[\s\-.]/g, '');
+
+const isValidVnPlate = (plate) => {
+  const raw = (plate || '').trim().toUpperCase();
+  if (!raw) return false;
+  // Kiểm tra INPUT THÔ theo đúng vị trí dấu phân cách, không xoá hết rồi mới match
+  // (xoá hết sẽ khiến "50L-4-5626" hoặc "50D----5688" lọt qua):
+  //   [2 số tỉnh][series 1 chữ hoặc "LD"][- tuỳ chọn][phần số]
+  //   phần số = 4-5 số liền, hoặc dạng có 1 dấu '.' ngăn 2 số cuối (VD 888.88, 12.34).
+  //   Dấu '-' chỉ được đứng ngay sau series; dấu '.' chỉ trong phần số. Không dấu ở chỗ khác.
+  const match = raw.match(/^(\d{2})(?:[A-HK-NPS-VX-Z]|LD)-?(?:\d{4,5}|\d{2,3}\.\d{2})$/);
+  if (!match) return false;
+  return VN_PROVINCE_CODES.has(match[1]);
+};
+
 export const CustomerVehicles = () => {
   const { user } = useAuth();
   const [vehicles, setVehicles] = useState([]);
@@ -69,6 +99,7 @@ export const CustomerVehicles = () => {
   const [regPlateIsOwn, setRegPlateIsOwn] = useState(false);
   const [regPlateWarning, setRegPlateWarning] = useState(null);
   const [plateCheckLoading, setPlateCheckLoading] = useState(false);
+  const [regPlateFormatError, setRegPlateFormatError] = useState(null);
 
   // Transfer request form state (when plate is duplicated)
   const [transferFiles, setTransferFiles] = useState([]);
@@ -223,16 +254,30 @@ export const CustomerVehicles = () => {
 
   // Debounced check plate
   useEffect(() => {
-    const cleanPlate = regLicensePlate.trim().toUpperCase().replace(/[\s\-.]/g, '');
-    if (cleanPlate.length < 5) {
-      setRegPlateWarning(null);
-      setRegPlateDuplicated(false);
-      setRegPlateIsOwn(false);
+    const cleanPlate = normalizeVnPlate(regLicensePlate);
+
+    // Reset các trạng thái phụ thuộc mỗi lần gõ
+    setRegPlateWarning(null);
+    setRegPlateDuplicated(false);
+    setRegPlateIsOwn(false);
+    setRegStatusMessage(null);
+
+    // Chưa đủ dài để đánh giá (biển ô tô hợp lệ 7-8 ký tự: 4-5 số) -> coi như đang gõ
+    if (cleanPlate.length < 7) {
+      setRegPlateFormatError(null);
       setRegPlateChecked(false);
-      setRegStatusMessage(null);
       return;
     }
 
+    // Sai định dạng biển số ô tô (hoặc chứa ký tự lạ / quá nhiều dấu phân cách)
+    // -> chặn, không gọi check trùng / không mở form. Dùng input THÔ để bắt được rác.
+    if (!isValidVnPlate(regLicensePlate)) {
+      setRegPlateFormatError('Biển số ô tô không đúng định dạng (VD: 51H-888.88).');
+      setRegPlateChecked(false);
+      return;
+    }
+
+    setRegPlateFormatError(null);
     const delayDebounceFn = setTimeout(() => {
       handleCheckPlate(cleanPlate);
     }, 450);
@@ -327,6 +372,10 @@ export const CustomerVehicles = () => {
     const finalBrand = regBrand === 'Khác' ? regCustomBrand.trim() : regBrand;
     if (!cleanPlate) {
       if (window.showToast) window.showToast('Biển số không hợp lệ.', 'warning');
+      return;
+    }
+    if (!isValidVnPlate(regLicensePlate)) {
+      if (window.showToast) window.showToast('Biển số ô tô không đúng định dạng.', 'warning');
       return;
     }
     if (!finalBrand) {
@@ -728,6 +777,7 @@ export const CustomerVehicles = () => {
     setRegPlateIsOwn(false);
     setRegPlateWarning(null);
     setRegPlateChecked(false);
+    setRegPlateFormatError(null);
     setTransferFiles([]);
     setTransferDescription('');
     setPlateCheckLoading(false);
@@ -1187,6 +1237,13 @@ export const CustomerVehicles = () => {
                   )}
                 </div>
                 
+                {/* Sai định dạng biển số Việt Nam (đỏ) */}
+                {regPlateFormatError && (
+                  <div className="validation-text-v2 mt-2 text-start" style={{ fontWeight: '500' }}>
+                    {regPlateFormatError}
+                  </div>
+                )}
+
                 {/* Available inline message (small green text, no icon, no background) */}
                 {regPlateChecked && !regPlateDuplicated && !regPlateIsOwn && (
                   <div className="status-text-v2 mt-2 text-start text-success" style={{ fontWeight: '500', fontSize: '13px' }}>
@@ -1202,7 +1259,7 @@ export const CustomerVehicles = () => {
                 )}
 
                 {/* Helper text shown initially when not checked */}
-                {!regPlateChecked && !plateCheckLoading && (
+                {!regPlateChecked && !plateCheckLoading && !regPlateFormatError && (
                   <small className="helper-text-v2 mt-1.5 d-block">
                     Nhập biển số để kiểm tra xem xe đã được đăng ký hay chưa.
                   </small>

@@ -150,6 +150,32 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        [HttpPost("SimulateSystemError")]
+        public async Task<IActionResult> SimulateSystemError(int id)
+        {
+            if (!IsAdminOrStaff()) return Unauthorized();
+
+            try
+            {
+                var result = await _adminQueueService.SimulateSystemErrorAsync(id);
+                if (!result.success)
+                {
+                    return BadRequest(new { success = false, message = result.message });
+                }
+                return Ok(new
+                {
+                    success = true,
+                    message = result.message,
+                    customerId = result.customerId,
+                    licensePlate = result.licensePlate
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         [HttpPost("AddWalkIn")]
         public async Task<IActionResult> AddWalkIn([FromBody] WalkInRequestDto request)
         {

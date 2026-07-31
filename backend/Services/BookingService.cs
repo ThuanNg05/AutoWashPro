@@ -961,7 +961,7 @@ namespace Auto_Wash.Services
                     {
                         CustomerId = customerId,
                         Title = "Đổi lịch hẹn thành công",
-                           Message = $"Lịch hẹn #{booking.BookingId} cho xe {booking.Vehicle?.LicensePlate} đã được đổi sang {newScheduledAt:dd/MM/yyyy HH:mm}.",
+                        Message = $"Lịch hẹn #{booking.BookingId} cho xe {booking.Vehicle?.LicensePlate} đã được đổi sang {newScheduledAt:dd/MM/yyyy HH:mm}.",
                         Type = "Booking",
                         IsRead = false,
                         CreatedAt = DateTime.Now

@@ -18,11 +18,18 @@ namespace Auto_Wash.Helpers
             // Normalize: remove space, dash, dot, and convert to uppercase
             string cleanPlate = Normalize(licensePlate);
 
-            // Vietnamese plate formats (after normalization):
-            //   Cars/trucks : [2 digits][1 letter][5 digits]        e.g. 51A12345   (8 chars)
-            //   New series  : [2 digits][1 letter][1 digit][4 digits] e.g. 29H12345 (8 chars)
-            //   2-letter    : [2 digits][2 letters][4-5 digits]     e.g. 29AB12345  (9 chars)
-            var match = Regex.Match(cleanPlate, @"^(\d{2})[A-Z]{1,2}\d{4,5}$");
+            // Biển số Ô TÔ (sau chuẩn hoá, đã bỏ ký tự phân cách):
+            //   [2 số tỉnh][1 chữ series][4-5 số]  — ví dụ 51G88888 (5 số) hoặc 29S1234 (4 số, xe đời cũ)
+            //   Series ô tô dùng 1 trong 20 chữ: A B C D E F G H K L M N P S T U V X Y Z
+            //     - nền xanh (i)   : tập con 11 chữ A..M (cơ quan nhà nước)
+            //     - nền trắng (iii): đủ 20 chữ (tổ chức/cá nhân trong nước)
+            //     - nền vàng (v)   : đủ 20 chữ (kinh doanh vận tải)
+            //   char class [A-HK-NPS-VX-Z] loại I, J, O, Q, R, W (không dùng trên biển VN).
+            //   Ngoại lệ: series "LD" (2 chữ) cấp cho xe doanh nghiệp liên doanh/có vốn
+            //   nước ngoài — vẫn là ô tô, ví dụ 50LD25689.
+            //   Chỉ chấp nhận series 1 chữ (hoặc "LD") nên LOẠI xe mô tô (series chữ+số (ii),
+            //   chữ+chữ (iv)) và series chuyên dùng CD/RM (máy chuyên dùng, rơ moóc).
+            var match = Regex.Match(cleanPlate, @"^(\d{2})(?:[A-HK-NPS-VX-Z]|LD)\d{4,5}$");
             if (!match.Success) return false;
 
             string provinceCode = match.Groups[1].Value;

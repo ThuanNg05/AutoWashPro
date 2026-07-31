@@ -40,6 +40,28 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px;
+    /* Giới hạn khung ~2 hàng card (2×110px + gap) rồi cuộn dọc bên trong, để
+       staff không phải cuộn cả trang và bỏ lỡ khối bộ lọc phía trên.
+       padding chừa chỗ cho hiệu ứng hover-lift & đổ bóng không bị cắt. */
+    max-height: 360px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 6px 8px 6px 2px;
+}
+
+/* Thanh cuộn gọn cho khung danh sách đặt lịch */
+.booking-card-grid::-webkit-scrollbar {
+    width: 8px;
+}
+.booking-card-grid::-webkit-scrollbar-track {
+    background: transparent;
+}
+.booking-card-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 8px;
+}
+.booking-card-grid::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
 }
 
 /* ── Booking Card Design ────────────────────────────────────── */

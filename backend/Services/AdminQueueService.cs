@@ -576,6 +576,140 @@ namespace Auto_Wash.Services
             }
         }
 
+        /// <summary>
+        /// DEMO: Mô phỏng sự cố hệ thống rửa xe khi xe đang trong quá trình rửa.
+        /// Dừng tiến trình, hủy lịch (Status = Cancelled), hoàn voucher đã áp dụng,
+        /// void mọi payment chưa thanh toán (booking bị hủy KHÔNG được thu phí) và gửi
+        /// email báo hủy cho khách. Trả về customerId + biển số để mở tab đặt lại lịch.
+        /// </summary>
+        public async Task<(bool success, string message, int customerId, string licensePlate)> SimulateSystemErrorAsync(int queueId)
+        {
+            if (queueId < 0)
+            {
+                return (false, "Chỉ áp dụng cho xe đang trong hàng đợi rửa.", 0, "");
+            }
+
+            var now = DateTime.Now;
+            var q = await _context.Queues
+                .Include(qu => qu.Booking)
+                    .ThenInclude(b => b!.Customer)
+                        .ThenInclude(c => c.Account)
+                .Include(qu => qu.Booking)
+                    .ThenInclude(b => b!.Vehicle)
+                .Include(qu => qu.Booking)
+                    .ThenInclude(b => b!.BookingServices)
+                        .ThenInclude(bs => bs.Service)
+                .Include(qu => qu.Booking)
+                    .ThenInclude(b => b!.AppliedRedemption)
+                .Include(qu => qu.Booking)
+                    .ThenInclude(b => b!.Payment)
+                .FirstOrDefaultAsync(qu => qu.QueueId == queueId);
+
+            if (q == null)
+            {
+                return (false, "Không tìm thấy xe trong hàng đợi!", 0, "");
+            }
+
+            var booking = q.Booking;
+            if (booking == null)
+            {
+                return (false, "Xe trong hàng đợi này không gắn với lịch đặt của khách hàng.", 0, "");
+            }
+
+            // Chỉ có ý nghĩa khi xe thực sự đang được xử lý (đã check-in / đang rửa).
+            if (booking.Status != BookingStatus.CheckedIn && booking.Status != BookingStatus.Washing)
+            {
+                return (false, "Chỉ có thể mô phỏng lỗi khi xe đang trong quá trình rửa.", 0, "");
+            }
+
+            const string reason = "Hệ thống rửa xe gặp sự cố kỹ thuật, buộc dừng dịch vụ.";
+
+            // 1. Dừng tiến trình: hủy queue và bỏ qua mọi task chưa hoàn tất.
+            q.Status = QueueStatus.Cancelled;
+            q.CurrentStage = "Completed";
+            q.CompletedAt ??= now;
+
+            var tasks = await _context.BookingTasks
+                .Where(t => t.BookingId == booking.BookingId)
+                .ToListAsync();
+            foreach (var task in tasks)
+            {
+                if (task.Status == BookingTaskStatus.InProgress || task.Status == BookingTaskStatus.Pending)
+                {
+                    task.Status = BookingTaskStatus.Skipped;
+                }
+            }
+
+            // 2. Hủy lịch hẹn.
+            booking.Status = BookingStatus.Cancelled;
+            booking.CancelReason = reason;
+            booking.CancelledBy = "System";
+            booking.CancelledAt = now;
+
+            // 3. Hoàn lại voucher đã áp dụng (nếu có).
+            if (booking.AppliedRedemption != null)
+            {
+                booking.AppliedRedemption.Status = RedemptionStatus.Active;
+                booking.AppliedRedemption.UsedAt = null;
+                booking.AppliedRedemption.BookingId = null;
+            }
+
+            // 4. Lịch bị hủy do lỗi hệ thống KHÔNG được thu phí — void payment chưa thanh toán.
+            if (booking.Payment != null && booking.Payment.Status != (int)PaymentStatus.Paid)
+            {
+                _context.Payments.Remove(booking.Payment);
+            }
+
+            // 5. Ghi audit log + thông báo cho khách.
+            _context.BookingAuditLogs.Add(new BookingAuditLog
+            {
+                BookingId = booking.BookingId,
+                Action = "Cancelled",
+                Description = $"Hủy lịch do sự cố hệ thống khi rửa xe. {reason}",
+                PerformedBy = "System",
+                CreatedAt = now
+            });
+
+            _context.Notifications.Add(new Notification
+            {
+                CustomerId = booking.CustomerId,
+                Title = "Dịch vụ bị gián đoạn do sự cố hệ thống",
+                Message = $"Rất tiếc, lịch hẹn #{booking.BookingId} cho xe {booking.Vehicle?.LicensePlate} đã phải dừng do sự cố kỹ thuật. Bạn không bị tính phí. Nhân viên sẽ hỗ trợ đặt lại lịch cho bạn.",
+                Type = "Booking",
+                IsRead = false,
+                CreatedAt = now
+            });
+
+            await _context.SaveChangesAsync();
+
+            // 6. Gửi email báo hủy cho khách (nền) — dùng lại template hủy lịch.
+            var mainService = booking.BookingServices
+                .Where(bs => !bs.Service.IsAddOn)
+                .Select(bs => bs.Service.ServiceName)
+                .FirstOrDefault() ?? "Dịch vụ rửa xe";
+
+            var email = booking.Customer?.Account?.Email;
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                _notificationService.SendBookingCancelledEmailInBackground(new BookingEmailModel
+                {
+                    BookingId = booking.BookingId,
+                    CustomerName = booking.Customer?.Account?.FullName ?? "Khách hàng",
+                    Email = email,
+                    LicensePlate = booking.Vehicle?.LicensePlate ?? "",
+                    ScheduledAt = booking.ScheduledAt,
+                    FinalPrice = booking.FinalPrice,
+                    ServiceName = mainService,
+                    CancelReason = reason
+                });
+            }
+
+            return (true,
+                "Đã mô phỏng lỗi hệ thống: dừng tiến trình, hủy lịch (không thu phí) và gửi email cho khách.",
+                booking.CustomerId,
+                booking.Vehicle?.LicensePlate ?? "");
+        }
+
         public async Task<(bool success, string message, int finalPrice, int pointsEarned)> CheckoutQueueAsync(int id, string? performerName = null)
         {
             if (id < 0)

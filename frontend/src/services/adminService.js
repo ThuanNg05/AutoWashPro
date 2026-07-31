@@ -68,6 +68,24 @@ export const adminService = {
     return response.data;
   },
 
+  // DEMO: mô phỏng sự cố hệ thống rửa xe -> dừng tiến trình, hủy lịch (không thu phí), gửi email
+  simulateSystemError: async (queueId) => {
+    const response = await api.post(`/api/AdminQueue/SimulateSystemError?id=${queueId}`);
+    return response.data;
+  },
+
+  // Ngữ cảnh cho trang staff đặt lại lịch hộ khách
+  getRebookContext: async (customerId) => {
+    const response = await api.get('/api/admin/bookings/rebook-context', { params: { customerId } });
+    return response.data;
+  },
+
+  // Staff đặt lịch hộ một khách hàng cụ thể
+  createBookingForCustomer: async (payload) => {
+    const response = await api.post('/api/admin/bookings/create-for-customer', payload);
+    return response.data;
+  },
+
   addWalkIn: async (licensePlate, customerName) => {
     const response = await api.post('/api/AdminQueue/AddWalkIn', {
       LicensePlate: licensePlate,

@@ -627,6 +627,7 @@ export const CustomerBookings = () => {
                 <button className={`btn btn-sm rounded-pill px-3 fw-bold ${customerStatusFilter === 'NoShow' ? 'btn-danger' : 'btn-light border text-secondary'}`} onClick={() => setCustomerStatusFilter('NoShow')}>Khách không đến</button>
               </div>
 
+              <div className="history-scroll-area">
               {displayedCustomerBookings.length === 0 ? (
                 <div className="app-card p-5 text-center text-muted rounded-4 bg-white border-0 shadow-sm">
                   <div className="mb-3"><i className="fas fa-calendar-minus fa-3x text-light"></i></div>
@@ -687,6 +688,7 @@ export const CustomerBookings = () => {
                   })}
                 </div>
               )}
+              </div>
             </div>
           )}
 
@@ -708,6 +710,7 @@ export const CustomerBookings = () => {
                 </button>
               </div>
 
+              <div className="history-scroll-area">
               {/* Sub-tab: Pending reviews */}
               {reviewSubTab === 'pending' && (
                 pendingReviewBookings.length === 0 ? (
@@ -790,6 +793,7 @@ export const CustomerBookings = () => {
                   </div>
                 )
               )}
+              </div>
             </div>
           )}
         </div>
