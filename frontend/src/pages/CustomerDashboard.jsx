@@ -169,14 +169,15 @@ export const CustomerDashboard = () => {
     };
   }, []);
 
-  const getTierDetails = (tierName) => {
-    const t = (tierName || "").toUpperCase();
+    const getTierDetails = (tierName, multiplier) => {
+        const t = (tierName || "").toUpperCase();
+        const perk = multiplier != null ? `Đặc quyền tích điểm x${multiplier} dịch vụ` : "Tích lũy điểm thưởng theo lượt";
     if (t.includes("PLATINUM")) {
       return {
         icon: "fa-crown",
         bg: "rgba(2, 132, 199, 0.12)",
-        color: "#0284c7",
-        perk: "Đặc quyền tích điểm x1.5 dịch vụ",
+          color: "#0284c7",
+          perk: perk,
         cardClass: "tier-platinum",
       };
     } else if (t.includes("GOLD")) {
@@ -184,7 +185,7 @@ export const CustomerDashboard = () => {
         icon: "fa-award",
         bg: "rgba(245, 158, 11, 0.12)",
         color: "#f59e0b",
-        perk: "Đặc quyền tích điểm x1.2 dịch vụ",
+          perk: perk,
         cardClass: "tier-gold",
       };
     } else if (t.includes("SILVER")) {
@@ -192,7 +193,7 @@ export const CustomerDashboard = () => {
         icon: "fa-medal",
         bg: "rgba(148, 163, 184, 0.12)",
         color: "#64748b",
-        perk: "Đặc quyền tích điểm x1.1 dịch vụ",
+          perk: perk,
         cardClass: "tier-silver",
       };
     } else {
@@ -200,7 +201,7 @@ export const CustomerDashboard = () => {
         icon: "fa-user",
         bg: "rgba(15, 23, 42, 0.05)",
         color: "#475569",
-        perk: "Tích lũy điểm thưởng theo lượt",
+          perk: perk,
         cardClass: "tier-standard",
       };
     }
@@ -293,7 +294,7 @@ export const CustomerDashboard = () => {
     tier === "Standard Member"
       ? "Standard Member"
       : tier.replace(" Member", " Loyalty");
-  const tierInfo = getTierDetails(tier);
+    const tierInfo = getTierDetails(tier, loyalty?.multiplier);
   const progression = calculateProgress();
   const activeVouchers = claimedVouchers.filter((v) => v.status === 1);
 

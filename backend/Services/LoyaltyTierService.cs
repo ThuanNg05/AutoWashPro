@@ -95,6 +95,7 @@ namespace Auto_Wash.Services
             if (tiers.Count == 0) return periodSpend;
 
             var currentTier = tiers.FirstOrDefault(t => t.TierId == customer.TierId);
+
             // Find the highest tier the spend qualifies for
             var qualifiedTier = tiers
                 .Where(t => t.MinRankingBalance <= periodSpend)
