@@ -232,7 +232,6 @@ export default function AdminDashboard() {
     revenueChart,
     paymentMethodBreakdown,
     voucherAnalytics,
-    customerAnalytics,
     loyaltyAnalytics,
   } = data;
 
@@ -450,7 +449,7 @@ export default function AdminDashboard() {
         <i className="fas fa-coins text-cyan me-2 section-title-icon"></i>TỔNG QUAN DOANH THU & GIẢM TRỪ (THEO KỲ BÁO CÁO)
       </h6>
       <div className="row g-3 mb-3.5">
-        <div className="col-lg-4 col-sm-6">
+        <div className="col-lg-3 col-sm-6">
           <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100 position-relative overflow-hidden">
             <span className="position-absolute top-0 end-0 p-3 opacity-10">
               <i className="fas fa-file-invoice-dollar fa-3x text-dark"></i>
@@ -465,7 +464,7 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="col-lg-4 col-sm-6">
+        <div className="col-lg-3 col-sm-6">
           <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100 position-relative overflow-hidden">
             <span className="position-absolute top-0 end-0 p-3 opacity-10">
               <i className="fas fa-ticket-alt fa-3x text-danger"></i>
@@ -480,7 +479,22 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="col-lg-4 col-sm-6">
+        <div className="col-lg-3 col-sm-6">
+          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100 position-relative overflow-hidden">
+            <span className="position-absolute top-0 end-0 p-3 opacity-10">
+              <i className="fas fa-crown fa-3x text-warning"></i>
+            </span>
+            <small className="text-muted d-block fw-bold text-uppercase" style={{ fontSize: "0.64rem" }}>
+              GIẢM GIÁ LOYALTY (−)
+            </small>
+            <h3 className="fw-bold text-warning mt-1.5 mb-1">−{Math.abs(Number(revenueOverview.loyaltyDiscount) || 0).toLocaleString()}đ</h3>
+            <small className="text-secondary" style={{ fontSize: "0.7rem" }}>
+              Ưu đãi hạng thành viên & đổi điểm
+            </small>
+          </div>
+        </div>
+
+        <div className="col-lg-3 col-sm-6">
           <div className="app-card border-0 shadow-sm p-3.5 bg-primary text-white rounded-4 h-100 position-relative overflow-hidden" style={{ background: "linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)" }}>
             <span className="position-absolute top-0 end-0 p-3 opacity-20 text-white">
               <i className="fas fa-wallet fa-3x"></i>
@@ -695,64 +709,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
-            <small className="text-muted d-block fw-bold text-uppercase" style={{ fontSize: "0.62rem" }}>
-              TỶ LỆ SỬ DỤNG VOUCHER
-            </small>
-            <h4 className="fw-bold text-cyan mt-1.5 mb-1">{(voucherAnalytics.voucherUsageRate || 0).toLocaleString()}%</h4>
-            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>Tỷ lệ sử dụng thực tế</small>
-          </div>
-        </div>
-      </div>
-
-      {/* ── SECTION 7: CUSTOMER ANALYTICS ── */}
-      <h6 className="fw-bold text-secondary mb-2.5 text-uppercase" style={{ fontSize: "0.78rem", letterSpacing: "0.6px" }}>
-        <i className="fas fa-users text-cyan me-2 section-title-icon"></i>PHÂN TÍCH KHÁCH HÀNG
-      </h6>
-      <div className="row g-3 mb-3.5">
-        <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
-            <small className="text-muted d-block fw-bold text-uppercase" style={{ fontSize: "0.62rem" }}>
-              TỔNG KHÁCH HÀNG HỆ THỐNG
-            </small>
-            <h4 className="fw-bold text-dark mt-1.5 mb-1">{(customerAnalytics.totalCustomers || 0).toLocaleString()}</h4>
-            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>Tài khoản đã đăng ký</small>
-          </div>
-        </div>
-
-        <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
-            <small className="text-muted d-block fw-bold text-uppercase" style={{ fontSize: "0.62rem" }}>
-              KHÁCH HÀNG MỚI TRONG KỲ
-            </small>
-            <h4 className="fw-bold text-success mt-1.5 mb-1">+{(customerAnalytics.newCustomers || 0).toLocaleString()}</h4>
-            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>Đăng ký trong khoảng thời gian</small>
-          </div>
-        </div>
-
-        {/* Requirement 2 & 6: Clean Returning Customers Subtitle */}
-        <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
-            <small className="text-muted d-block fw-bold text-uppercase" style={{ fontSize: "0.62rem" }}>
-              KHÁCH HÀNG QUAY LẠI
-            </small>
-            <h4 className="fw-bold text-info mt-1.5 mb-1">{(customerAnalytics.returningCustomers || 0).toLocaleString()}</h4>
-            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>
-              Đã rửa xe &gt;1 lần ({(customerAnalytics.retentionRate || 0).toLocaleString()}% tỷ lệ giữ chân)
-            </small>
-          </div>
-        </div>
-
-        <div className="col-lg-3 col-sm-6">
-          <div className="app-card border-0 shadow-sm p-3.5 bg-white rounded-4 h-100">
-            <small className="text-muted d-block fw-bold text-uppercase" style={{ fontSize: "0.62rem" }}>
-              TỶ LỆ GIỮ CHÂN KHÁCH HÀNG
-            </small>
-            <h4 className="fw-bold text-cyan mt-1.5 mb-1">{(customerAnalytics.retentionRate || 0).toLocaleString()}%</h4>
-            <small className="text-secondary" style={{ fontSize: "0.68rem" }}>Khách hàng trung thành</small>
-          </div>
-        </div>
       </div>
 
       {/* ── SECTION 8: LOYALTY ANALYTICS ── */}

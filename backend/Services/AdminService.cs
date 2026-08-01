@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Auto_Wash.Data;
 using Auto_Wash.Data.Entities;
 using Auto_Wash.DTOs.Admin;
@@ -15,11 +16,13 @@ namespace Auto_Wash.Services
     {
         private readonly AutoWashDbContext _context;
         private readonly LoyaltyTierService _loyaltyTierService;
+        private readonly ILogger<AdminService> _logger;
 
-        public AdminService(AutoWashDbContext context, LoyaltyTierService loyaltyTierService)
+        public AdminService(AutoWashDbContext context, LoyaltyTierService loyaltyTierService, ILogger<AdminService> logger)
         {
             _context = context;
             _loyaltyTierService = loyaltyTierService;
+            _logger = logger;
         }
 
         public async Task<object> GetDashboardStatsAsync(DateTime? fromDate = null, DateTime? toDate = null, string groupBy = "day")
@@ -82,20 +85,32 @@ namespace Auto_Wash.Services
                              || (b.CreatedAt >= periodFrom && b.CreatedAt < periodEndEx)))
                 .ToListAsync();
 
-            var periodPayRows = paidPayments.Select(p => new
+            // Integrity guard: reconcile per-row gross so the invariant Gross >= Net always holds
+            // even when a booking record is corrupt (e.g. FinalPrice/Amount stored higher than
+            // BasePrice with no matching discount). GrossPrice = max(BasePrice, Amount + discounts).
+            var periodPayRows = paidPayments.Select(p =>
             {
-                PaymentId = p.PaymentId,
-                BookingId = p.BookingId,
-                Amount = p.Amount > 0 ? p.Amount : (p.Booking != null ? p.Booking.FinalPrice : 0),
-                PaymentMethod = p.PaymentMethod,
-                PaidAt = p.PaidAt ?? p.CreatedAt,
-                CustomerId = p.Booking != null ? (int?)p.Booking.CustomerId : null,
-                BasePrice = p.Booking != null ? p.Booking.BasePrice : p.Amount,
-                PromoDiscount = p.Booking != null ? p.Booking.PromoDiscount : 0,
-                TierDiscount = p.Booking != null ? p.Booking.TierDiscount : 0,
-                PointsDiscount = p.Booking != null ? p.Booking.PointsDiscount : 0,
-                FinalPrice = p.Booking != null ? p.Booking.FinalPrice : p.Amount,
-                PointsEarned = p.Booking != null ? p.Booking.PointsEarned : 0
+                int amount = p.Amount > 0 ? p.Amount : (p.Booking != null ? p.Booking.FinalPrice : 0);
+                int basePrice = p.Booking != null ? p.Booking.BasePrice : p.Amount;
+                int promoDiscount = p.Booking != null ? p.Booking.PromoDiscount : 0;
+                int tierDiscount = p.Booking != null ? p.Booking.TierDiscount : 0;
+                int pointsDiscount = p.Booking != null ? p.Booking.PointsDiscount : 0;
+                return new
+                {
+                    PaymentId = p.PaymentId,
+                    BookingId = p.BookingId,
+                    Amount = amount,
+                    PaymentMethod = p.PaymentMethod,
+                    PaidAt = p.PaidAt ?? p.CreatedAt,
+                    CustomerId = p.Booking != null ? (int?)p.Booking.CustomerId : null,
+                    BasePrice = basePrice,
+                    GrossPrice = Math.Max(basePrice, amount + promoDiscount + tierDiscount + pointsDiscount),
+                    PromoDiscount = promoDiscount,
+                    TierDiscount = tierDiscount,
+                    PointsDiscount = pointsDiscount,
+                    FinalPrice = p.Booking != null ? p.Booking.FinalPrice : p.Amount,
+                    PointsEarned = p.Booking != null ? p.Booking.PointsEarned : 0
+                };
             }).ToList();
 
             foreach (var b in extraCompletedBookings)
@@ -109,6 +124,7 @@ namespace Auto_Wash.Services
                     PaidAt = b.CompletedAt ?? b.Payment?.PaidAt ?? b.CreatedAt,
                     CustomerId = (int?)b.CustomerId,
                     BasePrice = b.BasePrice,
+                    GrossPrice = Math.Max(b.BasePrice, b.FinalPrice + b.PromoDiscount + b.TierDiscount + b.PointsDiscount),
                     PromoDiscount = b.PromoDiscount,
                     TierDiscount = b.TierDiscount,
                     PointsDiscount = b.PointsDiscount,
@@ -117,7 +133,19 @@ namespace Auto_Wash.Services
                 });
             }
 
-            long grossRevenue = periodPayRows.Sum(r => (long)r.BasePrice);
+            // Surface corrupt rows (BasePrice understated vs Amount+discounts) so admins can fix the data.
+            var inconsistentRows = periodPayRows
+                .Where(r => r.GrossPrice > r.BasePrice)
+                .Select(r => $"BookingId={r.BookingId} (BasePrice={r.BasePrice}, Amount={r.Amount}, Discounts={r.PromoDiscount + r.TierDiscount + r.PointsDiscount})")
+                .ToList();
+            if (inconsistentRows.Count > 0)
+            {
+                _logger.LogWarning(
+                    "[DASHBOARD INTEGRITY] {Count} booking(s) have Net > pre-discount price — data likely corrupt. Reconciled Gross to keep Gross >= Net. Rows: {Rows}",
+                    inconsistentRows.Count, string.Join("; ", inconsistentRows));
+            }
+
+            long grossRevenue = periodPayRows.Sum(r => (long)r.GrossPrice);
             long voucherDiscount = periodPayRows.Sum(r => (long)r.PromoDiscount);
             long loyaltyDiscount = periodPayRows.Sum(r => (long)(r.TierDiscount + r.PointsDiscount));
             long netRevenue = periodPayRows.Sum(r => (long)r.Amount);
@@ -150,7 +178,7 @@ namespace Auto_Wash.Services
                     {
                         label,
                         date = $"{g.Key.Year}-{g.Key.Month:D2}-01",
-                        grossRevenue = g.Sum(x => (long)x.BasePrice),
+                        grossRevenue = g.Sum(x => (long)x.GrossPrice),
                         voucherDiscount = g.Sum(x => (long)x.PromoDiscount),
                         loyaltyDiscount = g.Sum(x => (long)(x.TierDiscount + x.PointsDiscount)),
                         netRevenue = g.Sum(x => (long)x.Amount),
@@ -173,7 +201,7 @@ namespace Auto_Wash.Services
                     {
                         label = $"Week {g.Key.Week}", // e.g. "Week 28", "Week 29"
                         date = $"{g.Key.Year}-W{g.Key.Week:D2}",
-                        grossRevenue = g.Sum(x => (long)x.BasePrice),
+                        grossRevenue = g.Sum(x => (long)x.GrossPrice),
                         voucherDiscount = g.Sum(x => (long)x.PromoDiscount),
                         loyaltyDiscount = g.Sum(x => (long)(x.TierDiscount + x.PointsDiscount)),
                         netRevenue = g.Sum(x => (long)x.Amount),
@@ -200,7 +228,7 @@ namespace Auto_Wash.Services
                         {
                             label = d.ToString("dd/MM"),
                             date = d.ToString("yyyy-MM-dd"),
-                            grossRevenue = dayRows.Sum(x => (long)x.BasePrice),
+                            grossRevenue = dayRows.Sum(x => (long)x.GrossPrice),
                             voucherDiscount = dayRows.Sum(x => (long)x.PromoDiscount),
                             loyaltyDiscount = dayRows.Sum(x => (long)(x.TierDiscount + x.PointsDiscount)),
                             netRevenue = dayRows.Sum(x => (long)x.Amount),
@@ -216,7 +244,7 @@ namespace Auto_Wash.Services
                         {
                             label = kv.Key.ToString("dd/MM"),
                             date = kv.Key.ToString("yyyy-MM-dd"),
-                            grossRevenue = kv.Value.Sum(x => (long)x.BasePrice),
+                            grossRevenue = kv.Value.Sum(x => (long)x.GrossPrice),
                             voucherDiscount = kv.Value.Sum(x => (long)x.PromoDiscount),
                             loyaltyDiscount = kv.Value.Sum(x => (long)(x.TierDiscount + x.PointsDiscount)),
                             netRevenue = kv.Value.Sum(x => (long)x.Amount),
