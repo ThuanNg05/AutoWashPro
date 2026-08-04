@@ -403,6 +403,99 @@ namespace Auto_Wash.Controllers
             }
         }
 
+        /// <summary>
+        /// Demo-only check-in: performs the same Queue-creation logic as the real
+        /// check-in (AdminBookingService.CheckInBookingAsync) but skips the ±15min
+        /// window and same-day checks — and never touches any *At column on the
+        /// booking, so the customer's actual appointment schedule stays untouched.
+        /// </summary>
+        [HttpPost]
+        [Route("api/admin/demo-tools/bookings/{id}/force-checkin")]
+        public async Task<IActionResult> ForceCheckIn(int id)
+        {
+            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+
+            try
+            {
+                var booking = await _context.Bookings
+                    .Include(b => b.Customer).ThenInclude(c => c.Account)
+                    .Include(b => b.Customer).ThenInclude(c => c.Tier)
+                    .Include(b => b.Vehicle)
+                    .FirstOrDefaultAsync(b => b.BookingId == id);
+                if (booking == null) return NotFound(new { success = false, message = $"Không tìm thấy đơn đặt lịch #{id}." });
+
+                if (booking.Status == BookingStatus.NoShow || booking.Status == BookingStatus.Cancelled || booking.Status == BookingStatus.Completed)
+                    return BadRequest(new { success = false, message = $"Không thể check-in lịch đặt đã {(booking.Status == BookingStatus.NoShow ? "quá hạn (No-Show)" : booking.Status == BookingStatus.Cancelled ? "bị hủy" : "hoàn thành")}." });
+
+                if (booking.Status != BookingStatus.Confirmed)
+                    return BadRequest(new { success = false, message = "Chỉ đơn đặt lịch đang ở trạng thái 'Đã xác nhận' mới có thể thực hiện check-in." });
+
+                var strategy = _context.Database.CreateExecutionStrategy();
+                return await strategy.ExecuteAsync(async () =>
+                {
+                    using var transaction = await _context.Database.BeginTransactionAsync();
+                    try
+                    {
+                        await _context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(2410);");
+
+                        var existingQueue = await _context.Queues
+                            .FirstOrDefaultAsync(q => q.BookingId == booking.BookingId && q.Status != QueueStatus.Cancelled);
+
+                        int queueId;
+                        string message;
+                        if (existingQueue != null)
+                        {
+                            booking.Status = BookingStatus.CheckedIn;
+                            await _context.SaveChangesAsync();
+                            await transaction.CommitAsync();
+                            queueId = existingQueue.QueueId;
+                            message = "Đơn đặt lịch đã được check-in vào hàng đợi.";
+                        }
+                        else
+                        {
+                            var today = DateTime.Today;
+                            var lastPos = await _context.Queues
+                                .Where(q => q.CheckInAt.Date == today && q.Status != QueueStatus.Cancelled)
+                                .Select(q => (int?)q.Position)
+                                .MaxAsync() ?? 0;
+
+                            var newQueue = new Queue
+                            {
+                                BookingId = booking.BookingId,
+                                VehicleId = booking.VehicleId,
+                                CustomerId = booking.CustomerId,
+                                LicensePlate = booking.Vehicle?.LicensePlate?.ToUpper()?.Trim() ?? string.Empty,
+                                CustomerName = booking.Customer?.Account?.FullName ?? "Khách vãng lai",
+                                TierId = booking.Customer?.TierId ?? 1,
+                                Status = QueueStatus.Waiting,
+                                Position = lastPos + 1,
+                                CheckInAt = DateTime.Now,
+                                StaffNote = booking.Notes ?? string.Empty
+                            };
+                            booking.Status = BookingStatus.CheckedIn;
+                            _context.Queues.Add(newQueue);
+                            await _context.SaveChangesAsync();
+                            await transaction.CommitAsync();
+                            queueId = newQueue.QueueId;
+                            message = "Check-in thành công! Xe đã được thêm vào hàng đợi.";
+                        }
+
+                        Audit("FORCE-CHECKIN bookings", $"bookingId={id} queueId={queueId} bypassedWindow=true");
+                        return Ok(new { success = true, message, queueId });
+                    }
+                    catch (Exception)
+                    {
+                        await transaction.RollbackAsync();
+                        throw;
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         private static ColumnInfo FindColumnOrThrow(List<ColumnInfo> columns, string name, string table)
         {
             return columns.FirstOrDefault(c => string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))

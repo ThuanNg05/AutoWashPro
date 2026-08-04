@@ -305,25 +305,18 @@ export const AdminBookings = () => {
     }
   };
 
-  const handleDemoCheckIn = (id, plate, scheduledAt) => {
+  const handleDemoCheckIn = (id, plate) => {
     const performDemoCheckIn = async () => {
       try {
-        const minutes = Math.round((Date.now() - new Date(scheduledAt).getTime()) / 60000);
-        const shiftRes = await adminService.demoShiftBookingTime(id, minutes === 0 ? -1 : minutes);
-        if (!shiftRes || !shiftRes.success) {
-          if (window.showToast) window.showToast(shiftRes?.message || 'Lỗi dịch giờ hẹn (demo)', 'error');
-          return;
-        }
-
-        const checkinRes = await adminService.checkinBooking(id);
-        if (checkinRes && checkinRes.success) {
-          if (window.showToast) window.showToast('DEMO: Đã dịch giờ hẹn về hiện tại và check-in thành công!', 'success');
+        const res = await adminService.demoForceCheckIn(id);
+        if (res && res.success) {
+          if (window.showToast) window.showToast('DEMO: Check-in thành công (không đổi lịch hẹn)!', 'success');
           loadBookings();
           if (selectedBookingId === id) {
             loadBookingDetail(id);
           }
         } else {
-          if (window.showToast) window.showToast(checkinRes?.message || 'Lỗi check-in xe (demo)', 'error');
+          if (window.showToast) window.showToast(res?.message || 'Lỗi check-in xe (demo)', 'error');
         }
       } catch (e) {
         console.error('Demo check-in error', e);
@@ -332,7 +325,7 @@ export const AdminBookings = () => {
       }
     };
 
-    const confirmMsg = `DEMO: Dịch giờ hẹn xe biển số ${plate} về hiện tại và check-in ngay lập tức?`;
+    const confirmMsg = `DEMO: Check-in ngay xe biển số ${plate}, bỏ qua ràng buộc ngày/giờ hẹn (không đổi lịch hẹn)?`;
     if (window.showConfirm) {
       window.showConfirm('Demo Check-In tức thì', confirmMsg, performDemoCheckIn);
     } else if (window.confirm(confirmMsg)) {
@@ -1882,12 +1875,11 @@ export const AdminBookings = () => {
                                 color: "#8b5cf6",
                                 background: "transparent",
                               }}
-                              title="Demo: dịch giờ hẹn về hiện tại rồi check-in ngay, bỏ qua ràng buộc ngày hẹn"
+                              title="Demo: check-in ngay, bỏ qua ràng buộc ngày/giờ hẹn (không đổi lịch hẹn)"
                               onClick={() =>
                                 handleDemoCheckIn(
                                   bookingDetail.bookingId,
                                   bookingDetail.vehicle.licensePlate,
-                                  bookingDetail.scheduledAt,
                                 )
                               }
                             >
