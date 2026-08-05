@@ -10,16 +10,6 @@ const DEFAULT_TIME_SLOTS = [
   "16:00", "17:00", "18:00", "19:00", "20:00", "21:00", "22:00", "23:00",
 ];
 
-const iconForService = (name) => {
-  const n = (name || "").toLowerCase();
-  if (n.includes("sấy") || n.includes("khô")) return "fa-wind";
-  if (n.includes("hút bụi") || n.includes("vệ sinh")) return "fa-broom";
-  if (n.includes("phủ") || n.includes("ceramic")) return "fa-gem";
-  if (n.includes("premium") || n.includes("cao cấp")) return "fa-sparkles";
-  if (n.includes("đặc biệt") || n.includes("deluxe")) return "fa-crown";
-  return "fa-soap";
-};
-
 // Trang staff đặt lại lịch hộ khách, mở qua tab mới sau khi mô phỏng "Hệ thống lỗi".
 // Prefill khách + xe; staff chọn lại dịch vụ + slot hợp lệ tiếp theo. Tái dùng đúng
 // logic kiểm tra slot của CustomerBooking (occupied slots, ngày sớm nhất, khung ngày theo hạng).
@@ -116,8 +106,7 @@ export const AdminRebook = () => {
             price: s.price,
             estimatedMinutes: s.estimatedMinutes,
             time: s.estimatedMinutes + " phút",
-            isAddOn: s.isAddOn,
-            icon: iconForService(s.name),
+            isAddOn: s.isAddOn
           }));
           const mains = all.filter((s) => !s.isAddOn);
           const addons = all.filter((s) => s.isAddOn);
@@ -438,7 +427,6 @@ export const AdminRebook = () => {
                           className={`fw-bold d-block ${isSelected ? "text-info" : "text-dark"}`}
                           style={{ fontSize: "0.88rem" }}
                         >
-                          <i className={`fas ${svc.icon} me-1.5`}></i>
                           {svc.name}
                         </strong>
                         <span

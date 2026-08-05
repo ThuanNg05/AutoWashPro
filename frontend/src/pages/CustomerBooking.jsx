@@ -123,9 +123,6 @@ export const CustomerBooking = () => {
               model: v.model,
               vehicleClass: v.vehicleClass,
               plate: v.licensePlate,
-              type: `${v.brand} ${v.model} (${v.vehicleClass})`,
-              lastWash: "Vừa xong",
-              totalWashes: 0,
               hasActiveBooking: v.hasActiveBooking,
             }));
             setVehicles(list);
@@ -161,13 +158,7 @@ export const CustomerBooking = () => {
             price: s.price,
             estimatedMinutes: s.estimatedMinutes,
             time: s.estimatedMinutes + " phút",
-            isAddOn: s.isAddOn,
-            icon: s.name.toLowerCase().includes("sấy") || s.name.toLowerCase().includes("khô") ? "fa-wind" :
-                  s.name.toLowerCase().includes("hút bụi") || s.name.toLowerCase().includes("vệ sinh") ? "fa-broom" :
-                  s.name.toLowerCase().includes("phủ") || s.name.toLowerCase().includes("ceramic") ? "fa-gem" :
-                  s.name.toLowerCase().includes("premium") || s.name.toLowerCase().includes("cao cấp") ? "fa-sparkles" :
-                  s.name.toLowerCase().includes("đặc biệt") || s.name.toLowerCase().includes("deluxe") ? "fa-crown" :
-                  "fa-soap"
+            isAddOn: s.isAddOn
           }));
 
           const mains = allServices.filter(s => !s.isAddOn);
@@ -572,7 +563,7 @@ export const CustomerBooking = () => {
                               {v.plate}
                             </div>
                             <small className="text-muted d-block">
-                              {v.type}
+                              {v.brand} {v.model} ({v.vehicleClass})
                             </small>
                             {isDisabled && (
                               <div
@@ -634,7 +625,6 @@ export const CustomerBooking = () => {
                     >
                       <div className="d-flex justify-content-between align-items-start mb-1.5">
                         <strong className={`fw-bold d-block ${isSelected ? "text-info" : "text-dark"}`} style={{ fontSize: "0.88rem" }}>
-                          <i className={`fas ${svc.icon || "fa-soap"} me-1.5`}></i>
                           {svc.name}
                         </strong>
                         <span className="badge bg-light text-dark border small fw-bold" style={{ fontSize: "0.72rem" }}>
