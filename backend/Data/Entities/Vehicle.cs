@@ -38,7 +38,5 @@ namespace Auto_Wash.Data.Entities
 
         public virtual ICollection<Booking> Bookings { get; set; } = new List<Booking>();
         public virtual ICollection<Queue> Queues { get; set; } = new List<Queue>();
-        public virtual ICollection<OwnershipTransferRequest> OwnershipTransferRequests { get; set; } = new List<OwnershipTransferRequest>();
-        public virtual ICollection<VehicleOwnershipHistory> OwnershipHistories { get; set; } = new List<VehicleOwnershipHistory>();
     }
 }

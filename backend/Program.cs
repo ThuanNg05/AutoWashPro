@@ -89,6 +89,8 @@ namespace Auto_Wash
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddScoped<AuthContextService>();
             builder.Services.AddScoped<AccountService>();
+            // Vehicle Master Data — loaded once at startup, singleton for O(1) lookups
+            builder.Services.AddSingleton<IVehicleMasterDataService, VehicleMasterDataService>();
             builder.Services.AddScoped<VehicleService>();
             builder.Services.AddScoped<OtpService>();
             builder.Services.AddScoped<WelcomeRewardService>();
@@ -103,10 +105,6 @@ namespace Auto_Wash
             builder.Services.AddSingleton<IBookingRealtimeNotifier, BookingRealtimeNotifier>();
             builder.Services.AddHostedService<BookingWorkflowBackgroundService>();
             builder.Services.AddHostedService<PaymentExpiryBackgroundService>();
-
-            // Vehicle Ownership Transfer registrations
-            builder.Services.AddScoped<OwnershipTransferService>();
-
 
             // Session support
             builder.Services.AddDistributedMemoryCache();

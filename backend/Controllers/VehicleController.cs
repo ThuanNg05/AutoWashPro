@@ -82,11 +82,6 @@ namespace Auto_Wash.Controllers
                 return BadRequest(new { success = false, message = "Biển số xe không hợp lệ hoặc đầu số tỉnh thành không tồn tại!" });
             }
 
-            if (string.IsNullOrWhiteSpace(request.Brand) || string.IsNullOrWhiteSpace(request.Model) || string.IsNullOrWhiteSpace(request.VehicleClass))
-            {
-                return BadRequest(new { success = false, message = "Vui lòng nhập đầy đủ thông tin phương tiện." });
-            }
-
             try
             {
                 bool exists = await _vehicleService.IsPlateRegisteredAsync(normPlate);
@@ -124,6 +119,10 @@ namespace Auto_Wash.Controllers
                 await _otpService.SendEmailOtpAsync(account.Email, subject, body);
 
                 return Ok(new { success = true, message = $"Mã OTP đã được gửi đến email {account.Email}!" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -164,11 +163,6 @@ namespace Auto_Wash.Controllers
                 return BadRequest(new { success = false, message = "Biển số xe không hợp lệ hoặc đầu số tỉnh thành không tồn tại!" });
             }
 
-            if (string.IsNullOrWhiteSpace(request.Brand) || string.IsNullOrWhiteSpace(request.Model) || string.IsNullOrWhiteSpace(request.VehicleClass))
-            {
-                return BadRequest(new { success = false, message = "Vui lòng nhập đầy đủ thông tin phương tiện." });
-            }
-
             try
             {
                 if (string.IsNullOrEmpty(account.Email))
@@ -190,6 +184,8 @@ namespace Auto_Wash.Controllers
 
                 Console.WriteLine($"[VEHICLE REGISTRATION LOG] LicensePlate: {normPlate}, Brand: {request.Brand}, Model: {request.Model}, VehicleClass: {request.VehicleClass}");
 
+                // VehicleClass from the client is passed through but the service will
+                // override it with the correct value from master data.
                 await _vehicleService.SaveVehicleAsync(
                     customer.CustomerId, 
                     normPlate, 
@@ -198,6 +194,10 @@ namespace Auto_Wash.Controllers
                     request.VehicleClass);
 
                 return Ok(new { success = true, message = "Đăng ký phương tiện thành công!" });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -225,13 +225,15 @@ namespace Auto_Wash.Controllers
                 return Unauthorized(new { success = false, message = "Bạn cần đăng nhập để sửa thông tin phương tiện!" });
             }
 
-            if (request == null || string.IsNullOrWhiteSpace(request.Brand) || string.IsNullOrWhiteSpace(request.Model) || string.IsNullOrWhiteSpace(request.VehicleClass))
+            if (request == null)
             {
-                return BadRequest(new { success = false, message = "Vui lòng nhập đầy đủ thông tin phương tiện." });
+                return BadRequest(new { success = false, message = "Dữ liệu cập nhật không hợp lệ." });
             }
 
             try
             {
+                // VehicleClass from the client is passed through but the service will
+                // override it with the correct value from master data.
                 var result = await _vehicleService.UpdateVehicleAsync(customer.CustomerId, id, request.Brand, request.Model, request.VehicleClass);
                 if (!result.success)
                 {
@@ -239,6 +241,10 @@ namespace Auto_Wash.Controllers
                 }
 
                 return Ok(new { success = true, message = result.message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
             }
             catch (Exception ex)
             {
@@ -280,5 +286,34 @@ namespace Auto_Wash.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        /// <summary>
+        /// Lấy danh sách phương tiện kèm thông tin tóm tắt (lần rửa gần nhất, lịch hẹn sắp tới,
+        /// trạng thái chuyển quyền) cho trang Quản lý Phương tiện.
+        /// </summary>
+        /// <response code="200">Lấy danh sách tóm tắt thành công.</response>
+        /// <response code="401">Khách hàng chưa đăng nhập.</response>
+        [HttpGet("GetVehicleSummaries")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetVehicleSummaries()
+        {
+            var customer = await _authContextService.GetCurrentCustomerAsync();
+            if (customer == null)
+            {
+                return Unauthorized(new { success = false, message = "Bạn cần đăng nhập để xem danh sách phương tiện!" });
+            }
+
+            try
+            {
+                var list = await _vehicleService.GetVehicleSummariesAsync(customer.CustomerId);
+                return Ok(new { success = true, vehicles = list });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 }
+

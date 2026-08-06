@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { customerService } from "../services/customerService";
 import { queueStatusMapper } from "../utils/queueStatusMapper";
 import "../styles/shared.css";
@@ -28,6 +28,8 @@ const formatDateTime = (value) => {
 
 export const CustomerHistory = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const preselectedVehicle = location.state?.vehicleLicensePlate || '';
   const [activeTab, setActiveTab] = useState("care");
   const [history, setHistory] = useState([]);
   const [reviews, setReviews] = useState([]);
@@ -37,6 +39,7 @@ export const CustomerHistory = () => {
   const [txFromDate, setTxFromDate] = useState("");
   const [txToDate, setTxToDate] = useState("");
   const [loading, setLoading] = useState(true);
+  const [vehicleFilter, setVehicleFilter] = useState(preselectedVehicle);
 
   // Stats
   const [totalWashes, setTotalWashes] = useState(0);
@@ -135,6 +138,17 @@ export const CustomerHistory = () => {
     setTxFromDate("");
     setTxToDate("");
   };
+
+  // Vehicle filter for care history
+  const uniqueVehicles = useMemo(() => {
+    const plates = [...new Set(history.map(b => b.vehicle).filter(Boolean))];
+    return plates.sort();
+  }, [history]);
+
+  const filteredHistory = useMemo(() => {
+    if (!vehicleFilter) return history;
+    return history.filter(b => b.vehicle === vehicleFilter);
+  }, [history, vehicleFilter]);
 
   return (
     <div className="container-fluid py-4">
@@ -286,29 +300,43 @@ export const CustomerHistory = () => {
             <div className="col-12">
               <div className="app-card border-0 shadow-sm p-4 bg-white rounded-4">
                 <h5
-                  className="fw-bold mb-4 text-dark"
+                  className="fw-bold mb-4 text-dark d-flex align-items-center justify-content-between flex-wrap gap-2"
                   style={{ fontSize: "0.95rem" }}
                 >
-                  <i className="fas fa-list-ul text-cyan me-2"></i>DANH SÁCH
-                  LỊCH SỬ CHĂM SÓC XE ({history.length})
+                  <span>
+                    <i className="fas fa-list-ul text-cyan me-2"></i>DANH SÁCH
+                    LỊCH SỬ CHĂM SÓC XE ({filteredHistory.length})
+                  </span>
+                  {uniqueVehicles.length > 1 && (
+                    <select
+                      className="form-select form-select-sm"
+                      style={{ width: 'auto', minWidth: '160px', fontSize: '0.8rem', borderRadius: '8px' }}
+                      value={vehicleFilter}
+                      onChange={(e) => setVehicleFilter(e.target.value)}
+                    >
+                      <option value="">Tất cả xe</option>
+                      {uniqueVehicles.map(plate => (
+                        <option key={plate} value={plate}>{plate}</option>
+                      ))}
+                    </select>
+                  )}
                 </h5>
 
                 <div className="d-flex flex-column gap-3 history-scroll-area">
-                  {history.length === 0 ? (
+                  {filteredHistory.length === 0 ? (
                     <div className="text-center py-5 text-muted">
                       <div className="empty-state-icon mb-3 mx-auto" style={{ width: "56px", height: "56px" }}>
                         <i className="fas fa-history fa-lg"></i>
                       </div>
                       <h5 className="fw-bold mb-2">
-                        Bạn chưa có giao dịch hoàn thành nào
+                        {vehicleFilter ? 'Không tìm thấy lịch sử cho xe này' : 'Bạn chưa có giao dịch hoàn thành nào'}
                       </h5>
                       <p className="small mb-0">
-                        Sau khi rửa xe xong hoặc hủy lịch hẹn, thông tin sẽ xuất
-                        hiện tại đây.
+                        {vehicleFilter ? 'Thử bỏ bộ lọc xe để xem tất cả lịch sử.' : 'Sau khi rửa xe xong hoặc hủy lịch hẹn, thông tin sẽ xuất hiện tại đây.'}
                       </p>
                     </div>
                   ) : (
-                    history.map((b) => {
+                    filteredHistory.map((b) => {
                       const hasReviewObj = getBookingReview(b.id);
                       return (
                         <div

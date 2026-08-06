@@ -1,0 +1,428 @@
+/* c:\FPTU\S5\SWP391\AutoWashPro\frontend\src\styles\customer\vehicle-cards.css */
+:root {
+  --primary-blue: #2563eb;
+  --accent-cyan: #008ecf;
+  --slate-text: #1e293b;
+  --muted-text: #64748b;
+  --border-color: #e2e8f0;
+}
+
+body {
+  font-family: 'Be Vietnam Pro', sans-serif;
+}
+
+/* 1. Card Grid Layout */
+.vc-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+}
+
+@media (max-width: 1199px) and (min-width: 768px) {
+  .vc-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .vc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 2. Stats Bar */
+.vc-stats-bar {
+  display: flex;
+  gap: 20px;
+  background-color: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 24px;
+}
+
+.vc-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.vc-stat-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #e0e7ff;
+  color: var(--primary-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.vc-stat-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.vc-stat-number {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--slate-text);
+  line-height: 1.2;
+}
+
+.vc-stat-label {
+  font-size: 13px;
+  color: var(--muted-text);
+}
+
+@media (max-width: 767px) {
+  .vc-stats-bar {
+    flex-direction: column;
+  }
+}
+
+/* 3. Search & Filter Bar */
+.vc-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.vc-search-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+}
+
+.vc-search-wrapper i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted-text);
+}
+
+.vc-search-input {
+  width: 100%;
+  padding: 10px 16px 10px 40px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.vc-search-input:focus {
+  border-color: var(--primary-blue);
+}
+
+.vc-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vc-filter-pill {
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: none;
+  background-color: #f1f5f9;
+  color: var(--slate-text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.vc-filter-pill.active {
+  background-color: var(--primary-blue);
+  color: white;
+}
+
+.vc-filter-pill:hover:not(.active) {
+  background-color: #e2e8f0;
+}
+
+/* 4. Vehicle Card */
+.vc-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  border: 1px solid var(--border-color);
+  transition: all 0.25s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.vc-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.vc-card-header {
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.vc-card-header > div {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--slate-text);
+}
+
+.vc-class-badge {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vc-card-body {
+  padding: 16px;
+  flex: 1;
+}
+
+.vc-plate {
+  font-family: monospace;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--slate-text);
+  margin-bottom: 16px;
+  text-align: center;
+  background: #f8fafc;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px dashed var(--border-color);
+  letter-spacing: 2px;
+}
+
+.vc-info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.vc-info-row:last-child {
+  border-bottom: none;
+}
+
+.vc-info-icon {
+  font-size: 16px;
+  margin-top: 2px;
+}
+
+.vc-info-label {
+  font-size: 13px;
+  color: var(--muted-text);
+  width: 120px;
+  flex-shrink: 0;
+}
+
+.vc-info-value {
+  font-size: 14px;
+  color: var(--slate-text);
+  font-weight: 500;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vc-badge-confirmed {
+  background-color: #dbeafe;
+  color: #1e40af;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.vc-badge-pending {
+  background-color: #fef3c7;
+  color: #b45309;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.vc-badge-never {
+  background-color: #f1f5f9;
+  color: #64748b;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.vc-card-footer {
+  padding: 16px;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f8fafc;
+  border-radius: 0 0 16px 16px;
+}
+
+.vc-card-footer button {
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+}
+
+.vc-btn-book {
+  background-color: var(--primary-blue);
+  color: white;
+  flex: 1;
+}
+
+.vc-btn-book:hover {
+  background-color: #1d4ed8;
+}
+
+.vc-btn-history {
+  background-color: transparent;
+  color: var(--slate-text);
+  border: 1px solid var(--border-color);
+  flex: 1;
+}
+
+.vc-btn-history:hover {
+  background-color: #f1f5f9;
+}
+
+.vc-btn-edit,
+.vc-btn-delete {
+  width: 36px;
+  flex-shrink: 0;
+  background-color: white;
+  border: 1px solid var(--border-color);
+  color: var(--muted-text);
+}
+
+.vc-btn-edit:hover {
+  color: var(--primary-blue);
+  border-color: var(--primary-blue);
+  background-color: #eff6ff;
+}
+
+.vc-btn-delete:hover:not(:disabled) {
+  color: #ef4444;
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.vc-btn-delete:disabled {
+  background-color: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+/* 5. Empty States */
+.vc-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: white;
+  border-radius: 16px;
+  border: 1px dashed var(--border-color);
+  text-align: center;
+}
+
+.vc-empty-icon {
+  font-size: 48px;
+  color: var(--muted-text);
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.vc-empty-text {
+  font-size: 16px;
+  color: var(--slate-text);
+  margin-bottom: 24px;
+}
+
+/* 6. Vehicle Class Badge Colors */
+.vc-class-sedan { background-color: #e0f2fe; color: #0369a1; }
+.vc-class-suv { background-color: #dcfce7; color: #15803d; }
+.vc-class-crossover { background-color: #f3e8ff; color: #7e22ce; }
+.vc-class-mpv { background-color: #ccfbf1; color: #0f766e; }
+.vc-class-pickup { background-color: #ffedd5; color: #c2410c; }
+.vc-class-hatchback { background-color: #fce7f3; color: #be185d; }
+.vc-class-other,
+.vc-class-badge { background-color: #f1f5f9; color: #475569; }
+
+/* 7. Animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.vc-card-enter {
+  animation: fadeInUp 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+/* 8. Tooltip for disabled delete */
+.vc-tooltip-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.vc-tooltip {
+  visibility: hidden;
+  background-color: #334155;
+  color: white;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  position: absolute;
+  z-index: 10;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+
+.vc-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #334155 transparent transparent transparent;
+}
+
+.vc-tooltip-wrapper:hover .vc-tooltip {
+  visibility: visible;
+  opacity: 1;
+}

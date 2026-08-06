@@ -100,9 +100,6 @@ export const AdminLayout = () => {
           <Link to="/admin/transactions" className={`sidebar-link ${activeNav === 'transactions' ? 'active' : ''}`}>
             <i className="fas fa-receipt"></i> <span>Lịch sử giao dịch</span>
           </Link>
-          <Link to="/admin/ownership-transfers" className={`sidebar-link ${activeNav === 'ownership-transfers' ? 'active' : ''}`}>
-            <i className="fas fa-exchange-alt"></i> <span>Chuyển nhượng xe</span>
-          </Link>
           <button type="button" className="sidebar-link text-danger opacity-75 border-0 bg-transparent w-100 text-start" onClick={handleLogout}>
             <i className="fas fa-sign-out-alt"></i> <span>Đăng xuất</span>
           </button>

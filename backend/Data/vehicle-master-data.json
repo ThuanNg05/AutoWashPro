@@ -1,0 +1,792 @@
+{
+  "version": 1,
+  "country": "VN",
+  "lastUpdated": "2026-08-06",
+  "brands": [
+    {
+      "id": "toyota",
+      "name": "Toyota",
+      "models": [
+        {
+          "id": "vios",
+          "name": "Vios",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "camry",
+          "name": "Camry",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "corolla-altis",
+          "name": "Corolla Altis",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "corolla-cross",
+          "name": "Corolla Cross",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "yaris-cross",
+          "name": "Yaris Cross",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "fortuner",
+          "name": "Fortuner",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "innova",
+          "name": "Innova",
+          "vehicleClass": "MPV"
+        },
+        {
+          "id": "hilux",
+          "name": "Hilux",
+          "vehicleClass": "Pickup"
+        },
+        {
+          "id": "raize",
+          "name": "Raize",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "land-cruiser",
+          "name": "Land Cruiser",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "honda",
+      "name": "Honda",
+      "models": [
+        {
+          "id": "city",
+          "name": "City",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "civic",
+          "name": "Civic",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "cr-v",
+          "name": "CR-V",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "hr-v",
+          "name": "HR-V",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "br-v",
+          "name": "BR-V",
+          "vehicleClass": "MPV"
+        },
+        {
+          "id": "accord",
+          "name": "Accord",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "brio",
+          "name": "Brio",
+          "vehicleClass": "Hatchback"
+        }
+      ]
+    },
+    {
+      "id": "mazda",
+      "name": "Mazda",
+      "models": [
+        {
+          "id": "mazda2",
+          "name": "Mazda2",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "mazda3",
+          "name": "Mazda3",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "mazda6",
+          "name": "Mazda6",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "cx-3",
+          "name": "CX-3",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "cx-30",
+          "name": "CX-30",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "cx-5",
+          "name": "CX-5",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "cx-8",
+          "name": "CX-8",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "bt-50",
+          "name": "BT-50",
+          "vehicleClass": "Pickup"
+        }
+      ]
+    },
+    {
+      "id": "ford",
+      "name": "Ford",
+      "models": [
+        {
+          "id": "ranger",
+          "name": "Ranger",
+          "vehicleClass": "Pickup"
+        },
+        {
+          "id": "everest",
+          "name": "Everest",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "territory",
+          "name": "Territory",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "explorer",
+          "name": "Explorer",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "hyundai",
+      "name": "Hyundai",
+      "models": [
+        {
+          "id": "grand-i10",
+          "name": "Grand i10",
+          "vehicleClass": "Hatchback"
+        },
+        {
+          "id": "accent",
+          "name": "Accent",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "elantra",
+          "name": "Elantra",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "tucson",
+          "name": "Tucson",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "santa-fe",
+          "name": "Santa Fe",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "stargazer",
+          "name": "Stargazer",
+          "vehicleClass": "MPV"
+        },
+        {
+          "id": "creta",
+          "name": "Creta",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "custin",
+          "name": "Custin",
+          "vehicleClass": "MPV"
+        }
+      ]
+    },
+    {
+      "id": "kia",
+      "name": "Kia",
+      "models": [
+        {
+          "id": "morning",
+          "name": "Morning",
+          "vehicleClass": "Hatchback"
+        },
+        {
+          "id": "soluto",
+          "name": "Soluto",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "k3",
+          "name": "K3",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "k5",
+          "name": "K5",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "seltos",
+          "name": "Seltos",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "sportage",
+          "name": "Sportage",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "sorento",
+          "name": "Sorento",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "carnival",
+          "name": "Carnival",
+          "vehicleClass": "MPV"
+        }
+      ]
+    },
+    {
+      "id": "mitsubishi",
+      "name": "Mitsubishi",
+      "models": [
+        {
+          "id": "attrage",
+          "name": "Attrage",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "xpander",
+          "name": "Xpander",
+          "vehicleClass": "MPV"
+        },
+        {
+          "id": "xforce",
+          "name": "Xforce",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "outlander",
+          "name": "Outlander",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "pajero-sport",
+          "name": "Pajero Sport",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "triton",
+          "name": "Triton",
+          "vehicleClass": "Pickup"
+        }
+      ]
+    },
+    {
+      "id": "nissan",
+      "name": "Nissan",
+      "models": [
+        {
+          "id": "almera",
+          "name": "Almera",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "kicks",
+          "name": "Kicks",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "x-trail",
+          "name": "X-Trail",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "navara",
+          "name": "Navara",
+          "vehicleClass": "Pickup"
+        },
+        {
+          "id": "terra",
+          "name": "Terra",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "suzuki",
+      "name": "Suzuki",
+      "models": [
+        {
+          "id": "swift",
+          "name": "Swift",
+          "vehicleClass": "Hatchback"
+        },
+        {
+          "id": "ciaz",
+          "name": "Ciaz",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "ertiga",
+          "name": "Ertiga",
+          "vehicleClass": "MPV"
+        },
+        {
+          "id": "xl7",
+          "name": "XL7",
+          "vehicleClass": "MPV"
+        },
+        {
+          "id": "jimny",
+          "name": "Jimny",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "carry",
+          "name": "Carry",
+          "vehicleClass": "Van"
+        }
+      ]
+    },
+    {
+      "id": "isuzu",
+      "name": "Isuzu",
+      "models": [
+        {
+          "id": "d-max",
+          "name": "D-Max",
+          "vehicleClass": "Pickup"
+        },
+        {
+          "id": "mu-x",
+          "name": "mu-X",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "traviz",
+          "name": "Traviz",
+          "vehicleClass": "Van"
+        }
+      ]
+    },
+    {
+      "id": "mercedes-benz",
+      "name": "Mercedes-Benz",
+      "models": [
+        {
+          "id": "c-class",
+          "name": "C-Class",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "e-class",
+          "name": "E-Class",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "s-class",
+          "name": "S-Class",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "a-class",
+          "name": "A-Class",
+          "vehicleClass": "Hatchback"
+        },
+        {
+          "id": "cla",
+          "name": "CLA",
+          "vehicleClass": "Coupe"
+        },
+        {
+          "id": "gla",
+          "name": "GLA",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "glb",
+          "name": "GLB",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "glc",
+          "name": "GLC",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "gle",
+          "name": "GLE",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "gls",
+          "name": "GLS",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "bmw",
+      "name": "BMW",
+      "models": [
+        {
+          "id": "3-series",
+          "name": "3 Series",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "5-series",
+          "name": "5 Series",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "7-series",
+          "name": "7 Series",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "x1",
+          "name": "X1",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "x3",
+          "name": "X3",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "x5",
+          "name": "X5",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "x7",
+          "name": "X7",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "2-series-gran-coupe",
+          "name": "2 Series Gran Coupe",
+          "vehicleClass": "Coupe"
+        },
+        {
+          "id": "4-series-gran-coupe",
+          "name": "4 Series Gran Coupe",
+          "vehicleClass": "Coupe"
+        },
+        {
+          "id": "ix",
+          "name": "iX",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "audi",
+      "name": "Audi",
+      "models": [
+        {
+          "id": "a4",
+          "name": "A4",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "a6",
+          "name": "A6",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "a7",
+          "name": "A7",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "q2",
+          "name": "Q2",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "q3",
+          "name": "Q3",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "q5",
+          "name": "Q5",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "q7",
+          "name": "Q7",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "q8",
+          "name": "Q8",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "peugeot",
+      "name": "Peugeot",
+      "models": [
+        {
+          "id": "208",
+          "name": "208",
+          "vehicleClass": "Hatchback"
+        },
+        {
+          "id": "2008",
+          "name": "2008",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "3008",
+          "name": "3008",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "408",
+          "name": "408",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "5008",
+          "name": "5008",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "traveller",
+          "name": "Traveller",
+          "vehicleClass": "MPV"
+        }
+      ]
+    },
+    {
+      "id": "mg",
+      "name": "MG",
+      "models": [
+        {
+          "id": "mg5",
+          "name": "MG5",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "mg-zs",
+          "name": "MG ZS",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "mg-hs",
+          "name": "MG HS",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "mg-rx5",
+          "name": "MG RX5",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "mg-vs",
+          "name": "MG VS",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "subaru",
+      "name": "Subaru",
+      "models": [
+        {
+          "id": "impreza",
+          "name": "Impreza",
+          "vehicleClass": "Hatchback"
+        },
+        {
+          "id": "crosstrek",
+          "name": "Crosstrek",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "forester",
+          "name": "Forester",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "outback",
+          "name": "Outback",
+          "vehicleClass": "Wagon"
+        }
+      ]
+    },
+    {
+      "id": "volkswagen",
+      "name": "Volkswagen",
+      "models": [
+        {
+          "id": "polo",
+          "name": "Polo",
+          "vehicleClass": "Hatchback"
+        },
+        {
+          "id": "virtus",
+          "name": "Virtus",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "t-cross",
+          "name": "T-Cross",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "tiguan",
+          "name": "Tiguan",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "teramont",
+          "name": "Teramont",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "vinfast",
+      "name": "VinFast",
+      "models": [
+        {
+          "id": "vf3",
+          "name": "VF3",
+          "vehicleClass": "Hatchback"
+        },
+        {
+          "id": "vf5",
+          "name": "VF5",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "vf6",
+          "name": "VF6",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "vf7",
+          "name": "VF7",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "vf8",
+          "name": "VF8",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "vf9",
+          "name": "VF9",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "lexus",
+      "name": "Lexus",
+      "models": [
+        {
+          "id": "es",
+          "name": "ES",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "is",
+          "name": "IS",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "ls",
+          "name": "LS",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "ux",
+          "name": "UX",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "nx",
+          "name": "NX",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "rx",
+          "name": "RX",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "lx",
+          "name": "LX",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "gx",
+          "name": "GX",
+          "vehicleClass": "SUV"
+        }
+      ]
+    },
+    {
+      "id": "volvo",
+      "name": "Volvo",
+      "models": [
+        {
+          "id": "s60",
+          "name": "S60",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "s90",
+          "name": "S90",
+          "vehicleClass": "Sedan"
+        },
+        {
+          "id": "xc40",
+          "name": "XC40",
+          "vehicleClass": "Crossover"
+        },
+        {
+          "id": "xc60",
+          "name": "XC60",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "xc90",
+          "name": "XC90",
+          "vehicleClass": "SUV"
+        },
+        {
+          "id": "v60-cross-country",
+          "name": "V60 Cross Country",
+          "vehicleClass": "Wagon"
+        }
+      ]
+    }
+  ]
+}

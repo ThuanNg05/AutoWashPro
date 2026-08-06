@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { customerService } from "../services/customerService";
 import Modal from "../components/Modal";
@@ -28,6 +28,8 @@ const DEFAULT_TIME_SLOTS = [
 export const CustomerBooking = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const preselectedVehicleId = location.state?.vehicleId || null;
 
   const [vehicles, setVehicles] = useState([]);
   const [mainServices, setMainServices] = useState([]);
@@ -126,8 +128,15 @@ export const CustomerBooking = () => {
               hasActiveBooking: v.hasActiveBooking,
             }));
             setVehicles(list);
-            const firstAvailable = list.find((v) => !v.hasActiveBooking);
-            setSelectedVehicle(firstAvailable ? firstAvailable.plate : null);
+            // Pre-select vehicle from navigation state (Vehicle Management Center → Book Now),
+            // or fall back to first available vehicle.
+            if (preselectedVehicleId) {
+              const preselected = list.find((v) => v.vehicleId === preselectedVehicleId);
+              setSelectedVehicle(preselected ? preselected.plate : (list.find((v) => !v.hasActiveBooking)?.plate || null));
+            } else {
+              const firstAvailable = list.find((v) => !v.hasActiveBooking);
+              setSelectedVehicle(firstAvailable ? firstAvailable.plate : null);
+            }
           } else {
             setVehicles([]);
             setSelectedVehicle(null);

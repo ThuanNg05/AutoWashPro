@@ -1,0 +1,1 @@
+import{c as e,n as t}from"./index-CqT9M3c8.js";import{t as n}from"./GlobalToastAndConfirm-BjeY3_Qw.js";/* empty css               */var r=t(),i=()=>(0,r.jsxs)(r.Fragment,{children:[(0,r.jsx)(n,{}),(0,r.jsx)(e,{})]});export{i as GuestLayout,i as default};

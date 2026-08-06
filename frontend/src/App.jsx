@@ -29,7 +29,6 @@ const AdminDemoTools = lazy(() => import('./pages/AdminDemoTools'));
 const AdminRebook = lazy(() => import('./pages/AdminRebook'));
 const PaymentResult = lazy(() => import('./pages/PaymentResult'));
 const PaymentCheckout = lazy(() => import('./pages/PaymentCheckout'));
-const AdminOwnershipTransfers = lazy(() => import('./pages/AdminOwnershipTransfers'));
 const AdminRewards = lazy(() => import('./pages/AdminRewards'));
 
 const PageLoader = () => (
@@ -93,7 +92,6 @@ function App() {
             <Route path="transactions" element={<AdminTransactions />} />
             <Route path="demo-tools" element={<AdminDemoTools />} />
             <Route path="rebook" element={<AdminRebook />} />
-            <Route path="ownership-transfers" element={<AdminOwnershipTransfers />} />
           </Route>
 
           {/* Payment (accessible by all authenticated users) */}

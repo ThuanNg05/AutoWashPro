@@ -26,4 +26,10 @@
   </ItemGroup>
 
 
+  <ItemGroup>
+    <Content Update="Data\vehicle-master-data.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

@@ -122,15 +122,6 @@ namespace Auto_Wash.Services
                 return (false, "Phương tiện không tồn tại hoặc không thuộc sở hữu của bạn. Vui lòng kiểm tra lại.", 0);
             }
 
-            // Lock Check: block locked vehicles from booking
-            
-            bool isLocked = await _context.OwnershipTransferRequests
-                .AnyAsync(r => r.VehicleId == vehicle.VehicleId && 
-                               r.Status == OwnershipTransferStatus.Pending);
-            if (isLocked)
-            {
-                return (false, "Không thể đặt lịch hẹn cho phương tiện đang trong quá trình chuyển nhượng sở hữu.", 0);
-            }
 
             // 1b. Validate active booking check
             var hasActiveBooking = await _context.Bookings
