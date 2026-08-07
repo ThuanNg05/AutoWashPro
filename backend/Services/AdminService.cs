@@ -539,7 +539,7 @@ namespace Auto_Wash.Services
                 id = s.ServiceId.ToString(),
                 name = s.ServiceName,
                 description = s.Description ?? "",
-                category = s.IsAddOn ? "Dịch vụ đi kèm" : "Dịch vụ chính",
+                category = s.Category == ServiceCategory.AddOn ? "Dịch vụ đi kèm" : "Dịch vụ chính",
                 price = s.BasePrice,
                 estimatedMinutes = s.EstimatedMinutes,
                 isActive = s.IsActive,
@@ -565,8 +565,7 @@ namespace Auto_Wash.Services
 
             service.ServiceName = dto.Name.Trim();
             service.Description = dto.Description?.Trim();
-            service.IsAddOn = dto.Category == "Dịch vụ đi kèm";
-            service.Category = service.IsAddOn ? ServiceCategory.AddOn : ServiceCategory.Basic;
+            service.Category = dto.Category == "Dịch vụ đi kèm" ? ServiceCategory.AddOn : ServiceCategory.Basic;
             service.BasePrice = dto.Price;
             service.EstimatedMinutes = dto.EstimatedMinutes;
             service.IsActive = dto.IsActive;
@@ -676,7 +675,7 @@ namespace Auto_Wash.Services
                 .OrderByDescending(b => b.ScheduledAt)
                 .Select(b => new {
                     date = b.ScheduledAt.ToString("dd/MM/yyyy"),
-                    service = b.BookingServices.Where(bs => !bs.Service.IsAddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Rửa xe",
+                    service = b.BookingServices.Where(bs => bs.Service.Category != ServiceCategory.AddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Rửa xe",
                     price = b.FinalPrice,
                     status = b.Status == BookingStatus.Completed ? "Completed" : b.Status == BookingStatus.Cancelled ? "Cancelled" : "In Progress"
                 })

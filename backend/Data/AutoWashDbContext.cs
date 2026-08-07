@@ -491,7 +491,6 @@ namespace Auto_Wash.Data
                     Category = ServiceCategory.Basic,
                     BasePrice = 14900,
                     EstimatedMinutes = 50,
-                    IsAddOn = false,
                     IsActive = true,
                     IsFeatured = true
                 },
@@ -503,7 +502,6 @@ namespace Auto_Wash.Data
                     Category = ServiceCategory.Premium,
                     BasePrice = 29900,
                     EstimatedMinutes = 90,
-                    IsAddOn = false,
                     IsActive = true,
                     IsFeatured = true
                 },
@@ -517,7 +515,6 @@ namespace Auto_Wash.Data
                     Category = ServiceCategory.AddOn,
                     BasePrice = 7900,
                     EstimatedMinutes = 15,
-                    IsAddOn = true,
                     IsActive = true,
                     IsFeatured = false
                 },
@@ -529,7 +526,6 @@ namespace Auto_Wash.Data
                     Category = ServiceCategory.AddOn,
                     BasePrice = 19900,
                     EstimatedMinutes = 25,
-                    IsAddOn = true,
                     IsActive = true,
                     IsFeatured = false
                 },
@@ -541,7 +537,6 @@ namespace Auto_Wash.Data
                     Category = ServiceCategory.AddOn,
                     BasePrice = 9900,
                     EstimatedMinutes = 20,
-                    IsAddOn = true,
                     IsActive = true,
                     IsFeatured = false
                 },
@@ -553,7 +548,6 @@ namespace Auto_Wash.Data
                     Category = ServiceCategory.AddOn,
                     BasePrice = 6900,
                     EstimatedMinutes = 15,
-                    IsAddOn = true,
                     IsActive = true,
                     IsFeatured = false
                 },
@@ -565,7 +559,6 @@ namespace Auto_Wash.Data
                     Category = ServiceCategory.AddOn,
                     BasePrice = 12900,
                     EstimatedMinutes = 20,
-                    IsAddOn = true,
                     IsActive = true,
                     IsFeatured = false
                 },
@@ -577,7 +570,6 @@ namespace Auto_Wash.Data
                     Category = ServiceCategory.AddOn,
                     BasePrice = 15900,
                     EstimatedMinutes = 25,
-                    IsAddOn = true,
                     IsActive = true,
                     IsFeatured = false
                 }

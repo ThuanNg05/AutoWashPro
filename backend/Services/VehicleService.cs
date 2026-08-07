@@ -230,7 +230,7 @@ namespace Auto_Wash.Services
             // Batch-load service names for last completed bookings
             var lastWashBookingIds = lastCompletedBookings.Select(b => b.BookingId).ToList();
             var serviceNameMap = await _context.BookingServices
-                .Where(bs => lastWashBookingIds.Contains(bs.BookingId) && !bs.Service.IsAddOn)
+                .Where(bs => lastWashBookingIds.Contains(bs.BookingId) && bs.Service.Category != ServiceCategory.AddOn)
                 .GroupBy(bs => bs.BookingId)
                 .ToDictionaryAsync(
                     g => g.Key,

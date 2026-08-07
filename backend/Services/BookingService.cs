@@ -201,7 +201,7 @@ namespace Auto_Wash.Services
 
                     // 5. Dynamic Main Service lookup
                     var mainService = await _context.Services
-                        .FirstOrDefaultAsync(s => s.ServiceName == request.MainServiceName && s.IsActive && !s.IsAddOn);
+                        .FirstOrDefaultAsync(s => s.ServiceName == request.MainServiceName && s.IsActive && s.Category != ServiceCategory.AddOn);
                     if (mainService == null)
                     {
                         return (false, "Gói dịch vụ chính không hoạt động hoặc không tồn tại.", 0);
@@ -217,7 +217,7 @@ namespace Auto_Wash.Services
                         foreach (var addonName in request.AddOnServiceNames)
                         {
                             var addonService = await _context.Services
-                                .FirstOrDefaultAsync(s => s.ServiceName == addonName && s.IsActive && s.IsAddOn);
+                                .FirstOrDefaultAsync(s => s.ServiceName == addonName && s.IsActive && s.Category == ServiceCategory.AddOn);
                             if (addonService != null)
                             {
                                 selectedServices.Add(addonService);
@@ -537,7 +537,7 @@ namespace Auto_Wash.Services
                 .ToListAsync();
 
             var mainService = bookingServices
-                .Where(bs => !bs.Service.IsAddOn)
+                .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                 .Select(bs => new {
                     serviceId = bs.Service.ServiceId,
                     serviceName = !string.IsNullOrEmpty(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : bs.Service.ServiceName,
@@ -547,7 +547,7 @@ namespace Auto_Wash.Services
                 .FirstOrDefault();
 
             var addOnServices = bookingServices
-                .Where(bs => bs.Service.IsAddOn)
+                .Where(bs => bs.Service.Category == ServiceCategory.AddOn)
                 .Select(bs => new {
                     serviceId = bs.Service.ServiceId,
                     serviceName = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : bs.Service.ServiceName,
@@ -743,7 +743,7 @@ namespace Auto_Wash.Services
 
             // Load main service name
             var mainService = booking.BookingServices
-                .Where(bs => !bs.Service.IsAddOn)
+                .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                 .Select(bs => bs.Service.ServiceName)
                 .FirstOrDefault() ?? "Dịch vụ rửa xe";
 
@@ -963,7 +963,7 @@ namespace Auto_Wash.Services
 
 //                    // Send rescheduled email immediately
 //                    var mainService = booking.BookingServices
-//                        .Where(bs => !bs.Service.IsAddOn)
+//                        .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
 //                        .Select(bs => bs.Service.ServiceName)
 //                        .FirstOrDefault() ?? "Dịch vụ rửa xe";
 

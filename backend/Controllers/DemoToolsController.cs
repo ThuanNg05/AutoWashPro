@@ -603,7 +603,7 @@ namespace Auto_Wash.Controllers
                         pointsPerThousandVND = loyaltyConfig?.PointsPerThousandVND
                     },
                     servicesCount = services.Count,
-                    services = services.Select(s => new { s.ServiceId, s.ServiceName, s.BasePrice, s.IsAddOn, s.IsActive }),
+                    services = services.Select(s => new { s.ServiceId, s.ServiceName, s.BasePrice, isAddOn = s.Category == ServiceCategory.AddOn, s.IsActive }),
                     tiersCount = tiers.Count,
                     tiers = tiers.Select(t => new { t.TierId, t.TierName, t.MinRankingBalance, t.MaintainBalance, t.PointMultiplier, t.DiscountPercent }),
                     rewardsCount = rewards.Count,
@@ -692,14 +692,14 @@ namespace Auto_Wash.Controllers
                 var existingServices = await _context.Services.ToListAsync();
                 var serviceDefs = new[]
                 {
-                    new Service { ServiceId = 999, ServiceName = "Standard Car Wash", Description = "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.", Category = ServiceCategory.Basic, BasePrice = 14900, EstimatedMinutes = 50, IsAddOn = false, IsActive = true, IsFeatured = true },
-                    new Service { ServiceId = 1000, ServiceName = "Premium Car Wash", Description = "Bao gồm tất cả gói Standard, cộng thêm: Rửa bọt cao cấp, đánh bóng lốp, vệ sinh nội thất sâu, dưỡng da ghế, phục hồi nhựa nội thất, hoàn thiện cao cấp.", Category = ServiceCategory.Premium, BasePrice = 29900, EstimatedMinutes = 90, IsAddOn = false, IsActive = true, IsFeatured = true },
-                    new Service { ServiceId = 1001, ServiceName = "Wax Coating", Description = "Phủ lớp sáp bảo vệ bề mặt sơn, tạo độ bóng cao và chống bám bẩn.", Category = ServiceCategory.AddOn, BasePrice = 7900, EstimatedMinutes = 15, IsAddOn = true, IsActive = true, IsFeatured = false },
-                    new Service { ServiceId = 1002, ServiceName = "Nano Ceramic Spray", Description = "Phủ ceramic nano tạm thời, tăng khả năng chống nước và bảo vệ sơn xe.", Category = ServiceCategory.AddOn, BasePrice = 19900, EstimatedMinutes = 25, IsAddOn = true, IsActive = true, IsFeatured = false },
-                    new Service { ServiceId = 1003, ServiceName = "Engine Bay Cleaning", Description = "Vệ sinh khoang máy an toàn, loại bỏ bụi bẩn và dầu mỡ tích tụ.", Category = ServiceCategory.AddOn, BasePrice = 9900, EstimatedMinutes = 20, IsAddOn = true, IsActive = true, IsFeatured = false },
-                    new Service { ServiceId = 1004, ServiceName = "Interior Odor Removal", Description = "Khử mùi hôi nội thất và làm mới không khí cabin xe.", Category = ServiceCategory.AddOn, BasePrice = 6900, EstimatedMinutes = 15, IsAddOn = true, IsActive = true, IsFeatured = false },
-                    new Service { ServiceId = 1005, ServiceName = "Leather Seat Conditioning", Description = "Dưỡng ẩm và bảo vệ ghế da, giúp da mềm mại và kéo dài tuổi thọ.", Category = ServiceCategory.AddOn, BasePrice = 12900, EstimatedMinutes = 20, IsAddOn = true, IsActive = true, IsFeatured = false },
-                    new Service { ServiceId = 1006, ServiceName = "Headlight Restoration", Description = "Phục hồi đèn pha bị mờ, cải thiện khả năng chiếu sáng và thẩm mỹ.", Category = ServiceCategory.AddOn, BasePrice = 15900, EstimatedMinutes = 25, IsAddOn = true, IsActive = true, IsFeatured = false }
+                    new Service { ServiceId = 999, ServiceName = "Standard Car Wash", Description = "Dịch vụ rửa xe tiêu chuẩn bao gồm: Rửa ngoại thất, vệ sinh bánh xe, hút bụi nội thất, lau kính, lau taplo, dưỡng nội thất cơ bản, kiểm tra cuối.", Category = ServiceCategory.Basic, BasePrice = 14900, EstimatedMinutes = 50, IsActive = true, IsFeatured = true },
+                    new Service { ServiceId = 1000, ServiceName = "Premium Car Wash", Description = "Bao gồm tất cả gói Standard, cộng thêm: Rửa bọt cao cấp, đánh bóng lốp, vệ sinh nội thất sâu, dưỡng da ghế, phục hồi nhựa nội thất, hoàn thiện cao cấp.", Category = ServiceCategory.Premium, BasePrice = 29900, EstimatedMinutes = 90, IsActive = true, IsFeatured = true },
+                    new Service { ServiceId = 1001, ServiceName = "Wax Coating", Description = "Phủ lớp sáp bảo vệ bề mặt sơn, tạo độ bóng cao và chống bám bẩn.", Category = ServiceCategory.AddOn, BasePrice = 7900, EstimatedMinutes = 15, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1002, ServiceName = "Nano Ceramic Spray", Description = "Phủ ceramic nano tạm thời, tăng khả năng chống nước và bảo vệ sơn xe.", Category = ServiceCategory.AddOn, BasePrice = 19900, EstimatedMinutes = 25, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1003, ServiceName = "Engine Bay Cleaning", Description = "Vệ sinh khoang máy an toàn, loại bỏ bụi bẩn và dầu mỡ tích tụ.", Category = ServiceCategory.AddOn, BasePrice = 9900, EstimatedMinutes = 20, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1004, ServiceName = "Interior Odor Removal", Description = "Khử mùi hôi nội thất và làm mới không khí cabin xe.", Category = ServiceCategory.AddOn, BasePrice = 6900, EstimatedMinutes = 15, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1005, ServiceName = "Leather Seat Conditioning", Description = "Dưỡng ẩm và bảo vệ ghế da, giúp da mềm mại và kéo dài tuổi thọ.", Category = ServiceCategory.AddOn, BasePrice = 12900, EstimatedMinutes = 20, IsActive = true, IsFeatured = false },
+                    new Service { ServiceId = 1006, ServiceName = "Headlight Restoration", Description = "Phục hồi đèn pha bị mờ, cải thiện khả năng chiếu sáng và thẩm mỹ.", Category = ServiceCategory.AddOn, BasePrice = 15900, EstimatedMinutes = 25, IsActive = true, IsFeatured = false }
                 };
 
                 foreach (var sd in serviceDefs)
@@ -712,7 +712,6 @@ namespace Auto_Wash.Controllers
                         s.Category = sd.Category;
                         s.BasePrice = sd.BasePrice;
                         s.EstimatedMinutes = sd.EstimatedMinutes;
-                        s.IsAddOn = sd.IsAddOn;
                         s.IsActive = sd.IsActive;
                         s.IsFeatured = sd.IsFeatured;
                     }

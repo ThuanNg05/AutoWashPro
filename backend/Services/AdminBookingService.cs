@@ -146,7 +146,7 @@ namespace Auto_Wash.Services
                 .ToListAsync();
 
             var mainService = bookingServices
-                .Where(bs => !bs.Service.IsAddOn)
+                .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                 .Select(bs => new {
                     serviceId = bs.Service.ServiceId,
                     serviceName = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : bs.Service.ServiceName,
@@ -156,7 +156,7 @@ namespace Auto_Wash.Services
                 .FirstOrDefault();
 
             var addOnServices = bookingServices
-                .Where(bs => bs.Service.IsAddOn)
+                .Where(bs => bs.Service.Category == ServiceCategory.AddOn)
                 .Select(bs => new {
                     serviceId = bs.Service.ServiceId,
                     serviceName = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : bs.Service.ServiceName,
@@ -317,7 +317,7 @@ namespace Auto_Wash.Services
 
             // Load main service name
             var mainService = booking.BookingServices
-                .Where(bs => !bs.Service.IsAddOn)
+                .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                 .Select(bs => bs.Service.ServiceName)
                 .FirstOrDefault() ?? "Dịch vụ rửa xe";
 
@@ -401,7 +401,7 @@ namespace Auto_Wash.Services
 
             // Load main service name
             var mainService = booking.BookingServices
-                .Where(bs => !bs.Service.IsAddOn)
+                .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                 .Select(bs => bs.Service.ServiceName)
                 .FirstOrDefault() ?? "Dịch vụ rửa xe";
 
@@ -697,7 +697,7 @@ namespace Auto_Wash.Services
 
                     // Send rescheduled email immediately
                     var mainService = booking.BookingServices
-                        .Where(bs => !bs.Service.IsAddOn)
+                        .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                         .Select(bs => bs.Service.ServiceName)
                         .FirstOrDefault() ?? "Dịch vụ rửa xe";
 

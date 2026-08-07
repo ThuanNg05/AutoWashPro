@@ -49,7 +49,7 @@ namespace Auto_Wash.Controllers
                         estimatedMinutes = s.EstimatedMinutes,
                         isActive = s.IsActive,
                         isFeatured = s.IsFeatured,
-                        isAddOn = s.IsAddOn
+                        isAddOn = s.Category == ServiceCategory.AddOn
                     })
                     .ToList();
 
@@ -118,7 +118,7 @@ namespace Auto_Wash.Controllers
                     {
                         id = b.BookingId.ToString(),
                         vehicle = b.Vehicle.LicensePlate,
-                        mainService = b.BookingServices.Where(bs => !bs.Service.IsAddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Rửa xe",
+                        mainService = b.BookingServices.Where(bs => bs.Service.Category != ServiceCategory.AddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Rửa xe",
                         status = b.Status == BookingStatus.Completed ? "Completed"
                                : b.Status == BookingStatus.Cancelled ? "Cancelled"
                                : b.Status == BookingStatus.NoShow ? "NoShow"
@@ -160,7 +160,7 @@ namespace Auto_Wash.Controllers
                 }
 
                 var mainSvcName = activeBooking.BookingServices
-                    .Where(bs => !bs.Service.IsAddOn)
+                    .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                     .Select(bs => bs.Service.ServiceName)
                     .FirstOrDefault() ?? "Rửa xe";
 

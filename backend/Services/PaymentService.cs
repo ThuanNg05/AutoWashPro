@@ -650,7 +650,7 @@ namespace Auto_Wash.Services
                 ResponseCode = payment.ResponseCode,
                 CreatedAt = payment.CreatedAt,
                 PaidAt = payment.PaidAt,
-                ServiceName = payment.Booking?.BookingServices?.FirstOrDefault(bs => !bs.Service.IsAddOn)?.Service.ServiceName ?? "Standard Wash Service",
+                ServiceName = payment.Booking?.BookingServices?.FirstOrDefault(bs => bs.Service.Category != ServiceCategory.AddOn)?.Service.ServiceName ?? "Standard Wash Service",
                 PointsEarned = payment.Booking?.PointsEarned,
                 PaymentMethodName = GetMethodName(payment.PaymentMethod)
             };

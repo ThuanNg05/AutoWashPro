@@ -190,7 +190,7 @@ namespace Auto_Wash.Helpers
             if (booking.BookingServices != null)
             {
                 // Base service -> Washing
-                var baseService = booking.BookingServices.FirstOrDefault(bs => bs.Service != null && !bs.Service.IsAddOn);
+                var baseService = booking.BookingServices.FirstOrDefault(bs => bs.Service != null && bs.Service.Category != ServiceCategory.AddOn);
                 if (baseService != null)
                 {
                     string name = !string.IsNullOrWhiteSpace(baseService.ServiceNameSnapshot) ? baseService.ServiceNameSnapshot : (baseService.Service?.ServiceName ?? "Dịch vụ rửa xe");
@@ -209,7 +209,7 @@ namespace Auto_Wash.Helpers
                 }
 
                 // Add-ons -> AddonProcessing
-                var addons = booking.BookingServices.Where(bs => bs.Service != null && bs.Service.IsAddOn).OrderBy(bs => bs.BookingServiceId);
+                var addons = booking.BookingServices.Where(bs => bs.Service != null && bs.Service.Category == ServiceCategory.AddOn).OrderBy(bs => bs.BookingServiceId);
                 foreach (var bs in addons)
                 {
                     string name = !string.IsNullOrWhiteSpace(bs.ServiceNameSnapshot) ? bs.ServiceNameSnapshot : (bs.Service?.ServiceName ?? "Dịch vụ bổ sung");

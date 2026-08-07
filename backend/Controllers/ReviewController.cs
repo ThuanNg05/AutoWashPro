@@ -136,7 +136,7 @@ namespace Auto_Wash.Controllers
                         comment = r.Comment ?? "",
                         createdAt = r.CreatedAt,
                         vehicle = r.Booking.Vehicle.LicensePlate,
-                        serviceName = r.Booking.BookingServices.Where(bs => !bs.Service.IsAddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Dịch vụ rửa xe",
+                        serviceName = r.Booking.BookingServices.Where(bs => bs.Service.Category != ServiceCategory.AddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Dịch vụ rửa xe",
                         scheduledAt = r.Booking.ScheduledAt
                     })
                     .ToListAsync();
@@ -174,7 +174,7 @@ namespace Auto_Wash.Controllers
                     {
                         bookingId = b.BookingId,
                         vehicle = b.Vehicle.LicensePlate,
-                        serviceName = b.BookingServices.Where(bs => !bs.Service.IsAddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Dịch vụ rửa xe",
+                        serviceName = b.BookingServices.Where(bs => bs.Service.Category != ServiceCategory.AddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Dịch vụ rửa xe",
                         finalPrice = b.FinalPrice,
                         scheduledAt = b.ScheduledAt
                     })
@@ -217,7 +217,7 @@ namespace Auto_Wash.Controllers
                         comment = r.Comment ?? "",
                         createdAt = r.CreatedAt,
                         vehicle = r.Booking.Vehicle.LicensePlate,
-                        serviceName = r.Booking.BookingServices.Where(bs => !bs.Service.IsAddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Dịch vụ rửa xe",
+                        serviceName = r.Booking.BookingServices.Where(bs => bs.Service.Category != ServiceCategory.AddOn).Select(bs => bs.Service.ServiceName).FirstOrDefault() ?? "Dịch vụ rửa xe",
                         scheduledAt = r.Booking.ScheduledAt
                     })
                     .ToListAsync();

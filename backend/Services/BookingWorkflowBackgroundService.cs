@@ -228,7 +228,7 @@ namespace Auto_Wash.Services
                 {
                     booking.NoShowEmailSent = true;
                     var mainService = booking.BookingServices
-                        .Where(bs => !bs.Service.IsAddOn)
+                        .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                         .Select(bs => bs.Service.ServiceName)
                         .FirstOrDefault() ?? "Dịch vụ rửa xe";
 
@@ -283,7 +283,7 @@ namespace Auto_Wash.Services
                         changed = true;
 
                         var mainService = booking.BookingServices
-                            .Where(bs => !bs.Service.IsAddOn)
+                            .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                             .Select(bs => bs.Service.ServiceName)
                             .FirstOrDefault() ?? "Dịch vụ rửa xe";
 
@@ -311,7 +311,7 @@ namespace Auto_Wash.Services
                         changed = true;
 
                         var mainService = booking.BookingServices
-                            .Where(bs => !bs.Service.IsAddOn)
+                            .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                             .Select(bs => bs.Service.ServiceName)
                             .FirstOrDefault() ?? "Dịch vụ rửa xe";
 
@@ -456,7 +456,7 @@ namespace Auto_Wash.Services
                 CompletedAt = DateTime.Now
             });
 
-            var baseService = booking.BookingServices?.FirstOrDefault(bs => bs.Service != null && !bs.Service.IsAddOn);
+            var baseService = booking.BookingServices?.FirstOrDefault(bs => bs.Service != null && bs.Service.Category != ServiceCategory.AddOn);
             if (baseService != null)
             {
                 int baseMins = baseService.EstimatedMinutesSnapshot > 0 ? baseService.EstimatedMinutesSnapshot : baseService.Service!.EstimatedMinutes;
@@ -476,7 +476,7 @@ namespace Auto_Wash.Services
             }
 
             var addons = booking.BookingServices?
-                .Where(bs => bs.Service != null && bs.Service.IsAddOn)
+                .Where(bs => bs.Service != null && bs.Service.Category == ServiceCategory.AddOn)
                 .OrderBy(bs => bs.BookingServiceId);
             if (addons != null)
             {

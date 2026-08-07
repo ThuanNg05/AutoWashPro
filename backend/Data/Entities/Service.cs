@@ -23,8 +23,6 @@ namespace Auto_Wash.Data.Entities
 
         public int EstimatedMinutes { get; set; }
 
-        public bool IsAddOn { get; set; } = false;
-
         public bool IsActive { get; set; } = true;
 
         public bool IsFeatured { get; set; } = false;

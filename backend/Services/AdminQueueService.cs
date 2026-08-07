@@ -684,7 +684,7 @@ namespace Auto_Wash.Services
 
             // 6. Gửi email báo hủy cho khách (nền) — dùng lại template hủy lịch.
             var mainService = booking.BookingServices
-                .Where(bs => !bs.Service.IsAddOn)
+                .Where(bs => bs.Service.Category != ServiceCategory.AddOn)
                 .Select(bs => bs.Service.ServiceName)
                 .FirstOrDefault() ?? "Dịch vụ rửa xe";
 
@@ -970,7 +970,7 @@ namespace Auto_Wash.Services
 
             var mainService = await _context.BookingServices
                 .Include(bs => bs.Service)
-                .Where(bs => bs.BookingId == q.Booking.BookingId && !bs.Service.IsAddOn)
+                .Where(bs => bs.BookingId == q.Booking.BookingId && bs.Service.Category != ServiceCategory.AddOn)
                 .Select(bs => bs.Service.ServiceName)
                 .FirstOrDefaultAsync() ?? "Dịch vụ rửa xe";
 
@@ -1202,7 +1202,7 @@ namespace Auto_Wash.Services
 
             // 2. Base service → Washing task (starts immediately after check-in)
             var baseService = booking.BookingServices
-                .FirstOrDefault(bs => !bs.Service.IsAddOn);
+                .FirstOrDefault(bs => bs.Service.Category != ServiceCategory.AddOn);
             if (baseService != null)
             {
                 int baseMins = baseService.EstimatedMinutesSnapshot > 0 ? baseService.EstimatedMinutesSnapshot : baseService.Service.EstimatedMinutes;
@@ -1223,7 +1223,7 @@ namespace Auto_Wash.Services
 
             // 3. Add-on services → AddonProcessing tasks
             var addons = booking.BookingServices
-                .Where(bs => bs.Service.IsAddOn)
+                .Where(bs => bs.Service.Category == ServiceCategory.AddOn)
                 .OrderBy(bs => bs.BookingServiceId);
             foreach (var addon in addons)
             {
