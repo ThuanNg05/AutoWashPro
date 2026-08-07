@@ -93,15 +93,15 @@ namespace Auto_Wash.Services
 
         public async Task<(bool success, string message, int bookingId)> CreateBookingAsync(Customer customer, CreateBookingDto request)
         {
-            if (customer == null)
-            {
-                return (false, "Bạn chưa đăng nhập.", 0);
-            }
+            //if (customer == null)
+            //{
+            //    return (false, "Bạn chưa đăng nhập.", 0);
+            //} 
 
-            if (request == null)
-            {
-                return (false, "Dữ liệu đặt lịch không hợp lệ.", 0);
-            }
+            //if (request == null)
+            //{
+            //    return (false, "Dữ liệu đặt lịch không hợp lệ.", 0);
+            //}
 
             // 1. Validate vehicle ownership (lookup by VehicleId or LicensePlate)
             Vehicle? vehicle = null;

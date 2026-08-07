@@ -21,7 +21,7 @@ namespace Auto_Wash.Controllers
             _accountService = accountService;
             _otpService = otpService;
         }
-
+    
         private async Task<object> SetupSessionAndBuildResponseAsync(Account account, bool isNewUser = false)
         {
             var roleStr = account.Role == AccountRole.Admin ? "admin" : account.Role == AccountRole.Staff ? "staff" : "customer";

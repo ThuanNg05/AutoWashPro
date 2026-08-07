@@ -7,7 +7,8 @@
    Dùng cho danh sách lịch sử chăm sóc xe & danh sách quản lý lịch hẹn,
    để phần header/tab phía trên luôn hiển thị, chỉ cuộn phần danh sách. */
 .history-scroll-area {
-    max-height: 300px;
+    min-height: 450px;
+    max-height: calc(100vh - 280px);
     overflow-y: auto;
     overflow-x: hidden;
     padding-right: 6px;
