@@ -270,51 +270,51 @@ namespace Auto_Wash.Controllers
             }
         }
 
-        [HttpPost("RescheduleBooking/{id}")]
-        public async Task<IActionResult> RescheduleBooking(int id, [FromBody] RescheduleBookingDto request)
-        {
-            return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = "Tự đổi lịch hẹn hiện tại đã tạm ngưng. Vui lòng liên hệ tiệm để được hỗ trợ." });
+//        [HttpPost("RescheduleBooking/{id}")]
+//        public async Task<IActionResult> RescheduleBooking(int id, [FromBody] RescheduleBookingDto request)
+//        {
+//            return StatusCode(StatusCodes.Status403Forbidden, new { success = false, message = "Tự đổi lịch hẹn hiện tại đã tạm ngưng. Vui lòng liên hệ tiệm để được hỗ trợ." });
 
-#pragma warning disable CS0162 // Unreachable code detected
-            if (request == null)
-            {
-                return BadRequest(new { success = false, message = "Không nhận được dữ liệu đổi lịch." });
-            }
+//#pragma warning disable CS0162 // Unreachable code detected
+//            if (request == null)
+//            {
+//                return BadRequest(new { success = false, message = "Không nhận được dữ liệu đổi lịch." });
+//            }
 
-            if (!ModelState.IsValid)
-            {
-                var errors = string.Join("; ", ModelState.Values
-                    .SelectMany(x => x.Errors)
-                    .Select(x => x.ErrorMessage));
-                return BadRequest(new { success = false, message = $"Dữ liệu không hợp lệ: {errors}" });
-            }
+//            if (!ModelState.IsValid)
+//            {
+//                var errors = string.Join("; ", ModelState.Values
+//                    .SelectMany(x => x.Errors)
+//                    .Select(x => x.ErrorMessage));
+//                return BadRequest(new { success = false, message = $"Dữ liệu không hợp lệ: {errors}" });
+//            }
 
-            if (!DateTime.TryParse(request.ScheduledAt, out DateTime newScheduledAt))
-            {
-                return BadRequest(new { success = false, message = "Thời gian hẹn mới không đúng định dạng." });
-            }
+//            if (!DateTime.TryParse(request.ScheduledAt, out DateTime newScheduledAt))
+//            {
+//                return BadRequest(new { success = false, message = "Thời gian hẹn mới không đúng định dạng." });
+//            }
 
-            var customer = await _authContextService.GetCurrentCustomerAsync();
-            if (customer == null)
-            {
-                return Unauthorized(new { success = false, message = "Bạn chưa đăng nhập!" });
-            }
+//            var customer = await _authContextService.GetCurrentCustomerAsync();
+//            if (customer == null)
+//            {
+//                return Unauthorized(new { success = false, message = "Bạn chưa đăng nhập!" });
+//            }
 
-            try
-            {
-                var result = await _bookingService.RescheduleBookingAsync(customer.CustomerId, id, newScheduledAt, request.Reason);
-                if (!result.success)
-                {
-                    return BadRequest(new { success = false, message = result.message });
-                }
-                return Ok(new { success = true, message = result.message });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { success = false, message = ex.Message });
-            }
-#pragma warning restore CS0162
-        }
+//            try
+//            {
+//                var result = await _bookingService.RescheduleBookingAsync(customer.CustomerId, id, newScheduledAt, request.Reason);
+//                if (!result.success)
+//                {
+//                    return BadRequest(new { success = false, message = result.message });
+//                }
+//                return Ok(new { success = true, message = result.message });
+//            }
+//            catch (Exception ex)
+//            {
+//                return StatusCode(500, new { success = false, message = ex.Message });
+//            }
+//#pragma warning restore CS0162
+//        }
 
         [HttpGet("GetBookingConfig")]
         public IActionResult GetBookingConfig()

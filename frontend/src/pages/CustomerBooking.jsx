@@ -51,6 +51,8 @@ export const CustomerBooking = () => {
   const [bookingDaysWindow, setBookingDaysWindow] = useState(7);
   const [minDateStr, setMinDateStr] = useState("");
   const [maxDateStr, setMaxDateStr] = useState("");
+  const [pointMultiplier, setPointMultiplier] = useState(1.0);
+  const [pointsPerThousand, setPointsPerThousand] = useState(10);
 
   const [slotsStatus, setSlotsStatus] = useState({});
   const [occupiedSlots, setOccupiedSlots] = useState([]);
@@ -95,14 +97,22 @@ export const CustomerBooking = () => {
     const fetchLoyaltyStatus = async () => {
       try {
         const res = await customerService.getLoyaltyStatus();
-        if (res.success && res.status?.bookingWindowDays) {
-          setBookingDaysWindow(res.status.bookingWindowDays);
-          const maxDate = new Date();
-          maxDate.setDate(today.getDate() + res.status.bookingWindowDays);
-          const maxYear = maxDate.getFullYear();
-          const maxMonth = String(maxDate.getMonth() + 1).padStart(2, "0");
-          const maxDay = String(maxDate.getDate()).padStart(2, "0");
-          setMaxDateStr(`${maxYear}-${maxMonth}-${maxDay}`);
+        if (res.success && res.status) {
+          if (res.status.bookingWindowDays) {
+            setBookingDaysWindow(res.status.bookingWindowDays);
+            const maxDate = new Date();
+            maxDate.setDate(today.getDate() + res.status.bookingWindowDays);
+            const maxYear = maxDate.getFullYear();
+            const maxMonth = String(maxDate.getMonth() + 1).padStart(2, "0");
+            const maxDay = String(maxDate.getDate()).padStart(2, "0");
+            setMaxDateStr(`${maxYear}-${maxMonth}-${maxDay}`);
+          }
+          if (res.status.multiplier) {
+            setPointMultiplier(res.status.multiplier);
+          }
+          if (res.status.pointsPerThousand) {
+            setPointsPerThousand(res.status.pointsPerThousand);
+          }
         }
       } catch (err) {
         console.error("Error loading loyalty status:", err);
@@ -404,8 +414,9 @@ export const CustomerBooking = () => {
 
   const finalTotal = Math.max(0, baseTotal - promoDiscountAmount);
 
-  // Earned points (+1 point for every 10,000đ spent)
-  const earnedPoints = Math.round(finalTotal / 1000);
+  // Earned points dynamically based on pointsPerThousand and pointMultiplier
+  const basePoints = Math.floor(finalTotal / 1000) * pointsPerThousand;
+  const earnedPoints = Math.floor(basePoints * pointMultiplier);
 
   // Confirm booking
   const handleConfirmBooking = useCallback(async () => {
@@ -461,7 +472,7 @@ export const CustomerBooking = () => {
       if (result.success) {
         if (window.showToast)
           window.showToast(
-            `Đặt lịch thành công cho xe ${selectedVehicle}!`,
+            `Đặt lịch thành công cho xe ${selectedVehicle}! Bạn tích lũy thêm +${earnedPoints} điểm.`,
             "success",
           );
         navigate("/customer/dashboard");
@@ -487,6 +498,7 @@ export const CustomerBooking = () => {
     maxDateStr,
     appliedVoucher,
     promoCode,
+    earnedPoints,
     navigate,
   ]);
 
@@ -1032,12 +1044,11 @@ export const CustomerBooking = () => {
                 <span
                   className="small text-secondary fw-bold"
                   style={{ fontSize: "0.7rem" }}
-                >{/*Điểm nhận:{" "}
-                  <strong className="text-warning">
-                                                        
-                                      +{earnedPoints} points
-                  </strong>*/ } 
-                  
+                >
+                  Điểm tích lũy dự kiến:{" "}
+                  <strong className="text-success">
+                    +{earnedPoints} điểm
+                  </strong>
                 </span>
               </div>
               <h3 className="fw-bold text-dark mb-0">

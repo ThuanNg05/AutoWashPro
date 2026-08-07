@@ -799,10 +799,7 @@ namespace Auto_Wash.Services
                     payment.PaidAt = now;
                 }
 
-                // Guard against double-awarding: the background auto-complete service may have
-                // already awarded points (it writes an EARN LoyaltyTransaction but never sets PaidAt).
-                // Use the same DB-backed check here so points are credited exactly once regardless
-                // of which path completes the booking first.
+         
                 var alreadyAwarded = await _context.LoyaltyTransactions
                     .AnyAsync(lt => lt.BookingId == q.BookingId && lt.TransactionType == LoyaltyTransactionType.Earn);
 
@@ -821,9 +818,7 @@ namespace Auto_Wash.Services
 
                     var customer = q.Booking.Customer;
 
-                    // Points are computed authoritatively at checkout using the tier
-                    // multiplier in effect right now, and that multiplier + tier are
-                    // snapshotted onto the booking for historical accuracy (doc §3, §7, §10).
+
                     decimal multiplier = 1.0m;
                     int pointsPerThousand = 1;
                     if (customer != null)

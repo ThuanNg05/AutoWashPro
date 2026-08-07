@@ -768,231 +768,231 @@ namespace Auto_Wash.Services
             return (true, "Hủy đơn đặt lịch thành công!");
         }
 
-        public async Task<(bool success, string message)> RescheduleBookingAsync(int customerId, int bookingId, DateTime newScheduledAt, string reason)
-        {
-            return (false, "Tự đổi lịch hẹn hiện tại đã tạm ngưng. Vui lòng liên hệ tiệm để được hỗ trợ.");
-#pragma warning disable CS0162 // Unreachable code detected
-            var booking = await _context.Bookings
-                .Include(b => b.Customer)
-                    .ThenInclude(c => c.Account)
-                .Include(b => b.Vehicle)
-                .Include(b => b.BookingServices)
-                    .ThenInclude(bs => bs.Service)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.CustomerId == customerId);
+//        public async Task<(bool success, string message)> RescheduleBookingAsync(int customerId, int bookingId, DateTime newScheduledAt, string reason)
+//        {
+//            return (false, "Tự đổi lịch hẹn hiện tại đã tạm ngưng. Vui lòng liên hệ tiệm để được hỗ trợ.");
+//#pragma warning disable CS0162 // Unreachable code detected
+//            var booking = await _context.Bookings
+//                .Include(b => b.Customer)
+//                    .ThenInclude(c => c.Account)
+//                .Include(b => b.Vehicle)
+//                .Include(b => b.BookingServices)
+//                    .ThenInclude(bs => bs.Service)
+//                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.CustomerId == customerId);
 
 
 
-            if (booking == null)
-            {
-                return (false, "Không tìm thấy đơn đặt lịch hoặc bạn không có quyền đổi lịch.");
-            }
+//            if (booking == null)
+//            {
+//                return (false, "Không tìm thấy đơn đặt lịch hoặc bạn không có quyền đổi lịch.");
+//            }
 
-            if (booking.Status == BookingStatus.NoShow || booking.Status == BookingStatus.Cancelled || booking.Status == BookingStatus.Completed || booking.Status == BookingStatus.WaitingCheckout)
-            {
-                return (false, $"Không thể đổi lịch hẹn đã {(booking.Status == BookingStatus.NoShow ? "quá hạn (No-Show)" : booking.Status == BookingStatus.Cancelled ? "bị hủy" : booking.Status == BookingStatus.WaitingCheckout ? "chờ thanh toán" : "hoàn thành")}.");
-            }
+//            if (booking.Status == BookingStatus.NoShow || booking.Status == BookingStatus.Cancelled || booking.Status == BookingStatus.Completed || booking.Status == BookingStatus.WaitingCheckout)
+//            {
+//                return (false, $"Không thể đổi lịch hẹn đã {(booking.Status == BookingStatus.NoShow ? "quá hạn (No-Show)" : booking.Status == BookingStatus.Cancelled ? "bị hủy" : booking.Status == BookingStatus.WaitingCheckout ? "chờ thanh toán" : "hoàn thành")}.");
+//            }
 
-            if (booking.Status != BookingStatus.Pending && booking.Status != BookingStatus.Confirmed)
-            {
-                return (false, "Chỉ lịch hẹn ở trạng thái 'Chờ xác nhận' hoặc 'Đã xác nhận' mới có thể đổi lịch.");
-            }
+//            if (booking.Status != BookingStatus.Pending && booking.Status != BookingStatus.Confirmed)
+//            {
+//                return (false, "Chỉ lịch hẹn ở trạng thái 'Chờ xác nhận' hoặc 'Đã xác nhận' mới có thể đổi lịch.");
+//            }
 
-            var now = DateTime.Now;
-            if (booking.ScheduledAt < now)
-            {
-                return (false, "Lịch hẹn đã qua, không thể đổi lịch.");
-            }
+//            var now = DateTime.Now;
+//            if (booking.ScheduledAt < now)
+//            {
+//                return (false, "Lịch hẹn đã qua, không thể đổi lịch.");
+//            }
 
-            if (newScheduledAt < now)
-            {
-                return (false, "Không thể đặt lịch ở thời gian đã qua.");
-            }
-            if (newScheduledAt < now.AddMinutes(15))
-            {
-                return (false, "Vui lòng đặt lịch trước ít nhất 15 phút.");
-            }
+//            if (newScheduledAt < now)
+//            {
+//                return (false, "Không thể đặt lịch ở thời gian đã qua.");
+//            }
+//            if (newScheduledAt < now.AddMinutes(15))
+//            {
+//                return (false, "Vui lòng đặt lịch trước ít nhất 15 phút.");
+//            }
 
-            // Validate that the rescheduled time matches one of the generated operating slots
-            int startHourResched = _configuration.GetValue<int>("BookingCapacityConfig:StartHour", 8);
-            int endHourResched = _configuration.GetValue<int>("BookingCapacityConfig:EndHour", 23);
-            var allowedSlotsResched = new HashSet<string>();
-            for (int h = startHourResched; h <= endHourResched; h++)
-            {
-                allowedSlotsResched.Add($"{h:D2}:00");
-            }
-            string scheduledTimeStrResched = newScheduledAt.ToString("HH:mm");
-            if (!allowedSlotsResched.Contains(scheduledTimeStrResched))
-            {
-                return (false, "Thời gian đặt lịch không hợp lệ. Vui lòng chọn đúng khung giờ hoạt động.");
-            }
+//            // Validate that the rescheduled time matches one of the generated operating slots
+//            int startHourResched = _configuration.GetValue<int>("BookingCapacityConfig:StartHour", 8);
+//            int endHourResched = _configuration.GetValue<int>("BookingCapacityConfig:EndHour", 23);
+//            var allowedSlotsResched = new HashSet<string>();
+//            for (int h = startHourResched; h <= endHourResched; h++)
+//            {
+//                allowedSlotsResched.Add($"{h:D2}:00");
+//            }
+//            string scheduledTimeStrResched = newScheduledAt.ToString("HH:mm");
+//            if (!allowedSlotsResched.Contains(scheduledTimeStrResched))
+//            {
+//                return (false, "Thời gian đặt lịch không hợp lệ. Vui lòng chọn đúng khung giờ hoạt động.");
+//            }
 
-            var customerWithTier = await _context.Customers
-                .Include(c => c.Tier)
-                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
+//            var customerWithTier = await _context.Customers
+//                .Include(c => c.Tier)
+//                .FirstOrDefaultAsync(c => c.CustomerId == customerId);
             
-            int bookingWindowDays = customerWithTier?.Tier?.BookingWindowDays ?? 7;
+//            int bookingWindowDays = customerWithTier?.Tier?.BookingWindowDays ?? 7;
 
-            if (newScheduledAt.Date > DateTime.Today.AddDays(bookingWindowDays))
-            {
-                return (false, $"Hạng thành viên của bạn chỉ được đặt trước tối đa {bookingWindowDays} ngày.");
-            }
+//            if (newScheduledAt.Date > DateTime.Today.AddDays(bookingWindowDays))
+//            {
+//                return (false, $"Hạng thành viên của bạn chỉ được đặt trước tối đa {bookingWindowDays} ngày.");
+//            }
 
-            var oldScheduledAt = booking.ScheduledAt;
+//            var oldScheduledAt = booking.ScheduledAt;
 
-            var strategy = _context.Database.CreateExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
-            {
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
-                {
-                    // 1. Lock customer row to prevent concurrent exploits on rolling quota
-                    await _context.Database.ExecuteSqlRawAsync("SELECT 1 FROM customers WHERE customerid = {0} FOR UPDATE;", customerId);
+//            var strategy = _context.Database.CreateExecutionStrategy();
+//            return await strategy.ExecuteAsync(async () =>
+//            {
+//                using var transaction = await _context.Database.BeginTransactionAsync();
+//                try
+//                {
+//                    // 1. Lock customer row to prevent concurrent exploits on rolling quota
+//                    await _context.Database.ExecuteSqlRawAsync("SELECT 1 FROM customers WHERE customerid = {0} FOR UPDATE;", customerId);
 
-                    // 2. Count customer's successful reschedules in rolling 30 days
-                    var cutoff = DateTime.Now.AddDays(-30);
-                    var quotaUsed = await _context.BookingRescheduleHistories
-                        .CountAsync(rh => rh.Booking.CustomerId == customerId 
-                                       && rh.ChangedBy == "Customer" 
-                                       && rh.CreatedAt >= cutoff);
+//                    // 2. Count customer's successful reschedules in rolling 30 days
+//                    var cutoff = DateTime.Now.AddDays(-30);
+//                    var quotaUsed = await _context.BookingRescheduleHistories
+//                        .CountAsync(rh => rh.Booking.CustomerId == customerId 
+//                                       && rh.ChangedBy == "Customer" 
+//                                       && rh.CreatedAt >= cutoff);
 
-                    if (quotaUsed >= 3)
-                    {
-                        return (false, "You have reached the maximum of 3 reschedules within the last 30 days.");
-                    }
+//                    if (quotaUsed >= 3)
+//                    {
+//                        return (false, "You have reached the maximum of 3 reschedules within the last 30 days.");
+//                    }
 
-                    int lockKey1 = newScheduledAt.Year * 10000 + newScheduledAt.Month * 100 + newScheduledAt.Day;
-                    int lockKey2 = newScheduledAt.Hour;
-                    await _context.Database.ExecuteSqlRawAsync($"SELECT pg_advisory_xact_lock({lockKey1}, {lockKey2});");
+//                    int lockKey1 = newScheduledAt.Year * 10000 + newScheduledAt.Month * 100 + newScheduledAt.Day;
+//                    int lockKey2 = newScheduledAt.Hour;
+//                    await _context.Database.ExecuteSqlRawAsync($"SELECT pg_advisory_xact_lock({lockKey1}, {lockKey2});");
 
-                    int reschedMins = booking.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 50;
-                    if (reschedMins == 0) reschedMins = 50;
-                    int reqSlots = (int)Math.Ceiling((double)reschedMins / 60.0);
-                    int startH = newScheduledAt.Hour;
-                    int endH = _configuration.GetValue<int>("BookingCapacityConfig:EndHour", 23);
-                    if (startH + reqSlots - 1 > endH)
-                    {
-                        return (false, $"Thời gian thực hiện dịch vụ ({reschedMins} phút) vượt quá giờ đóng cửa. Vui lòng chọn khung giờ sớm hơn.");
-                    }
-                    var reschedHours = Enumerable.Range(startH, reqSlots).ToList();
+//                    int reschedMins = booking.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 50;
+//                    if (reschedMins == 0) reschedMins = 50;
+//                    int reqSlots = (int)Math.Ceiling((double)reschedMins / 60.0);
+//                    int startH = newScheduledAt.Hour;
+//                    int endH = _configuration.GetValue<int>("BookingCapacityConfig:EndHour", 23);
+//                    if (startH + reqSlots - 1 > endH)
+//                    {
+//                        return (false, $"Thời gian thực hiện dịch vụ ({reschedMins} phút) vượt quá giờ đóng cửa. Vui lòng chọn khung giờ sớm hơn.");
+//                    }
+//                    var reschedHours = Enumerable.Range(startH, reqSlots).ToList();
 
-                    int maxVehicles = _configuration.GetValue<int>("BookingCapacityConfig:MaxVehiclesPerSlot", 3);
+//                    int maxVehicles = _configuration.GetValue<int>("BookingCapacityConfig:MaxVehiclesPerSlot", 3);
 
-                    var hasDuplicate = await _context.Bookings
-                        .WhereActive()
-                        .AnyAsync(b => b.VehicleId == booking.VehicleId
-                                    && b.ScheduledAt.Date == newScheduledAt.Date
-                                    && reschedHours.Contains(b.ScheduledAt.Hour)
-                                    && b.BookingId != bookingId);
-                    if (hasDuplicate)
-                    {
-                        return (false, "Phương tiện này đã có lịch hẹn trong khung giờ đã chọn.");
-                    }
+//                    var hasDuplicate = await _context.Bookings
+//                        .WhereActive()
+//                        .AnyAsync(b => b.VehicleId == booking.VehicleId
+//                                    && b.ScheduledAt.Date == newScheduledAt.Date
+//                                    && reschedHours.Contains(b.ScheduledAt.Hour)
+//                                    && b.BookingId != bookingId);
+//                    if (hasDuplicate)
+//                    {
+//                        return (false, "Phương tiện này đã có lịch hẹn trong khung giờ đã chọn.");
+//                    }
 
-                    var activeOnDate = await _context.Bookings
-                        .WhereSlotOccupied()
-                        .Include(b => b.BookingServices)
-                            .ThenInclude(bs => bs.Service)
-                        .Include(b => b.BookingTasks)
-                        .Where(b => b.ScheduledAt.Date == newScheduledAt.Date && b.BookingId != bookingId)
-                        .ToListAsync();
+//                    var activeOnDate = await _context.Bookings
+//                        .WhereSlotOccupied()
+//                        .Include(b => b.BookingServices)
+//                            .ThenInclude(bs => bs.Service)
+//                        .Include(b => b.BookingTasks)
+//                        .Where(b => b.ScheduledAt.Date == newScheduledAt.Date && b.BookingId != bookingId)
+//                        .ToListAsync();
 
-                    var occCounts = new Dictionary<int, int>();
-                    foreach (var eb in activeOnDate)
-                    {
-                        int ebMins = eb.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 0;
-                        if (ebMins == 0 && eb.BookingTasks != null && eb.BookingTasks.Count > 0)
-                        {
-                            ebMins = (int)Math.Ceiling(eb.BookingTasks.Sum(t => t.EstimatedDurationSeconds) / 60.0);
-                        }
-                        if (ebMins == 0) ebMins = 50;
+//                    var occCounts = new Dictionary<int, int>();
+//                    foreach (var eb in activeOnDate)
+//                    {
+//                        int ebMins = eb.BookingServices?.Sum(bs => bs.EstimatedMinutesSnapshot > 0 ? bs.EstimatedMinutesSnapshot : (bs.Service != null ? bs.Service.EstimatedMinutes : 0)) ?? 0;
+//                        if (ebMins == 0 && eb.BookingTasks != null && eb.BookingTasks.Count > 0)
+//                        {
+//                            ebMins = (int)Math.Ceiling(eb.BookingTasks.Sum(t => t.EstimatedDurationSeconds) / 60.0);
+//                        }
+//                        if (ebMins == 0) ebMins = 50;
 
-                        int ebSlots = (int)Math.Ceiling((double)ebMins / 60.0);
-                        int ebStart = eb.ScheduledAt.Hour;
-                        for (int s = 0; s < ebSlots; s++)
-                        {
-                            int hr = ebStart + s;
-                            occCounts[hr] = occCounts.GetValueOrDefault(hr, 0) + 1;
-                        }
-                    }
+//                        int ebSlots = (int)Math.Ceiling((double)ebMins / 60.0);
+//                        int ebStart = eb.ScheduledAt.Hour;
+//                        for (int s = 0; s < ebSlots; s++)
+//                        {
+//                            int hr = ebStart + s;
+//                            occCounts[hr] = occCounts.GetValueOrDefault(hr, 0) + 1;
+//                        }
+//                    }
 
-                    foreach (int hr in reschedHours)
-                    {
-                        if (occCounts.GetValueOrDefault(hr, 0) >= maxVehicles)
-                        {
-                            return (false, $"Khung giờ {hr:D2}:00 đã đầy hoặc không đủ chỗ cho tổng thời gian dịch vụ ({reschedMins} phút). Vui lòng chọn khung giờ khác.");
-                        }
-                    }
+//                    foreach (int hr in reschedHours)
+//                    {
+//                        if (occCounts.GetValueOrDefault(hr, 0) >= maxVehicles)
+//                        {
+//                            return (false, $"Khung giờ {hr:D2}:00 đã đầy hoặc không đủ chỗ cho tổng thời gian dịch vụ ({reschedMins} phút). Vui lòng chọn khung giờ khác.");
+//                        }
+//                    }
 
-                    booking.ScheduledAt = newScheduledAt;
-                    booking.Status = BookingStatus.Confirmed; 
-                    booking.Reminder1Sent = false;
-                    booking.Reminder2Sent = false;
-                    booking.RescheduleCount++;
+//                    booking.ScheduledAt = newScheduledAt;
+//                    booking.Status = BookingStatus.Confirmed; 
+//                    booking.Reminder1Sent = false;
+//                    booking.Reminder2Sent = false;
+//                    booking.RescheduleCount++;
 
-                    _context.BookingRescheduleHistories.Add(new BookingRescheduleHistory
-                    {
-                        BookingId = booking.BookingId,
-                        OldScheduledAt = oldScheduledAt,
-                        NewScheduledAt = newScheduledAt,
-                        ChangedBy = "Customer",
-                        Reason = reason,
-                        CreatedAt = DateTime.Now
-                    });
+//                    _context.BookingRescheduleHistories.Add(new BookingRescheduleHistory
+//                    {
+//                        BookingId = booking.BookingId,
+//                        OldScheduledAt = oldScheduledAt,
+//                        NewScheduledAt = newScheduledAt,
+//                        ChangedBy = "Customer",
+//                        Reason = reason,
+//                        CreatedAt = DateTime.Now
+//                    });
 
-                    _context.BookingAuditLogs.Add(new BookingAuditLog
-                    {
-                        BookingId = booking.BookingId,
-                        Action = "Rescheduled",
-                        Description = $"Đổi lịch hẹn từ {oldScheduledAt:dd/MM/yyyy HH:mm} sang {newScheduledAt:dd/MM/yyyy HH:mm} bởi Khách hàng. Lý do: {reason}",
-                        PerformedBy = "Customer",
-                        CreatedAt = DateTime.Now
-                    });
+//                    _context.BookingAuditLogs.Add(new BookingAuditLog
+//                    {
+//                        BookingId = booking.BookingId,
+//                        Action = "Rescheduled",
+//                        Description = $"Đổi lịch hẹn từ {oldScheduledAt:dd/MM/yyyy HH:mm} sang {newScheduledAt:dd/MM/yyyy HH:mm} bởi Khách hàng. Lý do: {reason}",
+//                        PerformedBy = "Customer",
+//                        CreatedAt = DateTime.Now
+//                    });
 
-                    _context.Notifications.Add(new Notification
-                    {
-                        CustomerId = customerId,
-                        Title = "Đổi lịch hẹn thành công",
-                        Message = $"Lịch hẹn #{booking.BookingId} cho xe {booking.Vehicle?.LicensePlate} đã được đổi sang {newScheduledAt:dd/MM/yyyy HH:mm}.",
-                        Type = "Booking",
-                        IsRead = false,
-                        CreatedAt = DateTime.Now
-                    });
+//                    _context.Notifications.Add(new Notification
+//                    {
+//                        CustomerId = customerId,
+//                        Title = "Đổi lịch hẹn thành công",
+//                        Message = $"Lịch hẹn #{booking.BookingId} cho xe {booking.Vehicle?.LicensePlate} đã được đổi sang {newScheduledAt:dd/MM/yyyy HH:mm}.",
+//                        Type = "Booking",
+//                        IsRead = false,
+//                        CreatedAt = DateTime.Now
+//                    });
 
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
+//                    await _context.SaveChangesAsync();
+//                    await transaction.CommitAsync();
 
-                    // Send rescheduled email immediately
-                    var mainService = booking.BookingServices
-                        .Where(bs => !bs.Service.IsAddOn)
-                        .Select(bs => bs.Service.ServiceName)
-                        .FirstOrDefault() ?? "Dịch vụ rửa xe";
+//                    // Send rescheduled email immediately
+//                    var mainService = booking.BookingServices
+//                        .Where(bs => !bs.Service.IsAddOn)
+//                        .Select(bs => bs.Service.ServiceName)
+//                        .FirstOrDefault() ?? "Dịch vụ rửa xe";
 
-                    var emailModel = new BookingRescheduleEmailModel
-                    {
-                        BookingId = booking.BookingId,
-                        CustomerName = booking.Customer?.Account?.FullName ?? "Khách hàng",
-                        Email = booking.Customer?.Account?.Email ?? "",
-                        LicensePlate = booking.Vehicle?.LicensePlate ?? "",
-                        OldScheduledAt = oldScheduledAt,
-                        NewScheduledAt = newScheduledAt,
-                        ServiceName = mainService,
-                        UpdatedByStaff = false
-                    };
+//                    var emailModel = new BookingRescheduleEmailModel
+//                    {
+//                        BookingId = booking.BookingId,
+//                        CustomerName = booking.Customer?.Account?.FullName ?? "Khách hàng",
+//                        Email = booking.Customer?.Account?.Email ?? "",
+//                        LicensePlate = booking.Vehicle?.LicensePlate ?? "",
+//                        OldScheduledAt = oldScheduledAt,
+//                        NewScheduledAt = newScheduledAt,
+//                        ServiceName = mainService,
+//                        UpdatedByStaff = false
+//                    };
 
-                    if (!string.IsNullOrWhiteSpace(emailModel.Email))
-                    {
-                        _bookingNotificationService.SendBookingRescheduledEmailInBackground(emailModel);
-                    }
+//                    if (!string.IsNullOrWhiteSpace(emailModel.Email))
+//                    {
+//                        _bookingNotificationService.SendBookingRescheduledEmailInBackground(emailModel);
+//                    }
 
-                    var remainingAttempts = Math.Max(0, 3 - (quotaUsed + 1));
-                    return (true, $"Booking rescheduled successfully. You have {remainingAttempts} reschedule attempt(s) remaining.");
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    return (false, $"Lỗi đổi lịch hẹn: {ex.Message}");
-                }
-            });
-        }
+//                    var remainingAttempts = Math.Max(0, 3 - (quotaUsed + 1));
+//                    return (true, $"Booking rescheduled successfully. You have {remainingAttempts} reschedule attempt(s) remaining.");
+//                }
+//                catch (Exception ex)
+//                {
+//                    await transaction.RollbackAsync();
+//                    return (false, $"Lỗi đổi lịch hẹn: {ex.Message}");
+//                }
+//            });
+//        }
     }
 }

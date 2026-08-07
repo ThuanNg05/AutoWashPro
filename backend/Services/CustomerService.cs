@@ -447,6 +447,11 @@ namespace Auto_Wash.Services
                 .OrderBy(t => t.MinRankingBalance)
                 .FirstOrDefault();
 
+
+            var loyaltyConfig = await _context.LoyaltyConfigs.FirstOrDefaultAsync();
+            int pointsPerThousand = loyaltyConfig?.PointsPerThousandVND ?? 1;
+
+
             return new
             {
                 points = customer.PointBalance,

@@ -459,7 +459,7 @@ namespace Auto_Wash.Data
                 {
                     TierId = 4,
                     TierName = "Platinum",
-                    MinRankingBalance = 300000,
+                    MinRankingBalance = 300000, 
                     MaintainBalance = 200000,
                     BookingWindowDays = 60,
                     QueuePriority = 4,

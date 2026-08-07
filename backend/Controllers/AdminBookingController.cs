@@ -53,8 +53,6 @@ namespace Auto_Wash.Controllers
         [Route("api/admin/bookings/create-for-customer")]
         public async Task<IActionResult> CreateForCustomer([FromBody] StaffCreateBookingDto request)
         {
-            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
-
             if (request == null || request.CustomerId <= 0)
             {
                 return BadRequest(new { success = false, message = "Dữ liệu đặt lịch không hợp lệ." });
