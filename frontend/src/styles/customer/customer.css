@@ -845,6 +845,12 @@ body {
     color: #475569 !important;
 }
 
+/* Fix: Remove Bootstrap's native dropdown arrow on custom selects that already have a fa-chevron-down icon */
+.form-select-custom.form-select {
+    background-image: none !important;
+    padding-right: 16px !important;
+}
+
 /* Forms Glass Overrides */
 .custom-input, .form-control, .form-select {
     background-color: rgba(255, 255, 255, 0.85) !important;
