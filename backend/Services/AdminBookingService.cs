@@ -720,10 +720,10 @@ namespace Auto_Wash.Services
 
                     return (true, "Đổi lịch hẹn thành công.");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     await transaction.RollbackAsync();
-                    return (false, $"Đã xảy ra lỗi: {ex.Message}");
+                    return (false, "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.");
                 }
             });
         }

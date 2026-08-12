@@ -76,9 +76,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, tables });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -156,9 +156,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, page, pageSize, totalCount = result.totalCount, rows = result.rows });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -207,9 +207,9 @@ namespace Auto_Wash.Controllers
             {
                 return BadRequest(new { success = false, message = ex.Message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -263,9 +263,9 @@ namespace Auto_Wash.Controllers
             {
                 return BadRequest(new { success = false, message = ex.Message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -299,9 +299,9 @@ namespace Auto_Wash.Controllers
             {
                 return BadRequest(new { success = false, message = ex.Message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -397,9 +397,9 @@ namespace Auto_Wash.Controllers
                     flagsReset
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -487,6 +487,8 @@ namespace Auto_Wash.Controllers
         [Route("api/admin/demo-tools/audit-db")]
         public async Task<IActionResult> AuditDatabase()
         {
+            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+
             try
             {
                 var services = await _context.Services.AsNoTracking().OrderBy(s => s.ServiceId).ToListAsync();
@@ -532,9 +534,9 @@ namespace Auto_Wash.Controllers
                     })
                 });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -542,6 +544,8 @@ namespace Auto_Wash.Controllers
         [Route("api/admin/demo-tools/sync-refactor-db")]
         public async Task<IActionResult> SyncRefactorDatabase()
         {
+            if (!IsAdminOrStaff()) return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện hành động này!" });
+
             try
             {
                 // 1. Sync LoyaltyConfig (PointsPerThousandVND = 10)
@@ -695,9 +699,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = "Đã đồng bộ dữ liệu PostgreSQL thành công!" });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 

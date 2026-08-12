@@ -17,6 +17,7 @@ namespace Auto_Wash.Services
         private readonly AutoWashDbContext _context;
         private readonly OtpService _otpService;
         private readonly ILogger<OwnershipTransferService> _logger;
+        private readonly IWebHostEnvironment _environment;
 
         private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -36,11 +37,16 @@ namespace Auto_Wash.Services
         private const int MaxFileCount = 5;
         private const int MaxFileSize = 10 * 1024 * 1024; // 10 MB
 
-        public OwnershipTransferService(AutoWashDbContext context, OtpService otpService, ILogger<OwnershipTransferService> logger)
+        public OwnershipTransferService(
+            AutoWashDbContext context,
+            OtpService otpService,
+            ILogger<OwnershipTransferService> logger,
+            IWebHostEnvironment environment)
         {
             _context = context;
             _otpService = otpService;
             _logger = logger;
+            _environment = environment;
         }
 
         public async Task<bool> IsVehicleLockedAsync(int vehicleId)
@@ -217,7 +223,7 @@ namespace Auto_Wash.Services
                 return (false, "Yêu cầu này đã được xử lý, không thể tải thêm tài liệu.");
             }
 
-            var uploadDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "transfers", $"request_{requestId}");
+            var uploadDir = Path.Combine(_environment.ContentRootPath, "private_uploads", "transfers", $"request_{requestId}");
             if (!Directory.Exists(uploadDir))
             {
                 Directory.CreateDirectory(uploadDir);
@@ -239,7 +245,7 @@ namespace Auto_Wash.Services
                     TransferRequestId = requestId,
                     FileName = file.FileName,
                     StoredFileName = storedFileName,
-                    FilePath = $"/uploads/transfers/request_{requestId}/{storedFileName}",
+                    FilePath = $"private_uploads/transfers/request_{requestId}/{storedFileName}",
                     ContentType = file.ContentType,
                     FileSize = file.Length,
                     UploadedAt = DateTime.Now

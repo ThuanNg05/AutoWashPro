@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Auto_Wash.Services;
 using Auto_Wash.Helpers;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Auto_Wash.Controllers
 {
@@ -52,13 +53,14 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = "Cập nhật hồ sơ thành công!" });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
         [HttpPost("SendEmailOtp")]
+        [EnableRateLimiting("AuthSensitive")]
         public async Task<IActionResult> SendEmailOtp([FromBody] SendEmailOtpRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email))
@@ -66,11 +68,9 @@ namespace Auto_Wash.Controllers
                 return BadRequest(new { success = false, message = "Email không hợp lệ!" });
             }
 
-            // Reject unknown emails up front so the forgot-password flow on the
-            // login page can tell the user immediately instead of after the OTP step.
             if (!await _customerService.EmailExistsAsync(request.Email))
             {
-                return BadRequest(new { success = false, message = "Email này chưa được đăng ký tài khoản AutoWash!" });
+                return Ok(new { success = true, message = "Nếu email đủ điều kiện, mã OTP sẽ được gửi." });
             }
 
             try
@@ -97,15 +97,16 @@ namespace Auto_Wash.Controllers
 
                 await _otpService.SendEmailOtpAsync(request.Email.Trim(), subject, body);
 
-                return Ok(new { success = true, message = $"Mã OTP đã được gửi đến email {request.Email}!" });
+                return Ok(new { success = true, message = "Nếu email đủ điều kiện, mã OTP sẽ được gửi." });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
         [HttpPost("VerifyEmailAndChangePassword")]
+        [EnableRateLimiting("AuthSensitive")]
         public async Task<IActionResult> VerifyEmailAndChangePassword([FromBody] VerifyEmailAndChangePasswordRequest request)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.OtpCode) || string.IsNullOrWhiteSpace(request.NewPassword))
@@ -123,9 +124,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = result.message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -143,9 +144,9 @@ namespace Auto_Wash.Controllers
                 var vouchers = await _customerService.GetVouchersAsync(customer.CustomerId);
                 return Ok(new { success = true, vouchers });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -163,9 +164,9 @@ namespace Auto_Wash.Controllers
                 var list = await _customerService.GetNotificationsAsync(customer.CustomerId);
                 return Ok(new { success = true, notifications = list });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -183,9 +184,9 @@ namespace Auto_Wash.Controllers
                 await _customerService.MarkNotificationAsReadAsync(customer.CustomerId, request.Id);
                 return Ok(new { success = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -197,9 +198,9 @@ namespace Auto_Wash.Controllers
                 var rewards = await _customerService.GetRewardsAsync();
                 return Ok(new { success = true, rewards });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -221,9 +222,9 @@ namespace Auto_Wash.Controllers
                 }
                 return Ok(new { success = true, status });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -251,9 +252,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = result.message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -266,9 +267,9 @@ namespace Auto_Wash.Controllers
                 var rewards = await _customerService.GetRewardsCatalogAsync(category, customer?.CustomerId);
                 return Ok(new { success = true, rewards });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -286,9 +287,9 @@ namespace Auto_Wash.Controllers
                 var rewards = await _customerService.GetMyRewardsAsync(customer.CustomerId, status, type);
                 return Ok(new { success = true, rewards });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -306,9 +307,9 @@ namespace Auto_Wash.Controllers
                 var history = await _customerService.GetRewardHistoryAsync(customer.CustomerId);
                 return Ok(new { success = true, history });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
     }

@@ -18,15 +18,35 @@ namespace Auto_Wash.Controllers
         private readonly OwnershipTransferService _transferService;
         private readonly AuthContextService _authContextService;
         private readonly AutoWashDbContext _context;
+        private readonly IWebHostEnvironment _environment;
 
         public OwnershipTransferController(
             OwnershipTransferService transferService,
             AuthContextService authContextService,
-            AutoWashDbContext context)
+            AutoWashDbContext context,
+            IWebHostEnvironment environment)
         {
             _transferService = transferService;
             _authContextService = authContextService;
             _context = context;
+            _environment = environment;
+        }
+
+        private string? ResolveDocumentPath(OwnershipTransferDocument document)
+        {
+            var storedPath = document.FilePath.Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
+            var isPrivatePath = storedPath.StartsWith($"private_uploads{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase);
+            var root = isPrivatePath
+                ? _environment.ContentRootPath
+                : _environment.WebRootPath;
+
+            if (string.IsNullOrWhiteSpace(root)) return null;
+
+            var fullRoot = Path.GetFullPath(root);
+            var fullPath = Path.GetFullPath(Path.Combine(fullRoot, storedPath));
+            return fullPath.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                ? fullPath
+                : null;
         }
 
         private bool IsAdminOrStaff()
@@ -153,9 +173,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = result.message, requestId = result.requestId });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -179,9 +199,9 @@ namespace Auto_Wash.Controllers
                 var list = await _transferService.GetCustomerRequestsAsync(customer.CustomerId);
                 return Ok(new { success = true, requests = list });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -211,9 +231,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = result.message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -236,9 +256,9 @@ namespace Auto_Wash.Controllers
                 var list = await _transferService.GetAdminRequestsAsync(status, search);
                 return Ok(new { success = true, requests = list });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -283,9 +303,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, request = detail });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -321,9 +341,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = result.message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -363,9 +383,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = result.message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -390,8 +410,8 @@ namespace Auto_Wash.Controllers
                 return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện thao tác này!" });
             }
 
-            var physicalPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", document.FilePath.TrimStart('/'));
-            if (!System.IO.File.Exists(physicalPath))
+            var physicalPath = ResolveDocumentPath(document);
+            if (physicalPath == null || !System.IO.File.Exists(physicalPath))
             {
                 return NotFound(new { success = false, message = "Tệp tin không tồn tại trên máy chủ." });
             }
@@ -421,8 +441,8 @@ namespace Auto_Wash.Controllers
                 return Unauthorized(new { success = false, message = "Bạn không có quyền thực hiện thao tác này!" });
             }
 
-            var physicalPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", document.FilePath.TrimStart('/'));
-            if (!System.IO.File.Exists(physicalPath))
+            var physicalPath = ResolveDocumentPath(document);
+            if (physicalPath == null || !System.IO.File.Exists(physicalPath))
             {
                 return NotFound(new { success = false, message = "Tệp tin không tồn tại trên máy chủ." });
             }
@@ -450,9 +470,9 @@ namespace Auto_Wash.Controllers
                 var history = await _transferService.GetVehicleOwnershipHistoryAsync(id);
                 return Ok(new { success = true, history = history });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -489,9 +509,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = "Bổ sung tài liệu thành công." });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
     }

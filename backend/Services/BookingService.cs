@@ -518,7 +518,7 @@ namespace Auto_Wash.Services
                         return (false, "Bạn đã có lịch hẹn ở khung giờ này.", 0);
                     }
 
-                    return (false, $"Đã xảy ra lỗi hệ thống: {ex.Message}", 0);
+                    return (false, "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau.", 0);
                 }
             });
         }
@@ -996,10 +996,10 @@ namespace Auto_Wash.Services
                     var remainingAttempts = Math.Max(0, 3 - (quotaUsed + 1));
                     return (true, $"Booking rescheduled successfully. You have {remainingAttempts} reschedule attempt(s) remaining.");
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     await transaction.RollbackAsync();
-                    return (false, $"Lỗi đổi lịch hẹn: {ex.Message}");
+                    return (false, "Không thể đổi lịch hẹn lúc này. Vui lòng thử lại sau.");
                 }
             });
         }

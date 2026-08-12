@@ -24,20 +24,15 @@ export const authService = {
     return response.data;
   },
 
-  googleLogin: async (email, fullName, googleId) => {
+  googleLogin: async (idToken) => {
     const response = await api.post('/api/Account/GoogleLogin', {
-      Email: email,
-      FullName: fullName,
-      GoogleId: googleId
+      IdToken: idToken
     });
     return response.data;
   },
 
-  completeGoogleSignup: async (email, fullName, googleId, phone, password) => {
+  completeGoogleSignup: async (phone, password) => {
     const response = await api.post('/api/Account/CompleteGoogleSignup', {
-      Email: email,
-      FullName: fullName,
-      GoogleId: googleId,
       Phone: phone,
       Password: password
     });

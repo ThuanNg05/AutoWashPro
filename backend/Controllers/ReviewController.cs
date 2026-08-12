@@ -102,9 +102,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = "Gửi đánh giá thành công!" });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -143,9 +143,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, reviews });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -182,9 +182,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, bookings = pendingReviews });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -224,9 +224,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, reviews });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
     }

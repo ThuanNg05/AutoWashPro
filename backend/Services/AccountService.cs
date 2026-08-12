@@ -98,7 +98,7 @@ namespace Auto_Wash.Services
             catch (DbUpdateException ex) when (ex.InnerException != null)
             {
                 _logger?.LogError(ex, "CreateDefaultCustomerAsync SaveChanges failed: {Message}", ex.InnerException.Message);
-                throw new InvalidOperationException($"Lưu hồ sơ khách hàng thất bại: {ex.InnerException.Message}");
+                throw new InvalidOperationException("Lưu hồ sơ khách hàng thất bại.");
             }
 
             // Grant welcome reward if welcome reward service is registered / exists
@@ -117,11 +117,16 @@ namespace Auto_Wash.Services
             return customer;
         }
 
-        public async Task<Account> CompleteGoogleSignupAsync(CompleteGoogleSignupRequestDto request)
+        public async Task<Account> CompleteGoogleSignupAsync(
+            string email,
+            string fullName,
+            string googleId,
+            string phone,
+            string password)
         {
-            var emailTrimmed = request.Email.Trim();
-            var googleIdTrimmed = request.GoogleId.Trim();
-            var phoneTrimmed = request.Phone.Trim();
+            var emailTrimmed = email.Trim();
+            var googleIdTrimmed = googleId.Trim();
+            var phoneTrimmed = phone.Trim();
 
             var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Email == emailTrimmed);
             if (account == null)
@@ -129,10 +134,10 @@ namespace Auto_Wash.Services
                 account = new Account
                 {
                     Email = emailTrimmed,
-                    FullName = request.FullName.Trim(),
+                    FullName = fullName.Trim(),
                     GoogleId = googleIdTrimmed,
                     Phone = phoneTrimmed,
-                    PasswordHash = PasswordHelper.HashPassword(request.Password.Trim()),
+                    PasswordHash = PasswordHelper.HashPassword(password.Trim()),
                     Role = AccountRole.Customer,
                     IsActive = true,
                     CreatedAt = DateTime.Now
@@ -205,7 +210,7 @@ namespace Auto_Wash.Services
             catch (DbUpdateException ex) when (ex.InnerException != null)
             {
                 _logger?.LogError(ex, "RegisterAccountAsync SaveChanges failed: {Message}", ex.InnerException.Message);
-                throw new InvalidOperationException($"Lưu tài khoản thất bại: {ex.InnerException.Message}");
+                throw new InvalidOperationException("Lưu tài khoản thất bại.");
             }
 
             await CreateDefaultCustomerAsync(account);

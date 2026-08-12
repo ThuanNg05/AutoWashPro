@@ -40,9 +40,9 @@ namespace Auto_Wash.Controllers
                 var stats = await _adminService.GetDashboardStatsAsync(fromDate, toDate, groupBy);
                 return Ok(stats);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -58,9 +58,9 @@ namespace Auto_Wash.Controllers
                 var config = await _adminService.GetLoyaltyConfigAsync();
                 return Ok(config);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -75,9 +75,9 @@ namespace Auto_Wash.Controllers
                 await _adminService.SaveLoyaltyConfigAsync(request, accountId);
                 return Ok(new { success = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -93,9 +93,9 @@ namespace Auto_Wash.Controllers
                 var reviews = await _adminService.GetTierReviewAsync();
                 return Ok(reviews);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -111,9 +111,9 @@ namespace Auto_Wash.Controllers
                 var result = await _adminService.RunTierReviewAsync();
                 return Ok(new { success = true, upgrades = result.upgrades, downgrades = result.downgrades });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -129,9 +129,9 @@ namespace Auto_Wash.Controllers
                 var services = await _adminService.GetAdminServicesAsync();
                 return Ok(new { success = true, services });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -149,9 +149,9 @@ namespace Auto_Wash.Controllers
                 await _adminService.SaveServiceAsync(request);
                 return Ok(new { success = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -166,9 +166,9 @@ namespace Auto_Wash.Controllers
                 if (!success) return NotFound(new { success = false, message = "Không tìm thấy dịch vụ." });
                 return Ok(new { success = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -183,9 +183,9 @@ namespace Auto_Wash.Controllers
                 if (!success) return NotFound(new { success = false, message = "Không tìm thấy dịch vụ." });
                 return Ok(new { success = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -201,9 +201,9 @@ namespace Auto_Wash.Controllers
                 var customers = await _adminService.GetCustomersAsync(search);
                 return Ok(new { success = true, customers });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -218,9 +218,9 @@ namespace Auto_Wash.Controllers
                 if (detail == null) return NotFound(new { success = false, message = "Không tìm thấy khách hàng." });
                 return Ok(new { success = true, customer = detail });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -240,9 +240,9 @@ namespace Auto_Wash.Controllers
                 if (!success) return NotFound(new { success = false, message = "Không tìm thấy khách hàng." });
                 return Ok(new { success = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -256,9 +256,9 @@ namespace Auto_Wash.Controllers
                 var vouchers = await _adminService.GetAvailableVouchersAsync();
                 return Ok(new { success = true, vouchers });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -277,9 +277,9 @@ namespace Auto_Wash.Controllers
                 if (!success) return NotFound(new { success = false, message = "Không tìm thấy khách hàng hoặc voucher." });
                 return Ok(new { success = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -307,9 +307,9 @@ namespace Auto_Wash.Controllers
                 }
                 return Ok(new { success = true, message = result.message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -325,9 +325,9 @@ namespace Auto_Wash.Controllers
                 var rewards = await _adminService.GetAdminRewardsAsync(search, type, status);
                 return Ok(new { success = true, rewards });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -349,9 +349,9 @@ namespace Auto_Wash.Controllers
                 }
                 return Ok(new { success = true, message = result.message, rewardId = result.rewardId });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -373,9 +373,9 @@ namespace Auto_Wash.Controllers
                 }
                 return Ok(new { success = true, message = result.message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -390,9 +390,9 @@ namespace Auto_Wash.Controllers
                 if (!success) return NotFound(new { success = false, message = "Không tìm thấy phần thưởng." });
                 return Ok(new { success = true });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -406,9 +406,9 @@ namespace Auto_Wash.Controllers
                 var redemptions = await _adminService.GetRewardRedemptionsAsync(search, status, type);
                 return Ok(new { success = true, redemptions });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -422,9 +422,9 @@ namespace Auto_Wash.Controllers
                 var stats = await _adminService.GetRewardStatsAsync();
                 return Ok(new { success = true, stats });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
     }

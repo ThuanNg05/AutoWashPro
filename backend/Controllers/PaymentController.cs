@@ -53,6 +53,16 @@ namespace Auto_Wash.Controllers
                    string.Equals(role, "staff", StringComparison.OrdinalIgnoreCase);
         }
 
+        private async Task<bool> CanAccessBookingPaymentAsync(int bookingId)
+        {
+            if (IsAdminOrStaff()) return true;
+
+            var customer = await _authContextService.GetCurrentCustomerAsync();
+            return customer != null && await _context.Bookings
+                .AsNoTracking()
+                .AnyAsync(b => b.BookingId == bookingId && b.CustomerId == customer.CustomerId);
+        }
+
         /// <summary>
         /// Transaction history for the currently signed-in customer (issue #50).
         /// Returns the customer's own payments only, newest first.
@@ -151,6 +161,12 @@ namespace Auto_Wash.Controllers
                 return BadRequest(new { success = false, message = "Dữ liệu yêu cầu không hợp lệ." });
             }
 
+            if (!await CanAccessBookingPaymentAsync(request.BookingId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { success = false, message = "Bạn không có quyền truy cập thanh toán này." });
+            }
+
             try
             {
                 _logger.LogInformation("CreatePayment: Creating payment link for BookingId: {BookingId}", request.BookingId);
@@ -182,7 +198,7 @@ namespace Auto_Wash.Controllers
         [Route("return")]
         public async Task<IActionResult> PaymentReturn()
         {
-            _logger.LogInformation("PaymentReturn: Received redirect callback query: {Query}", Request.QueryString.Value);
+            _logger.LogInformation("PaymentReturn: Received payment-provider redirect callback.");
 
             try
             {
@@ -294,6 +310,12 @@ namespace Auto_Wash.Controllers
         [Route("{bookingId}")]
         public async Task<IActionResult> GetPaymentStatus(int bookingId)
         {
+            if (!await CanAccessBookingPaymentAsync(bookingId))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden,
+                    new { success = false, message = "Bạn không có quyền truy cập thanh toán này." });
+            }
+
             try
             {
                 // Reconcile against PayOS on read so the client poll can confirm a

@@ -186,8 +186,8 @@ export const AuthProvider = ({ children }) => {
     throw new Error(data.message || 'Đăng ký thất bại!');
   };
 
-  const googleLogin = async (email, fullName, googleId) => {
-    const data = await authService.googleLogin(email, fullName, googleId);
+  const googleLogin = async (idToken) => {
+    const data = await authService.googleLogin(idToken);
     if (data && data.success) {
       if (!data.isNewUser) {
         syncUserFromAuthResponse(data);
@@ -197,8 +197,8 @@ export const AuthProvider = ({ children }) => {
     throw new Error(data.message || 'Đăng nhập Google thất bại!');
   };
 
-  const completeGoogleSignup = async (email, fullName, googleId, phone, password) => {
-    const data = await authService.completeGoogleSignup(email, fullName, googleId, phone, password);
+  const completeGoogleSignup = async (phone, password) => {
+    const data = await authService.completeGoogleSignup(phone, password);
     if (data && data.success) {
       syncUserFromAuthResponse(data);
       return data;

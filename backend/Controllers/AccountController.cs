@@ -6,6 +6,8 @@ using Auto_Wash.Services;
 using Auto_Wash.DTOs.Account;
 using Auto_Wash.Helpers;
 using Auto_Wash.Data.Entities;
+using Google.Apis.Auth;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Auto_Wash.Controllers
 {
@@ -15,11 +17,55 @@ namespace Auto_Wash.Controllers
     {
         private readonly AccountService _accountService;
         private readonly OtpService _otpService;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<AccountController> _logger;
 
-        public AccountController(AccountService accountService, OtpService otpService)
+        public AccountController(
+            AccountService accountService,
+            OtpService otpService,
+            IConfiguration configuration,
+            ILogger<AccountController> logger)
         {
             _accountService = accountService;
             _otpService = otpService;
+            _configuration = configuration;
+            _logger = logger;
+        }
+
+        private async Task<GoogleJsonWebSignature.Payload?> ValidateGoogleTokenAsync(string idToken)
+        {
+            var clientId = _configuration["Authentication:Google:ClientId"];
+            if (string.IsNullOrWhiteSpace(clientId))
+            {
+                throw new InvalidOperationException("Google authentication is not configured.");
+            }
+
+            try
+            {
+                var payload = await GoogleJsonWebSignature.ValidateAsync(
+                    idToken,
+                    new GoogleJsonWebSignature.ValidationSettings
+                    {
+                        Audience = new[] { clientId }
+                    });
+
+                return payload.EmailVerified == true &&
+                       !string.IsNullOrWhiteSpace(payload.Email) &&
+                       !string.IsNullOrWhiteSpace(payload.Subject)
+                    ? payload
+                    : null;
+            }
+            catch (InvalidJwtException)
+            {
+                return null;
+            }
+        }
+
+        private void SetPendingGoogleIdentity(GoogleJsonWebSignature.Payload payload)
+        {
+            HttpContext.Session.SetString("PendingGoogleId", payload.Subject);
+            HttpContext.Session.SetString("PendingGoogleEmail", payload.Email);
+            HttpContext.Session.SetString("PendingGoogleName", payload.Name ?? payload.Email);
         }
 
         private async Task<object> SetupSessionAndBuildResponseAsync(Account account, bool isNewUser = false)
@@ -64,6 +110,7 @@ namespace Auto_Wash.Controllers
 
         [HttpPost]
         [Route("Login")]
+        [EnableRateLimiting("AuthSensitive")]
         public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
         {
             if (string.IsNullOrWhiteSpace(request.Identifier) || string.IsNullOrWhiteSpace(request.Password))
@@ -78,9 +125,9 @@ namespace Auto_Wash.Controllers
                 var responseObj = await SetupSessionAndBuildResponseAsync(account);
                 return Ok(responseObj);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -148,29 +195,46 @@ namespace Auto_Wash.Controllers
 
         [HttpPost]
         [Route("GoogleLogin")]
+        [EnableRateLimiting("AuthSensitive")]
 
         public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequestDto request)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.GoogleId))
+            if (request == null || string.IsNullOrWhiteSpace(request.IdToken))
             {
                 return BadRequest(new { success = false, message = "Dữ liệu đăng nhập Google không hợp lệ!" });
             }
 
             try
             {
+                var payload = await ValidateGoogleTokenAsync(request.IdToken);
+                if (payload == null)
+                {
+                    return Unauthorized(new { success = false, message = "Google ID token không hợp lệ hoặc đã hết hạn." });
+                }
+
+                var email = payload.Email.Trim();
+                var googleId = payload.Subject.Trim();
+
                 // 1. Try to find the account by Google ID first
-                var account = await _accountService.FindByGoogleIdAsync(request.GoogleId);
+                var account = await _accountService.FindByGoogleIdAsync(googleId);
 
                 if (account == null)
                 {
                     // 2. If not found by Google ID, find by Email
-                    account = await _accountService.FindByEmailAsync(request.Email);
+                    account = await _accountService.FindByEmailAsync(email);
                 }
 
                 if (account == null)
                 {
-                    // New user: must complete profile
-                    return Ok(new { success = true, isNewUser = true });
+                    SetPendingGoogleIdentity(payload);
+                    return Ok(new
+                    {
+                        success = true,
+                        isNewUser = true,
+                        email,
+                        fullName = payload.Name ?? email,
+                        avatar = payload.Picture
+                    });
                 }
 
                 // 3. Security check: is the account active?
@@ -182,9 +246,9 @@ namespace Auto_Wash.Controllers
                 // 4. If email matches but Google ID is not linked, attempt to link it
                 if (string.IsNullOrEmpty(account.GoogleId))
                 {
-                    await _accountService.UpdateGoogleIdAsync(account, request.GoogleId);
+                    await _accountService.UpdateGoogleIdAsync(account, googleId);
                 }
-                else if (account.GoogleId != request.GoogleId.Trim())
+                else if (account.GoogleId != googleId)
                 {
                     return BadRequest(new { success = false, message = "Tài khoản này đã được liên kết với một tài khoản Google khác!" });
                 }
@@ -192,7 +256,15 @@ namespace Auto_Wash.Controllers
                 // 5. If phone is missing, prompt profile completion
                 if (string.IsNullOrEmpty(account.Phone))
                 {
-                    return Ok(new { success = true, isNewUser = true });
+                    SetPendingGoogleIdentity(payload);
+                    return Ok(new
+                    {
+                        success = true,
+                        isNewUser = true,
+                        email,
+                        fullName = payload.Name ?? account.FullName,
+                        avatar = payload.Picture
+                    });
                 }
 
                 var responseObj = await SetupSessionAndBuildResponseAsync(account);
@@ -200,18 +272,28 @@ namespace Auto_Wash.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                _logger.LogError(ex, "Google login failed.");
+                return StatusCode(500, new { success = false, message = "Không thể đăng nhập bằng Google lúc này." });
             }
         }
 
         [HttpPost]
         [Route("CompleteGoogleSignup")]
+        [EnableRateLimiting("AuthSensitive")]
 
         public async Task<IActionResult> CompleteGoogleSignup([FromBody] CompleteGoogleSignupRequestDto request)
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password) || string.IsNullOrWhiteSpace(request.GoogleId))
+            if (request == null || string.IsNullOrWhiteSpace(request.Phone) || string.IsNullOrWhiteSpace(request.Password))
             {
                 return BadRequest(new { success = false, message = "Dữ liệu hoàn thành đăng ký không hợp lệ!" });
+            }
+
+            var email = HttpContext.Session.GetString("PendingGoogleEmail");
+            var fullName = HttpContext.Session.GetString("PendingGoogleName");
+            var googleId = HttpContext.Session.GetString("PendingGoogleId");
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(googleId))
+            {
+                return Unauthorized(new { success = false, message = "Phiên xác thực Google không còn hợp lệ. Vui lòng đăng nhập lại." });
             }
 
             if (!PhoneHelper.IsValidVietnamesePhone(request.Phone))
@@ -229,24 +311,34 @@ namespace Auto_Wash.Controllers
                 }
 
                 // Validate GoogleId is not already linked to another account
-                var existingGoogle = await _accountService.FindByGoogleIdAsync(request.GoogleId);
-                if (existingGoogle != null && existingGoogle.Email != request.Email.Trim())
+                var existingGoogle = await _accountService.FindByGoogleIdAsync(googleId);
+                if (existingGoogle != null && existingGoogle.Email != email)
                 {
                     return BadRequest(new { success = false, message = "Tài khoản Google này đã được liên kết với một tài khoản khác!" });
                 }
 
-                var account = await _accountService.CompleteGoogleSignupAsync(request);
+                var account = await _accountService.CompleteGoogleSignupAsync(
+                    email,
+                    fullName ?? email,
+                    googleId,
+                    request.Phone,
+                    request.Password);
+                HttpContext.Session.Remove("PendingGoogleEmail");
+                HttpContext.Session.Remove("PendingGoogleName");
+                HttpContext.Session.Remove("PendingGoogleId");
                 var responseObj = await SetupSessionAndBuildResponseAsync(account);
                 return Ok(responseObj);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                _logger.LogError(ex, "Google signup completion failed.");
+                return StatusCode(500, new { success = false, message = "Không thể hoàn tất đăng ký Google lúc này." });
             }
         }
 
         [HttpPost]
         [Route("SendRegisterOtp")]
+        [EnableRateLimiting("AuthSensitive")]
 
         public async Task<IActionResult> SendRegisterOtp([FromBody] SendRegisterOtpRequest request)
         {
@@ -260,7 +352,7 @@ namespace Auto_Wash.Controllers
                 var existingEmail = await _accountService.FindByEmailAsync(request.Email);
                 if (existingEmail != null)
                 {
-                    return BadRequest(new { success = false, message = "Email này đã được sử dụng bởi một tài khoản khác!" });
+                    return Ok(new { success = true, message = "Nếu email đủ điều kiện, mã OTP sẽ được gửi." });
                 }
 
                 string code = await _otpService.GenerateAndSaveOtpAsync(request.Email, "Register");
@@ -285,16 +377,17 @@ namespace Auto_Wash.Controllers
 
                 await _otpService.SendEmailOtpAsync(request.Email.Trim(), subject, body);
 
-                return Ok(new { success = true, message = $"Mã OTP đã được gửi đến email {request.Email}!" });
+                return Ok(new { success = true, message = "Nếu email đủ điều kiện, mã OTP sẽ được gửi." });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
         [HttpPost]
         [Route("Register")]
+        [EnableRateLimiting("AuthSensitive")]
 
         public async Task<IActionResult> Register([FromBody] RegisterRequestDto request)
         {
@@ -332,9 +425,9 @@ namespace Auto_Wash.Controllers
                 var responseObj = await SetupSessionAndBuildResponseAsync(account);
                 return Ok(responseObj);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
     }

@@ -43,9 +43,9 @@ namespace Auto_Wash.Controllers
                 var list = await _vehicleService.GetCustomerVehiclesAsync(customer.CustomerId);
                 return Ok(new { success = true, vehicles = list });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -125,9 +125,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = $"Mã OTP đã được gửi đến email {account.Email}!" });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -199,9 +199,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = "Đăng ký phương tiện thành công!" });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -240,9 +240,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = result.message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
 
@@ -275,9 +275,9 @@ namespace Auto_Wash.Controllers
 
                 return Ok(new { success = true, message = result.message });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                return StatusCode(500, new { success = false, message = ex.Message });
+                return StatusCode(500, new { success = false, message = "Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau." });
             }
         }
     }

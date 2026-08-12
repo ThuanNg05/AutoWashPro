@@ -104,14 +104,9 @@ export const Login = () => {
 
   useEffect(() => {
     const savedPhone = localStorage.getItem("rememberedPhone");
-    const savedPass = localStorage.getItem("rememberedPassword");
-    if (savedPhone && savedPass) {
+    localStorage.removeItem("rememberedPassword");
+    if (savedPhone) {
       setLoginPhone(savedPhone);
-      try {
-        setLoginPassword(atob(savedPass));
-      } catch (e) {
-        setLoginPassword(savedPass);
-      }
       setRememberMe(true);
     }
   }, []);
@@ -255,19 +250,17 @@ export const Login = () => {
   // Google callback
   const handleGoogleCredential = async (response) => {
     try {
-      const payload = decodeJwt(response.credential);
-      const email = payload.email;
-      const name = payload.name || "Người dùng Google";
-      const avatar = payload.picture || "";
-      const googleId = payload.sub || "";
-
-      // Call useAuth's googleLogin instead of direct authService
-      const data = await googleLogin(email, name, googleId);
+      // Identity claims are trusted only after the backend verifies this signed token.
+      const data = await googleLogin(response.credential);
 
       if (data && data.success) {
         if (data.isNewUser) {
           // Google signup is incomplete, prompt SĐT
-          setGoogleUser({ email, name, googleId, avatar });
+          setGoogleUser({
+            email: data.email,
+            name: data.fullName || "Người dùng Google",
+            avatar: data.avatar || "",
+          });
           setPanel("google-complete");
           if (window.showToast)
             window.showToast(
@@ -278,7 +271,7 @@ export const Login = () => {
           // Returning user
           if (window.showToast)
             window.showToast(
-              `Đăng nhập Google thành công! Chào mừng ${name}`,
+              `Đăng nhập Google thành công! Chào mừng ${data.fullName || "bạn"}`,
               "success",
             );
           setTimeout(() => {
@@ -299,21 +292,6 @@ export const Login = () => {
     }
   };
 
-  const decodeJwt = (token) => {
-    let base64Url = token.split(".")[1];
-    let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    let jsonPayload = decodeURIComponent(
-      window
-        .atob(base64)
-        .split("")
-        .map(function (c) {
-          return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-        })
-        .join(""),
-    );
-    return JSON.parse(jsonPayload);
-  };
-
   // Login submission
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
@@ -329,15 +307,10 @@ export const Login = () => {
 
       if (rememberMe) {
         localStorage.setItem("rememberedPhone", loginPhone);
-        try {
-          localStorage.setItem("rememberedPassword", btoa(loginPassword));
-        } catch (e) {
-          localStorage.setItem("rememberedPassword", loginPassword);
-        }
       } else {
         localStorage.removeItem("rememberedPhone");
-        localStorage.removeItem("rememberedPassword");
       }
+      localStorage.removeItem("rememberedPassword");
 
       if (window.showToast) {
         window.showToast(
@@ -563,9 +536,6 @@ export const Login = () => {
 
     try {
       const response = await completeGoogleSignup(
-        googleUser.email,
-        googleUser.name,
-        googleUser.googleId,
         cleanPhone,
         completePassword,
       );

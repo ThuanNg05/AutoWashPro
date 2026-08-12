@@ -7,6 +7,7 @@ using Auto_Wash.Helpers;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.RateLimiting;
 
 namespace Auto_Wash
 {
@@ -34,9 +35,13 @@ namespace Auto_Wash
 
             builder.Configuration.AddEnvironmentVariables();
 
-            // Register Custom File Logger Provider
-            var debugBePath = Path.Combine(builder.Environment.ContentRootPath, "debug_be.log");
-            builder.Logging.AddProvider(new FileLoggerProvider(debugBePath));
+            // Local file logging is development-only; production should use a protected,
+            // rotating provider with explicit PII redaction and retention controls.
+            if (builder.Environment.IsDevelopment())
+            {
+                var debugBePath = Path.Combine(builder.Environment.ContentRootPath, "debug_be.log");
+                builder.Logging.AddProvider(new FileLoggerProvider(debugBePath));
+            }
 
             // Add services to the container.
             builder.Services.AddControllersWithViews();
@@ -116,7 +121,9 @@ namespace Auto_Wash
                 options.Cookie.HttpOnly = true;
                 options.Cookie.IsEssential = true;
                 options.Cookie.SameSite = SameSiteMode.Lax;
-                options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+                options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+                    ? CookieSecurePolicy.SameAsRequest
+                    : CookieSecurePolicy.Always;
             });
 
             // Configure Swagger UI
@@ -178,6 +185,34 @@ namespace Auto_Wash
             }
 
             app.UseDefaultFiles(); // Enables serving index.html as default page
+
+            // Legacy transfer documents may still exist under wwwroot. Never let the
+            // static-file middleware bypass the controller's ownership checks.
+            app.Use(async (context, next) =>
+            {
+                if (context.Request.Path.StartsWithSegments("/uploads/transfers"))
+                {
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    return;
+                }
+
+                await next();
+            });
+
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                options.AddPolicy("AuthSensitive", context =>
+                    RateLimitPartition.GetFixedWindowLimiter(
+                        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                        _ => new FixedWindowRateLimiterOptions
+                        {
+                            PermitLimit = 10,
+                            Window = TimeSpan.FromMinutes(5),
+                            QueueLimit = 0,
+                            AutoReplenishment = true
+                        }));
+            });
             app.UseStaticFiles();
 
             app.UseRouting();
@@ -185,6 +220,8 @@ namespace Auto_Wash
             app.UseCors("ReactPolicy");
 
             app.UseSession();
+
+            app.UseRateLimiter();
 
             app.UseAuthorization();
 

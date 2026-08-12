@@ -1,0 +1,20 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=localhost;Port=5432;Database=autowash;Username=postgres;Password=CHANGE_ME;SSL Mode=VerifyFull"
+  },
+  "PayOSSettings": {
+    "ClientId": "CHANGE_ME",
+    "ApiKey": "CHANGE_ME",
+    "ChecksumKey": "CHANGE_ME"
+  },
+  "Authentication": {
+    "Google": {
+      "ClientId": "YOUR_PUBLIC_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+    }
+  },
+  "Smtp": {
+    "Username": "CHANGE_ME",
+    "Password": "CHANGE_ME",
+    "FromEmail": "CHANGE_ME"
+  }
+}

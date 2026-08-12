@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Auto_Wash.Data;
@@ -25,8 +26,7 @@ namespace Auto_Wash.Services
 
         public async Task<string> GenerateAndSaveOtpAsync(string email, string purpose, string? plateNumber = null)
         {
-            var rnd = new Random();
-            string code = rnd.Next(100000, 999999).ToString();
+            string code = RandomNumberGenerator.GetInt32(100000, 1000000).ToString();
 
             var now = DateTime.UtcNow;
 

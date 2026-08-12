@@ -87,5 +87,14 @@ backend/*.log
 backend/*.txt
 
 # Local secrets — never commit
-backend/appsettings.Development.json
-frontend/.env
+backend/appsettings.*.json
+!backend/appsettings.*.json.example
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+
+# Private user uploads must never be served or committed
+backend/private_uploads/
